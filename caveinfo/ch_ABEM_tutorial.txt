@@ -1,0 +1,119 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 0 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_cent3_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Clover 4 	# weight
+	6 	# type
+	Tukushi 1 	# weight
+	6 	# type
+	Ooinu_s 2 	# weight
+	6 	# type
+	KareOoinu_s 3 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	key 10 	# weight
+	gold_medal 10 	# weight
+	silver_medal 10 	# weight
+	wadou_kaichin 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_MAT_mid1_nor2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	9 	# num
+	Chappy_key 10 	# weight
+	1 	# type
+	Kochappy_be_dama_red 50 	# weight
+	1 	# type
+	Egg 10 	# weight
+	0 	# type
+	Clover 2 	# weight
+	6 	# type
+	Tukushi 2 	# weight
+	6 	# type
+	Ooinu_s 2 	# weight
+	6 	# type
+	Ooinu_l 2 	# weight
+	6 	# type
+	KareOoinu_s 2 	# weight
+	6 	# type
+	KareOoinu_l 2 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	gold_medal 10 	# weight
+	silver_medal 10 	# weight
+	wadou_kaichin 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 20 	# weight
+	1 	# type
+}

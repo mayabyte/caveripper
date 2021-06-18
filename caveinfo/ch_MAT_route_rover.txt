@@ -1,0 +1,57 @@
+# CaveInfo
+{
+	{c000} 4 1 	# 階層
+	{_eof} 
+}
+1 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_bunki_2_tile.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv0.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 3 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	KumaChappy_key 10 	# weight
+	1 	# type
+	KumaChappy_diamond_blue_l 10 	# weight
+	1 	# type
+	KumaChappy_diamond_blue_l 10 	# weight
+	1 	# type
+	KumaKochappy_be_dama_blue 20 	# weight
+	0 	# type
+	KumaKochappy_be_dama_blue 20 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	diamond_red 10 	# weight
+	diamond_red_l 10 	# weight
+	diamond_green_l 10 	# weight
+	flask 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}

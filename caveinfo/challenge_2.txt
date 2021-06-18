@@ -1,0 +1,198 @@
+# CaveInfo
+{
+	{c000} 4 5 	# 階層
+	{_eof} 
+}
+5 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Chappy 40 	# weight
+	1 	# type
+	Kochappy 12 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	key 10 	# weight
+	bolt 12 	# weight
+	nut 12 	# weight
+	ahiru 11 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Kurage_key 10 	# weight
+	1 	# type
+	Kurage 20 	# weight
+	1 	# type
+	Chappy 30 	# weight
+	1 	# type
+	Kochappy 12 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	bolt 12 	# weight
+	nut 12 	# weight
+	ahiru 11 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	YellowChappy 20 	# weight
+	1 	# type
+	YellowKochappy 12 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key 10 	# weight
+	turi_uki 10 	# weight
+	kan 11 	# weight
+	momiji_normal 11 	# weight
+	momiji_kare 11 	# weight
+	momiji_red 11 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 10 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	LeafChappy_key 10 	# weight
+	1 	# type
+	LeafChappy 20 	# weight
+	1 	# type
+	YellowChappy 30 	# weight
+	1 	# type
+	YellowKochappy 12 	# weight
+	0 	# type
+	FireOtakara 11 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	ichigo 11 	# weight
+	kan 11 	# weight
+	creap 11 	# weight
+	be_dama_red 11 	# weight
+	be_dama_yellow 11 	# weight
+	be_dama_blue 11 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 1 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 1 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_boss_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Queen_key 10 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}

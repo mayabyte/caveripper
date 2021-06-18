@@ -1,0 +1,653 @@
+# CaveInfo
+{
+	{c000} 4 15 	# 階層
+	{_eof} 
+}
+15 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 12 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	YellowKochappy 	50 	# weight
+	0 	# type
+	YellowChappy_be_dama_red	20 	# weight
+	1 	# type
+	Jigumo 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	be_dama_blue_l	10 	# weight
+	be_dama_red	10 	# weight
+	teala_dia_a 20 	# weight
+	teala_dia_b 30 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 12 	# 敵最大数
+	{f003} 4 15 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Egg	1 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Armor 	20 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key		10 	# weight
+	turi_uki	10 	# weight
+	watch		10 	# weight
+	teala_dia_d 	30 	# weight
+	teala_dia_d 	20 	# weight
+	be_dama_yellow_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 16 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	ElecBug	60 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Kurage	40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	teala_dia_a	20 	# weight
+	teala_dia_c	30 	# weight
+	kan_b_silver	20 	# weight
+	be_dama_red_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 13 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	BombSarai	40 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	creap		20 	# weight
+	bell_blue	10 	# weight
+	watch		10 	# weight
+	be_dama_red_l	10 	# weight
+	be_dama_red	30	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	FireChappy	10 	# weight
+	1 	# type
+	YellowChappy	30 	# weight
+	1 	# type
+	Kurage		20 	# weight
+	1 	# type
+	ElecBug		50 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	8 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	kan_b_silver 20 	# weight
+	teala_dia_a 10 	# weight
+	teala_dia_b 10 	# weight
+	teala_dia_c 10 	# weight
+	teala_dia_d 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 5 	# 階はじめ
+	{f001} 4 5 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 12 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	YellowKochappy 	50 	# weight
+	0 	# type
+	YellowChappy_be_dama_red	20 	# weight
+	1 	# type
+	Jigumo 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	be_dama_blue_l	10 	# weight
+	be_dama_red	10 	# weight
+	teala_dia_a 20 	# weight
+	teala_dia_b 30 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 6 	# 階はじめ
+	{f001} 4 6 	# 階おわり
+	{f002} 4 12 	# 敵最大数
+	{f003} 4 15 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Egg	1 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Armor 	20 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key		10 	# weight
+	turi_uki	10 	# weight
+	watch		10 	# weight
+	teala_dia_d 	30 	# weight
+	teala_dia_d 	20 	# weight
+	be_dama_yellow_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 7 	# 階はじめ
+	{f001} 4 7 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 16 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	ElecBug	60 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Kurage	40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	teala_dia_a	20 	# weight
+	teala_dia_c	30 	# weight
+	kan_b_silver	20 	# weight
+	be_dama_red_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 8 	# 階はじめ
+	{f001} 4 8 	# 階おわり
+	{f002} 4 13 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	BombSarai	40 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	creap		20 	# weight
+	bell_blue	10 	# weight
+	watch		10 	# weight
+	be_dama_red_l	10 	# weight
+	be_dama_red	30	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 9 	# 階はじめ
+	{f001} 4 9 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	FireChappy	10 	# weight
+	1 	# type
+	YellowChappy	30 	# weight
+	1 	# type
+	Kurage		20 	# weight
+	1 	# type
+	ElecBug		50 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	8 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	kan_b_silver 20 	# weight
+	teala_dia_a 10 	# weight
+	teala_dia_b 10 	# weight
+	teala_dia_c 10 	# weight
+	teala_dia_d 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 10 	# 階はじめ
+	{f001} 4 10 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 12 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	YellowKochappy 	50 	# weight
+	0 	# type
+	YellowChappy_be_dama_red	20 	# weight
+	1 	# type
+	Jigumo 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	be_dama_blue_l	10 	# weight
+	be_dama_red	10 	# weight
+	teala_dia_a 20 	# weight
+	teala_dia_b 30 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 11 	# 階はじめ
+	{f001} 4 11 	# 階おわり
+	{f002} 4 12 	# 敵最大数
+	{f003} 4 15 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Egg	1 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Armor 	20 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	key		10 	# weight
+	turi_uki	10 	# weight
+	watch		10 	# weight
+	teala_dia_d 	30 	# weight
+	teala_dia_d 	20 	# weight
+	be_dama_yellow_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 12 	# 階はじめ
+	{f001} 4 12 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 16 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	ElecBug	60 	# weight
+	0 	# type
+	YellowChappy	20 	# weight
+	1 	# type
+	Kurage	40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	teala_dia_a	20 	# weight
+	teala_dia_c	30 	# weight
+	kan_b_silver	20 	# weight
+	be_dama_red_l	10 	# weight
+	momiji_kare	1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 13 	# 階はじめ
+	{f001} 4 13 	# 階おわり
+	{f002} 4 13 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	BombSarai	40 	# weight
+	1 	# type
+	FireOtakara 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key		10 	# weight
+	creap		20 	# weight
+	bell_blue	10 	# weight
+	watch		10 	# weight
+	be_dama_red_l	10 	# weight
+	be_dama_red	30	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 14 	# 階はじめ
+	{f001} 4 14 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 E3_units_metal.txt 	# 使用ユニット
+	{f009} -1 bluefog00.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	FireChappy	10 	# weight
+	1 	# type
+	YellowChappy	30 	# weight
+	1 	# type
+	Kurage		20 	# weight
+	1 	# type
+	ElecBug		50 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	8 	# num
+	key	10 	# weight
+	ahiru	10 	# weight
+	bell_blue	10 	# weight
+	kan_b_silver 20 	# weight
+	teala_dia_a 10 	# weight
+	teala_dia_b 10 	# weight
+	teala_dia_c 10 	# weight
+	teala_dia_d 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}

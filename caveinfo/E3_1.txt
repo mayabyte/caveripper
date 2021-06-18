@@ -1,0 +1,85 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	YellowChappy 20 	# weight
+	1 	# type
+	YellowKochappy 1 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	watch	10 	# weight
+	kan_b_silver	20 	# weight
+	be_dama_red_l	10 	# weight
+	be_dama_blue_l	10 	# weight
+	be_dama_yellow_l	10 	# weight
+	teala_dia_a 30 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 13 	# アイテム最大数
+	{f004} 4 4 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.100000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 1 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	YellowChappy 20 	# weight
+	1 	# type
+	Armor	20 	# weight
+	1 	# type
+	YellowKochappy 1 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	7 	# num
+	turi_uki	10 	# weight
+	bell_blue	10 	# weight
+	teala_dia_d	30 	# weight
+	be_dama_red_l	10 	# weight
+	be_dama_blue_l	10 	# weight
+	be_dama_yellow_l	10 	# weight
+	momiji_normal 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}

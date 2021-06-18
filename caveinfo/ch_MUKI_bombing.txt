@@ -1,0 +1,90 @@
+# CaveInfo
+{
+	{c000} 4 1 	# 階層
+	{_eof} 
+}
+1 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 23 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 80 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_5x5a_big_tekiF_kusachi.txt 	# 使用ユニット
+	{f009} -1 sniper_light_lv0.ini 	# 使用ライト
+	{f00A} -1 hiroba 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 4 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	19 	# num
+	FminiHoudai_be_dama_red_l 10 	# weight
+	8 	# type
+	Fkabuto_diamond_blue_l 10 	# weight
+	1 	# type
+	Rkabuto_diamond_red 10 	# weight
+	0 	# type
+	$1BombSarai_be_dama_blue_l 10 	# weight
+	5 	# type
+	BlueChappy_be_dama_yellow_l 10 	# weight
+	5 	# type
+	BlueKochappy_be_dama_yellow 20 	# weight
+	0 	# type
+	BlueKochappy_be_dama_red 20 	# weight
+	0 	# type
+	BlueKochappy_be_dama_blue 20 	# weight
+	0 	# type
+	YellowKochappy_gold_medal 10 	# weight
+	0 	# type
+	YellowKochappy_silver_medal 10 	# weight
+	0 	# type
+	KareOoinu_s 30 	# weight
+	0 	# type
+	KareOoinu_s 30 	# weight
+	0 	# type
+	KareOoinu_l 10 	# weight
+	0 	# type
+	KareOoinu_l 10 	# weight
+	0 	# type
+	KareOoinu_l 10 	# weight
+	0 	# type
+	Nekojarashi 6 	# weight
+	6 	# type
+	KareOoinu_l 8 	# weight
+	6 	# type
+	Watage 4 	# weight
+	6 	# type
+	Fkabuto_diamond_blue_l 10 	# weight
+	8 	# type
+}
+# ItemInfo
+{
+	5 	# num
+	key 10 	# weight
+	diamond_red_l 10 	# weight
+	diamond_green_l 10 	# weight
+	haniwa 10 	# weight
+	saru_head 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 11 	# weight
+	1 	# type
+}

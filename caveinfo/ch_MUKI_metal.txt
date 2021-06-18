@@ -1,0 +1,112 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 5 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_nor_tekiF_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_cha.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	Fkabuto_key 10 	# weight
+	8 	# type
+	YellowKochappy_be_dama_blue 30 	# weight
+	1 	# type
+	Tank_be_dama_red_l 10 	# weight
+	1 	# type
+	DaiodoRed 5 	# weight
+	6 	# type
+	DaiodoGreen 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	gear_silver 10 	# weight
+	nut 10 	# weight
+	bolt 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 5 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_mid1_nor22_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_cha.ini 	# 使用ライト
+	{f00A} -1 build 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	Rkabuto_key 10 	# weight
+	1 	# type
+	BlueKochappy_be_dama_yellow 30 	# weight
+	1 	# type
+	Tank_be_dama_red_l 10 	# weight
+	1 	# type
+	DaiodoRed 5 	# weight
+	6 	# type
+	DaiodoGreen 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	gear 10 	# weight
+	nut_l 10 	# weight
+	bolt_l 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 20 	# weight
+	1 	# type
+}

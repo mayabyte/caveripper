@@ -1,0 +1,105 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 11 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_NARI_hit6x6_toy.txt 	# 使用ユニット
+	{f009} -1 toy_light_cha.ini 	# 使用ライト
+	{f00A} -1 flooring 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	Kochappy_chocolate 10 	# weight
+	1 	# type
+	Kochappy_be_dama_red 20 	# weight
+	1 	# type
+	BlueKochappy_chocoichigo 10 	# weight
+	1 	# type
+	BlueKochappy_be_dama_blue 13 	# weight
+	1 	# type
+	YellowKochappy_chocowhite 10 	# weight
+	1 	# type
+	YellowKochappy_be_dama_yellow 13  # weight
+	1 	# type
+	Chappy_key 10 	# weight
+	1 	# type
+	KareOoinu_s 2 	# weight
+	6 	# type
+	KareOoinu_l 1 	# weight
+	6 	# type
+	Nekojarashi 2 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	castanets 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 8 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_MIYA_mid_toy.txt 	# 使用ユニット
+	{f009} -1 toy_light_cha.ini 	# 使用ライト
+	{f00A} -1 flooring 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	8 	# num
+	Fuefuki 10 	# weight
+	0 	# type
+	KumaChappy_key 10 	# weight
+	1 	# type
+	KumaKochappy_cookie_m_l 10 	# weight
+	1 	# type
+	KumaKochappy_cookie_u_l 10 	# weight
+	1 	# type
+	KumaKochappy_cookie_s_l 10 	# weight
+	1 	# type
+	KumaKochappy_be_dama_red 30 	# weight
+	1 	# type
+	KareOoinu_s 3 	# weight
+	6 	# type
+	KareOoinu_l 3 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	juji_key 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}

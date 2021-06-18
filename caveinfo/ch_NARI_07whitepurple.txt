@@ -1,0 +1,137 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 13 	# 敵最大数
+	{f003} 4 6 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_cent_north_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	Wealthy_gold_medal 10 	# weight
+	1 	# type
+	Fart_silver_medal 10 	# weight
+	1 	# type
+	Kogane_wadou_kaichin 10 	# weight
+	1 	# type
+	BlackPom 30 	# weight
+	1 	# type
+	Egg 20 	# weight
+	1 	# type
+	GasHiba 50 	# weight
+	5 	# type
+	Magaret 4 	# weight
+	6 	# type
+	Clover 4 	# weight
+	6 	# type
+	Ooinu_s 4 	# weight
+	6 	# type
+	KareOoinu_s 4 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	key 10 	# weight
+	apple 10 	# weight
+	leaf_normal 10 	# weight
+	leaf_kare 10 	# weight
+	dia_a_red 10 	# weight
+	ichigo_l 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_mid2_north_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	Mar_key 10 	# weight
+	1 	# type
+	Wealthy_gold_medal 10 	# weight
+	1 	# type
+	Fart_silver_medal 10 	# weight
+	1 	# type
+	Kogane_wadou_kaichin 10 	# weight
+	1 	# type
+	TamagoMushi 10 	# weight
+	1 	# type
+	GasHiba 50 	# weight
+	5 	# type
+	Magaret 4 	# weight
+	6 	# type
+	Clover 4 	# weight
+	6 	# type
+	Ooinu_s 4 	# weight
+	6 	# type
+	KareOoinu_s 4 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	5 	# num
+	leaf_yellow 10 	# weight
+	momiji_kare 10 	# weight
+	dia_a_green 10 	# weight
+	donutswhite_s 10 	# weight
+	bane_yellow 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	TamagoMushi 10 	# weight
+	1 	# type
+}

@@ -1,0 +1,375 @@
+# CaveInfo
+{
+	{c000} 4 5 	# 階層
+	{_eof} 
+}
+5 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv0.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	21 	# num
+	Kochappy 30 	# weight
+	0 	# type
+	BlueKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	UjiA 30 	# weight
+	0 	# type
+	UjiB 30 	# weight
+	0 	# type
+	Tobi 30 	# weight
+	0 	# type
+	Armor 30 	# weight
+	0 	# type
+	Catfish 30 	# weight
+	0 	# type
+	Chappy 11 	# weight
+	1 	# type
+	Frog 11 	# weight
+	1 	# type
+	MaroFrog 11 	# weight
+	1 	# type
+	Tank 11 	# weight
+	1 	# type
+	Wtank 11 	# weight
+	1 	# type
+	Kogane 20 	# weight
+	0 	# type
+	Wealthy 10 	# weight
+	1 	# type
+	Fart 10 	# weight
+	1 	# type
+	Rock 31 	# weight
+	0 	# type
+	Qurione 11 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Mar 10 	# weight
+	1 	# type
+	HikariKinoko 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	chocolate 1 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.100000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_test_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv1.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	21 	# num
+	Kochappy 30 	# weight
+	0 	# type
+	BlueKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	UjiA 30 	# weight
+	0 	# type
+	UjiB 30 	# weight
+	0 	# type
+	Tobi 30 	# weight
+	0 	# type
+	Armor 30 	# weight
+	0 	# type
+	Catfish 30 	# weight
+	0 	# type
+	Chappy 11 	# weight
+	1 	# type
+	Frog 11 	# weight
+	1 	# type
+	MaroFrog 11 	# weight
+	1 	# type
+	Tank 11 	# weight
+	1 	# type
+	Wtank 11 	# weight
+	1 	# type
+	Kogane 20 	# weight
+	0 	# type
+	Wealthy 10 	# weight
+	1 	# type
+	Fart 10 	# weight
+	1 	# type
+	Rock 31 	# weight
+	0 	# type
+	Qurione 11 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Mar 10 	# weight
+	1 	# type
+	HikariKinoko 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	chocolate 1 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_test_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv2.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	21 	# num
+	Kochappy 30 	# weight
+	0 	# type
+	Chappy 11 	# weight
+	1 	# type
+	KumaChappy 11 	# weight
+	1 	# type
+	FireChappy 11 	# weight
+	1 	# type
+	Frog 11 	# weight
+	1 	# type
+	MaroFrog 11 	# weight
+	1 	# type
+	Tank 11 	# weight
+	1 	# type
+	Wtank 11 	# weight
+	1 	# type
+	UjiA 30 	# weight
+	0 	# type
+	UjiB 30 	# weight
+	0 	# type
+	Tobi 30 	# weight
+	0 	# type
+	Armor 30 	# weight
+	0 	# type
+	Tadpole 30 	# weight
+	0 	# type
+	RandPom 10 	# weight
+	1 	# type
+	Kogane 10 	# weight
+	1 	# type
+	Wealthy 10 	# weight
+	1 	# type
+	Fart 10 	# weight
+	1 	# type
+	Qurione 11 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Mar 10 	# weight
+	1 	# type
+	HikariKinoko 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	chocolate 1 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.300000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_test_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv3.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	21 	# num
+	Kochappy 30 	# weight
+	0 	# type
+	BlueKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	UjiA 30 	# weight
+	0 	# type
+	UjiB 30 	# weight
+	0 	# type
+	Tobi 30 	# weight
+	0 	# type
+	Armor 30 	# weight
+	0 	# type
+	Catfish 30 	# weight
+	0 	# type
+	Chappy 11 	# weight
+	1 	# type
+	Frog 11 	# weight
+	1 	# type
+	MaroFrog 11 	# weight
+	1 	# type
+	Tank 11 	# weight
+	1 	# type
+	Wtank 11 	# weight
+	1 	# type
+	Kogane 20 	# weight
+	0 	# type
+	Wealthy 10 	# weight
+	1 	# type
+	Fart 10 	# weight
+	1 	# type
+	Rock 31 	# weight
+	0 	# type
+	Qurione 11 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Mar 10 	# weight
+	1 	# type
+	HikariKinoko 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	chocolate 1 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 10 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.400000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_test_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_lv4.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	21 	# num
+	Kochappy 30 	# weight
+	0 	# type
+	BlueKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	UjiA 30 	# weight
+	0 	# type
+	UjiB 30 	# weight
+	0 	# type
+	Tobi 30 	# weight
+	0 	# type
+	Armor 30 	# weight
+	0 	# type
+	Catfish 30 	# weight
+	0 	# type
+	Chappy 11 	# weight
+	1 	# type
+	Frog 11 	# weight
+	1 	# type
+	MaroFrog 11 	# weight
+	1 	# type
+	Tank 11 	# weight
+	1 	# type
+	Wtank 11 	# weight
+	1 	# type
+	Kogane 20 	# weight
+	0 	# type
+	Wealthy 10 	# weight
+	1 	# type
+	Fart 10 	# weight
+	1 	# type
+	Rock 31 	# weight
+	0 	# type
+	Qurione 11 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Mar 10 	# weight
+	1 	# type
+	HikariKinoko 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	chocolate 1 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}

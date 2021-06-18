@@ -1,0 +1,133 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 12 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ike2_ike3_snow.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	13 	# num
+	Hanachirashi_key 10 	# weight
+	8 	# type
+	Mar_diamond_red 10 	# weight
+	8 	# type
+	Hiba 10 	# weight
+	0 	# type
+	Hiba 10 	# weight
+	0 	# type
+	Hiba 20 	# weight
+	5 	# type
+	UjiA_flower_blue 20 	# weight
+	0 	# type
+	UjiA_flower_blue 10 	# weight
+	0 	# type
+	UjiB_flower_blue 20 	# weight
+	0 	# type
+	UjiB_flower_blue 10 	# weight
+	0 	# type
+	Tanpopo 2 	# weight
+	6 	# type
+	Zenmai 4 	# weight
+	6 	# type
+	KareOoinu_s 6 	# weight
+	6 	# type
+	KareOoinu_l 4 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	donguri_l 10 	# weight
+	donguri 10 	# weight
+	matu_bokkuri 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 12 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ari1_nor2_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_cha.ini 	# 使用ライト
+	{f00A} -1 ice 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	9 	# num
+	Hanachirashi_key 10 	# weight
+	1 	# type
+	Mar_diamond_blue_l 10 	# weight
+	1 	# type
+	UjiA_bird_hane 20 	# weight
+	0 	# type
+	UjiA_bird_hane 10 	# weight
+	1 	# type
+	UjiB_bird_hane 20 	# weight
+	0 	# type
+	UjiB_bird_hane 10 	# weight
+	1 	# type
+	Hiba 20 	# weight
+	1 	# type
+	Hiba 20 	# weight
+	5 	# type
+	DaiodoGreen 99 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	sinkukan 10 	# weight
+	sinkukan_b 10 	# weight
+	sinkukan_c 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}

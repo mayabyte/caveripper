@@ -1,0 +1,117 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 3 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_houdai_metal.txt 	# 使用ユニット
+	{f009} -1 houdai_light.ini 	# 使用ライト
+	{f00A} -1 build 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	MiniHoudai_key 10 	# weight
+	8 	# type
+	MiniHoudai_juji_key_fc 10 	# weight
+	8 	# type
+	Wealthy_gold_medal 10 	# weight
+	1 	# type
+	DaiodoRed 5 	# weight
+	6 	# type
+	DaiodoGreen 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	donutsichigo_s 10 	# weight
+	radar_a 10 	# weight
+	donutswhite 10 	# weight
+	juji_key 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_houdai2_metal.txt 	# 使用ユニット
+	{f009} -1 houdai_light.ini 	# 使用ライト
+	{f00A} -1 ice 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 1 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	6 	# num
+	Houdai_key 10 	# weight
+	1 	# type
+	DaiodoRed 3 	# weight
+	6 	# type
+	DaiodoGreen 3 	# weight
+	6 	# type
+	Hiba 20 	# weight
+	5 	# type
+	GasHiba 20 	# weight
+	5 	# type
+	ElecHiba 20 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	5 	# num
+	robot_head 10 	# weight
+	j_block_red 10 	# weight
+	j_block_green 10 	# weight
+	j_block_blue 10 	# weight
+	j_block_yellow 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 10 	# weight
+	1 	# type
+}

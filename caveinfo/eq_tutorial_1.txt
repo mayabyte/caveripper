@@ -1,0 +1,46 @@
+# CaveInfo
+{
+	{c000} 4 1 	# 階層
+	{_eof} 
+}
+1 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 13 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 6 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 units_tekitest.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 1 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	0 	# num
+}
+# ItemInfo
+{
+	13 	# num
+	fue_a 10 	# weight
+	fue_b 10 	# weight
+	fue_wide 10 	# weight
+	fue_pullout 10 	# weight
+	light_a 10 	# weight
+	suit_powerup 10 	# weight
+	suit_fire 10 	# weight
+	dashboots 10 	# weight
+	radar_a 10 	# weight
+	radar_b 10 	# weight
+	map01 10 	# weight
+	map02 10 	# weight
+	key 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}

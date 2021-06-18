@@ -1,0 +1,557 @@
+# CaveInfo
+{
+	{c000} 4 9 	# 階層
+	{_eof} 
+}
+9 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 19 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 3_MAT_mid1_mid2_uzu1_snow.txt 	# 使用ユニット
+	{f009} -1 tutorial_1_light.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 0 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	YellowChappy 10 	# weight
+	1 	# type
+	YellowChappy 10 	# weight
+	1 	# type
+	Demon 10 	# weight
+	1 	# type
+	YellowKochappy 10 	# weight
+	1 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 30 	# weight
+	0 	# type
+	YellowKochappy 20 	# weight
+	0 	# type
+	Demon 10 	# weight
+	1 	# type
+	GasHiba 10 	# weight
+	1 	# type
+	GasHiba 50 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	gum_tape_s 10 	# weight
+	tel_dial 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	3 	# num
+	0 	# captype
+	$Egg 10 	# weight
+	1 	# type
+	0 	# captype
+	$Demon 10 	# weight
+	1 	# type
+	0 	# captype
+	$Egg 10 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_MAT_h335_h447_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv1.ini 	# 使用ライト
+	{f00A} -1 ice 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	8 	# num
+	BombSarai 30 	# weight
+	1 	# type
+	Sarai 10 	# weight
+	1 	# type
+	Bomb 20 	# weight
+	1 	# type
+	Bomb 10 	# weight
+	0 	# type
+	Bomb 10 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	DaiodoRed 6 	# weight
+	6 	# type
+	DaiodoGreen 6 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	sinkukan_c 10 	# weight
+	gear_silver 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	2 	# num
+	0 	# captype
+	Egg 20 	# weight
+	1 	# type
+	0 	# captype
+	$Bomb 30 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 40 	# キャップ最大数
+	{f005} 4 6 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_MAT_h224_h443_tekiF_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv2.ini 	# 使用ライト
+	{f00A} -1 ice 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	8 	# num
+	Fkabuto_bolt 10 	# weight
+	8 	# type
+	Kabuto 10 	# weight
+	8 	# type
+	WhitePom 10 	# weight
+	8 	# type
+	Kabuto 10 	# weight
+	1 	# type
+	Hiba 50 	# weight
+	1 	# type
+	Hiba 10 	# weight
+	0 	# type
+	DaiodoRed 8 	# weight
+	6 	# type
+	DaiodoGreen 8 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	gear 10 	# weight
+	bane 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	2 	# num
+	0 	# captype
+	$Egg 30 	# weight
+	1 	# type
+	0 	# captype
+	$Bomb 10 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 6 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 50 	# キャップ最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.050000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_hit224_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv0.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 2 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	WhitePom 30 	# weight
+	1 	# type
+	Egg 30 	# weight
+	0 	# type
+	DaiodoGreen 10 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 30 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 30 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_nobo2_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv1.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	18 	# num
+	BombOtakara 30 	# weight
+	1 	# type
+	$BombOtakara 30 	# weight
+	1 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	$Bomb 30 	# weight
+	1 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	$Bomb 10 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	Bomb 20 	# weight
+	0 	# type
+	DaiodoRed 6 	# weight
+	6 	# type
+	DaiodoGreen 6 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	mojiban 10 	# weight
+	nut 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	$4BombOtakara 20 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 5 	# 階はじめ
+	{f001} 4 5 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 5_units_mid2_cent_hit4_hit5_nor2_metal.txt 	# 使用ユニット
+	{f009} -1 chikahimi_metal_light_lv4.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	BombSarai 20 	# weight
+	1 	# type
+	GasHiba 20 	# weight
+	1 	# type
+	ElecBug 60 	# weight
+	0 	# type
+	FireOtakara 10 	# weight
+	0 	# type
+	FireOtakara 10 	# weight
+	0 	# type
+	GasOtakara 10 	# weight
+	0 	# type
+	GasOtakara 10 	# weight
+	0 	# type
+	GasHiba 10 	# weight
+	5 	# type
+	DaiodoRed 6 	# weight
+	6 	# type
+	DaiodoGreen 6 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	sinkukan 10 	# weight
+	channel 10 	# weight
+	bolt_l 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 10 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 6 	# 階はじめ
+	{f001} 4 6 	# 階おわり
+	{f002} 4 28 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 50 	# キャップ最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 3_MAT_ari_h446_h443_tower_metal.txt 	# 使用ユニット
+	{f009} -1 houdai_light.ini 	# 使用ライト
+	{f00A} -1 build 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	13 	# num
+	FminiHoudai_sinkukan_b 10 	# weight
+	8 	# type
+	MiniHoudai 10 	# weight
+	1 	# type
+	BombSarai 10 	# weight
+	5 	# type
+	Bomb 40 	# weight
+	1 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	Bomb 30 	# weight
+	0 	# type
+	DaiodoRed 7 	# weight
+	6 	# type
+	DaiodoGreen 7 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	denchi_1_black 10 	# weight
+	tape_red 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	2 	# num
+	0 	# captype
+	Egg 20 	# weight
+	1 	# type
+	0 	# captype
+	$4BombOtakara 11 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 7 	# 階はじめ
+	{f001} 4 7 	# 階おわり
+	{f002} 4 11 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 6 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_hit224_metal.txt 	# 使用ユニット
+	{f009} -1 houdai_light.ini 	# 使用ライト
+	{f00A} -1 build 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 2 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	6 	# num
+	RandPom 20 	# weight
+	1 	# type
+	BlackPom 30 	# weight
+	1 	# type
+	Egg 20 	# weight
+	0 	# type
+	Egg 20 	# weight
+	0 	# type
+	Egg 20 	# weight
+	5 	# type
+	DaiodoGreen 12 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	1 	# num
+	0 	# captype
+	Egg 11 	# weight
+	1 	# type
+}
+# FloorInfo
+{
+	{f000} 4 8 	# 階はじめ
+	{f001} 4 8 	# 階おわり
+	{f002} 4 1 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_houdai_metal.txt 	# 使用ユニット
+	{f009} -1 houdai_light.ini 	# 使用ライト
+	{f00A} -1 build 	# VRBOX
+	{f010} 4 1 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 1 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	Houdai_light_a 10 	# weight
+	1 	# type
+	DaiodoRed 5 	# weight
+	6 	# type
+	DaiodoGreen 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}

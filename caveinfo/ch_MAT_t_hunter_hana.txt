@@ -1,0 +1,70 @@
+# CaveInfo
+{
+	{c000} 4 1 	# 階層
+	{_eof} 
+}
+1 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 5 	# 敵最大数
+	{f003} 4 19 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_manh_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	Miulin_gold_medal 20 	# weight
+	1 	# type
+	Hanachirashi_diamond_red 10 	# weight
+	0 	# type
+	Hanachirashi_diamond_red 10 	# weight
+	0 	# type
+	Hanachirashi_diamond_red 10 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	19 	# num
+	key 10 	# weight
+	bane 10 	# weight
+	tel_dial 10 	# weight
+	diamond_blue 10 	# weight
+	toy_gentle 10 	# weight
+	tatebue 10 	# weight
+	leaf_yellow 10 	# weight
+	dia_b_blue 10 	# weight
+	sinkukan_b 10 	# weight
+	nut_l 10 	# weight
+	bolt_l 10 	# weight
+	be_dama_red_l 10 	# weight
+	diamond_green_l 10 	# weight
+	tape_red 10 	# weight
+	turi_uki 10 	# weight
+	badminton 10 	# weight
+	gold_medal 10 	# weight
+	baum_kuchen 10 	# weight
+	chocolate_l 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}

@@ -1,0 +1,121 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_NARI_hit6x6_toy.txt 	# 使用ユニット
+	{f009} -1 toy_light_cha.ini 	# 使用ライト
+	{f00A} -1 flooring 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 5 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	7 	# num
+	Chappy_key 10 	# weight
+	8 	# type
+	Kochappy_gold_medal 10 	# weight
+	1 	# type
+	Kochappy_silver_medal 10 	# weight
+	1 	# type
+	Kochappy_toy_gentle 10 	# weight
+	1 	# type
+	Kochappy_dia_c_blue 10 	# weight
+	0 	# type
+	Kochappy_dia_c_green 10 	# weight
+	0 	# type
+	Kochappy_dia_b_red 10 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	be_dama_red_l 10 	# weight
+	be_dama_yellow_l 10 	# weight
+	be_dama_blue_l 10 	# weight
+	castanets 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 6 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_large_toy.txt 	# 使用ユニット
+	{f009} -1 toy_light_cha.ini 	# 使用ライト
+	{f00A} -1 flooring 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 5 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{f017} 4 0 	# 沈む壁
+	{_eof} 
+}
+# TekiInfo
+{
+	7 	# num
+	BlueChappy_key 10 	# weight
+	8 	# type
+	BlueKochappy_gold_medal 10 	# weight
+	1 	# type
+	BlueKochappy_silver_medal 10 	# weight
+	1 	# type
+	BlueKochappy_donutschoco_s 10 	# weight
+	1 	# type
+	BlueKochappy_teala_dia_b 10 	# weight
+	0 	# type
+	BlueKochappy_teala_dia_d 10 	# weight
+	0 	# type
+	BlueKochappy_toy_ring_b_red 10 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	6 	# num
+	diamond_red 10 	# weight
+	diamond_blue_l 10 	# weight
+	toy_ring_a_blue 10 	# weight
+	kan 10 	# weight
+	bane_red 10 	# weight
+	toy_ring_b_green 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	0 	# num
+}

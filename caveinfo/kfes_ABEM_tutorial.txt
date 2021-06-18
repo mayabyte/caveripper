@@ -1,0 +1,76 @@
+# CaveInfo
+{
+	{c000} 4 2 	# 階層
+	{_eof} 
+}
+2 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 0 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_cent2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 	# VRBOX
+	{f010} 4 1 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	0 	# num
+}
+# ItemInfo
+{
+	5 	# num
+	key 10 	# weight
+	diamond_red	10	# weight
+	be_dama_red	10	# weight
+	be_dama_blue	10	# weight
+	be_dama_yellow	10	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 11 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_cent_mid2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1  	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	YellowChappy_diamond_red 10 	# weight
+	1 	# type
+	Egg	50 	# weight
+	0 	# type
+	YellowKochappy_be_dama_yellow 1 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	4 	# num
+	key	10	# weight
+	toy_ring_a_green	10 	# weight
+	toy_ring_a_blue	10 	# weight
+	toy_ring_a_blue	10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}

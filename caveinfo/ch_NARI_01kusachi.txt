@@ -1,0 +1,67 @@
+# CaveInfo
+{
+	{c000} 4 1 	# 階層
+	{_eof} 
+}
+1 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 7 	# 敵最大数
+	{f003} 4 2 	# アイテム最大数
+	{f004} 4 2 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_MAT_ike_kusachi.txt 	# 使用ユニット
+	{f009} -1 kusachi_light_cha.ini 	# 使用ライト
+	{f00A} -1 hiroba 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 4 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 1 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	10 	# num
+	Tank_key 10 	# weight
+	1 	# type
+	Jigumo_silver_medal 10 	# weight
+	1 	# type
+	Jigumo_silver_medal 10 	# weight
+	1 	# type
+	Frog_turi_uki 10 	# weight
+	1 	# type
+	Catfish_wadou_kaichin 10 	# weight
+	0 	# type
+	Catfish_wadou_kaichin 10 	# weight
+	0 	# type
+	Catfish_wadou_kaichin 10 	# weight
+	0 	# type
+	Clover 5 	# weight
+	6 	# type
+	Zenmai 5 	# weight
+	6 	# type
+	Clover 5 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	kan 10 	# weight
+	dia_c_green 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 4000.000000 	# life
+	11 	# weight
+}
+# CapInfo
+{
+	0 	# num
+}

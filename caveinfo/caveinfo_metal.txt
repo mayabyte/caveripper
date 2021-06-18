@@ -1,0 +1,230 @@
+# CaveInfo
+{
+	{c000} 4 5 	# 階層
+	{_eof} 
+}
+5 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 20 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv0.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	YellowChappy 21 	# weight
+	1 	# type
+	YellowKochappy 22 	# weight
+	0 	# type
+	UjiB 21 	# weight
+	0 	# type
+	Tobi 21 	# weight
+	0 	# type
+	Armor 21 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	ahiru 1 	# weight
+	ichigo 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 20 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv1.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	YellowChappy 21 	# weight
+	1 	# type
+	YellowKochappy 22 	# weight
+	0 	# type
+	UjiB 21 	# weight
+	0 	# type
+	Tobi 21 	# weight
+	0 	# type
+	Armor 21 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	ahiru 1 	# weight
+	ichigo 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 20 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv2.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	YellowChappy 21 	# weight
+	1 	# type
+	YellowKochappy 22 	# weight
+	0 	# type
+	UjiB 21 	# weight
+	0 	# type
+	Tobi 21 	# weight
+	0 	# type
+	Armor 21 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	ahiru 1 	# weight
+	ichigo 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 20 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv3.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	YellowChappy 21 	# weight
+	1 	# type
+	YellowKochappy 22 	# weight
+	0 	# type
+	UjiB 21 	# weight
+	0 	# type
+	Tobi 21 	# weight
+	0 	# type
+	Armor 21 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	ahiru 1 	# weight
+	ichigo 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 40 	# 敵最大数
+	{f003} 4 20 	# アイテム最大数
+	{f004} 4 5 	# ゲート最大数
+	{f005} 4 5 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_metal.txt 	# 使用ユニット
+	{f009} -1 metal_light_lv4.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 1 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{_eof} 
+}
+# TekiInfo
+{
+	5 	# num
+	YellowChappy 21 	# weight
+	1 	# type
+	YellowKochappy 22 	# weight
+	0 	# type
+	UjiB 21 	# weight
+	0 	# type
+	Tobi 21 	# weight
+	0 	# type
+	Armor 21 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	ahiru 1 	# weight
+	ichigo 1 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 100.000000 	# life
+	1 	# weight
+}

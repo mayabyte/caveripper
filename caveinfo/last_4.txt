@@ -1,0 +1,1117 @@
+# CaveInfo
+{
+	{c000} 32  	# 階層
+	{_eof} 
+}
+32 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 30 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Sokkuri 60 	# weight
+	0 	# type
+	Sokkuri 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	momiji_normal 13 	# weight
+	momiji_red 12 	# weight
+	momiji_kare 5 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 1600.000000 	# life
+	12 	# weight
+	gate 6400.000000 	# life
+	18 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 30 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	4 	# num
+	UjiA 82 	# weight
+	0 	# type
+	UjiB 88 	# weight
+	0 	# type
+	Tobi 90 	# weight
+	1 	# type
+	Hiba 30 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	cookie 13 	# weight
+	donguri 12 	# weight
+	chocolate 5 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 1600.000000 	# life
+	12 	# weight
+	gate 6400.000000 	# life
+	18 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 units.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	Kochappy 32 	# weight
+	0 	# type
+	BlueKochappy 33 	# weight
+	0 	# type
+	YellowKochappy 35 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	chocolate 13 	# weight
+	cookie 17 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 6400.000000 	# life
+	18 	# weight
+	gate 9600.000000 	# life
+	12 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 3 	# 階はじめ
+	{f001} 4 3 	# 階おわり
+	{f002} 4 5 	# 敵最大数
+	{f003} 4 6 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_NARI_nor3_mid2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	Chappy 13	# weight
+	1 	# type
+	BlueChappy 13 	# weight
+	1 	# type
+	YellowChappy 13 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	bolt 30 	# weight
+	kinoko 20 	# weight
+}
+# GateInfo
+{
+	3 	# num
+	gate 12800.000000 	# life
+	10 	# weight
+	gate 6400.000000 	# life
+	10 	# weight
+	gate 3200.000000 	# life
+	10 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 4 	# 階はじめ
+	{f001} 4 4 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_ike4_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Catfish 20 	# weight
+	1 	# type
+	Tadpole 60 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	gear 10 	# weight
+	bolt 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 6400.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 5 	# 階はじめ
+	{f001} 4 5 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_boss_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Damagumo 20 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	2 	# num
+	gate 5000.000000 	# life
+	14 	# weight
+	gate 7500.000000 	# life
+	16 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 6 	# 階はじめ
+	{f001} 4 6 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 2 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_water_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	MaroFrog 35 	# weight
+	1 	# type
+        Frog 35	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	kinoko 13 	# weight
+	bolt 17 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 6400.000000 	# life
+	10 	# weight
+	gate 3200.000000 	# life
+	10 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 7 	# 階はじめ
+	{f001} 4 7 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 all_units_water-ike4.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Tank 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	gear 11 	# weight
+	donguri 19 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 3200.000000 	# life
+	15 	# weight
+	gate 6000.000000 	# life
+	15 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 8 	# 階はじめ
+	{f001} 4 8 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 5 	# アイテム最大数
+	{f004} 4 3 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_cent_mid2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Wtank 40 	# weight
+	1 	# type
+	Hiba 60 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	kinoko 8 	# weight
+	gear 22 	# weight
+	cookie 20 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 7890.000000 	# life
+	14 	# weight
+	gate 2340.000000 	# life
+	16 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 9 	# 階はじめ
+	{f001} 4 9 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 4 	# アイテム最大数
+	{f004} 4 4 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 4_NARI_all_hitode.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Armor 100 	# weight
+	0 	# type
+	Hiba 30 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	nut 9 	# weight
+	donguri 21 	# weight
+}
+# GateInfo
+{
+	5 	# num
+	gate 2000.000000 	# life
+	10 	# weight
+	gate 1000.000000 	# life
+	10 	# weight
+	gate 200.000000 	# life
+	10 	# weight
+	gate 100.000000 	# life
+	10 	# weight
+	gate 5000.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 10 	# 階はじめ
+	{f001} 4 10 	# 階おわり
+	{f002} 4 10 	# 敵最大数
+	{f003} 4 8 	# アイテム最大数
+	{f004} 4 4 	# ゲート最大数
+	{f005} 4 4 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 5_NARI_nor1_nor2_nor3_hit1_hit2_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	SnakeCrow 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	8 	# num
+	bane 10 	# weight
+	bird_hane 10 	# weight
+	bolt 10 	# weight
+	chocolate 10 	# weight
+	cookie 10 	# weight
+	donguri 10 	# weight
+	momiji_normal 10 	# weight
+	nut 10 	# weight
+}
+# GateInfo
+{
+	4 	# num
+	gate 100.000000 	# life
+	1 	# weight
+	gate 3200.000000 	# life
+	1 	# weight
+	gate 6400.000000 	# life
+	1 	# weight
+	gate 12800.000000 	# life
+	1 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 11 	# 階はじめ
+	{f001} 4 11	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_north_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Fuefuki 20 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 12 	# 階はじめ
+	{f001} 4 12	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_north_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Sarai 60 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 13 	# 階はじめ
+	{f001} 4 13	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_north_metal.txt	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Demon 60 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 14 	# 階はじめ
+	{f001} 4 14	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_north_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	BombSarai 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 15 	# 階はじめ
+	{f001} 4 15 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ari_nobo_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Hanachirashi 30 	# weight
+	1 	# type
+        Mar 30 	# weight
+	0 	# type    
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 16 	# 階はじめ
+	{f001} 4 16	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 2 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ari_nobo_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 f010 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	3 	# num
+	ElecBug 100 	# weight
+	0 	# type
+	Hiba 38 	# weight
+	5 	# type
+	GasHiba 22 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	2 	# num
+	gear 10 	# weight
+	cookie 10 	# weight
+}
+# GateInfo
+{
+	2 	# num
+	gate 4000.000000 	# life
+	9 	# weight
+	gate 8700.000000 	# life
+	11 	# weight
+}
+# FloorInfo
+{
+	{f000} 4 17 	# 階はじめ
+	{f001} 4 17 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_cent_nor1_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	FireChappy 20 	# weight
+	1 	# type
+	Hiba 30 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 18 	# 階はじめ
+	{f001} 4 18	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ari_nobo_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	KumaChappy 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 19 	# 階はじめ
+	{f001} 4 19 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 2_units_ari_nobo_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Kabuto 40 	# weight
+	0 	# type
+        Kabuto 20 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 20 	# 階はじめ
+	{f001} 4 20 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_houdai_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Houdai 20 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 21 	# 階はじめ
+	{f001} 4 21	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 4_units_f_g_i_spiral_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2	# num
+	Jigumo 60 	# weight
+	0 	# type
+        Jigumo 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 22 	# 階はじめ
+	{f001} 4 22	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_MAT_manp_conc.txt	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	UmiMushi 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 23 	# 階はじめ
+	{f001} 4 23 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 4_units_a_b_c_d_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	OoPanModoki 20 	# weight
+	1 	# type
+	PanModoki 30 	# weight
+	0 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 24 	# 階はじめ
+	{f001} 4 24 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 5_units_pype_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	MiniHoudai 40 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 25 	# 階はじめ
+	{f001} 4 25 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_MAT_manp_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	SnakeWhole 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 26 	# 階はじめ
+	{f001} 4 26 	# 階おわり
+	{f002} 4 20 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 4_units_f_g_i_spiral_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	7 	# num
+	FireOtakara 20 	# weight
+	1 	# type
+	WaterOtakara 20 	# weight
+	1 	# type
+	ElecOtakara 20 	# weight
+	1 	# type
+	GasOtakara 20 	# weight
+	1 	# type
+	Hiba 20 	# weight
+	5 	# type
+	ElecHiba 20 	# weight
+	5 	# type
+	GasHiba 20 	# weight
+	5 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 27 	# 階はじめ
+	{f001} 4 27 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_manh_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	BigFoot 20 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo 
+{
+	{f000} 4 28 	# 階はじめ
+	{f001} 4 28	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 3_units_f_g_m_conc.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Kurage 30 	# weight
+	0	# type
+        OniKurage 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 29 	# 階はじめ
+	{f001} 4 29 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 3 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_king_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	2 	# num
+	Bomb 60 	# weight
+	0 	# type
+	KingChappy 30 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 30 	# 階はじめ
+	{f001} 4 30 	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_boss_tsuchi.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Queen 10 	# weight
+	1 	# type
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 31 	# 階はじめ
+	{f001} 4 31	# 階おわり
+	{f002} 4 15 	# 敵最大数
+	{f003} 4 0 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f005} 4 1 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 1_units_houdai_metal.txt 	# 使用ユニット
+	{f009} -1 light.ini 	# 使用ライト
+	{f00A} -1 test 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	BigTreasure 10 	# weight
+	1 	# num
+}
+# ItemInfo
+{
+	0 	# num
+}
+# GateInfo
+{
+	0 	# num
+}
+
+
+
+
+
+
+
+
+

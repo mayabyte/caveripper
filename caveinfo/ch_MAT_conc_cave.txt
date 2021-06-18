@@ -1,0 +1,184 @@
+# CaveInfo
+{
+	{c000} 4 3 	# 階層
+	{_eof} 
+}
+3 # FloorInfo
+{
+	{f000} 4 0 	# 階はじめ
+	{f001} 4 0 	# 階おわり
+	{f002} 4 8 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 4 	# ゲート最大数
+	{f014} 4 10 	# キャップ最大数
+	{f005} 4 6 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 4_MAT_c_d_k_n_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	9 	# num
+	Tanpopo 10 	# weight
+	1 	# type
+	Clover 10 	# weight
+	1 	# type
+	HikariKinoko 10 	# weight
+	1 	# type
+	Wakame_l 10 	# weight
+	1 	# type
+	Tukushi 10 	# weight
+	1 	# type
+	Magaret 10 	# weight
+	1 	# type
+	Ooinu_l 20 	# weight
+	1 	# type
+	KareOoinu_s 10 	# weight
+	6 	# type
+	Ooinu_s 10 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	key 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 1.000000 	# life
+	1 	# weight
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 1 	# 階はじめ
+	{f001} 4 1 	# 階おわり
+	{f002} 4 54 	# 敵最大数
+	{f003} 4 1 	# アイテム最大数
+	{f004} 4 6 	# ゲート最大数
+	{f014} 4 0 	# キャップ最大数
+	{f005} 4 10 	# ルーム数
+	{f006} 4 0.200000 	# ルートの割合
+	{f007} 4 0 	# 帰還噴水(1=あり)
+	{f008} -1 3_MAT_d_i_m_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 0 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	15 	# num
+	$4BombOtakara 90 	# weight
+	1 	# type
+	$BombOtakara 90 	# weight
+	1 	# type
+	$BombOtakara 90 	# weight
+	1 	# type
+	$4BombOtakara 90 	# weight
+	1 	# type
+	$Bomb 90 	# weight
+	1 	# type
+	Zenmai 10 	# weight
+	5 	# type
+	Tanpopo 10 	# weight
+	5 	# type
+	Clover 10 	# weight
+	5 	# type
+	HikariKinoko 10 	# weight
+	5 	# type
+	Wakame_l 10 	# weight
+	5 	# type
+	Tukushi 10 	# weight
+	5 	# type
+	Magaret 10 	# weight
+	5 	# type
+	Ooinu_l 20 	# weight
+	1 	# type
+	KareOoinu_s 30 	# weight
+	6 	# type
+	Ooinu_s 30 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	1 	# num
+	key 10 	# weight
+}
+# GateInfo
+{
+	1 	# num
+	gate 1.000000 	# life
+	1 	# weight
+}
+# CapInfo
+{
+	0 	# num
+}
+# FloorInfo
+{
+	{f000} 4 2 	# 階はじめ
+	{f001} 4 2 	# 階おわり
+	{f002} 4 0 	# 敵最大数
+	{f003} 4 3 	# アイテム最大数
+	{f004} 4 0 	# ゲート最大数
+	{f014} 4 100 	# キャップ最大数
+	{f005} 4 2 	# ルーム数
+	{f006} 4 0.000000 	# ルートの割合
+	{f007} 4 1 	# 帰還噴水(1=あり)
+	{f008} -1 2_MAT_a_m_conc.txt 	# 使用ユニット
+	{f009} -1 normal_light_cha.ini 	# 使用ライト
+	{f00A} -1 none 	# VRBOX
+	{f010} 4 0 	# 階段を壊す岩で隠す(0=オフ 1=オン)
+	{f011} 4 2 	# α属性
+	{f012} 4 2 	# β属性
+	{f013} 4 0 	# 隠し床
+	{f015} 4 1 	# Version
+	{f016} 4 0.000000 	# BlackManTimer
+	{_eof} 
+}
+# TekiInfo
+{
+	1 	# num
+	Clover 6 	# weight
+	6 	# type
+}
+# ItemInfo
+{
+	3 	# num
+	key 10 	# weight
+	chess_king_white 10 	# weight
+	chess_queen_black 10 	# weight
+}
+# GateInfo
+{
+	0 	# num
+}
+# CapInfo
+{
+	2 	# num
+	0 	# captype
+	RandPom 20 	# weight
+	1 	# type
+	0 	# captype
+	Egg 10 	# weight
+	1 	# type
+}
