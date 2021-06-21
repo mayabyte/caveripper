@@ -7,14 +7,14 @@
 ///
 /// For info on the CaveInfo file format, see
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
-
 mod parse;
 
 use cached::proc_macro::cached;
-use std::{fs::File, io::Read};
+use encoding_rs::SHIFT_JIS;
 use parse::parse_caveinfo;
+use std::{fs::File, io::Read};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CaveInfo {
     num_floors: u8,
     floors: Vec<FloorInfo>,
@@ -23,15 +23,15 @@ pub struct CaveInfo {
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
 /// TekiInfo, ItemInfo, GateInfo, and CapInfo sections that follow it until
 /// the next FloorInfo section begins or the file ends.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct FloorInfo {
-    sublevel: u8,  // 0-indexed
+    sublevel: u8, // 0-indexed
     max_main_objects: u8,
     max_treasures: u8,
     max_gates: u8,
-    num_rooms: u8,  // Excludes corridors and caps/alcoves.
-    corridor_probability: f32,  // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
-    cap_probability: f32,  // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
+    num_rooms: u8,             // Excludes corridors and caps/alcoves.
+    corridor_probability: f32, // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
+    cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
     has_geyser: bool,
     exit_plugged: bool,
     // cave_unit_definition_file,
@@ -48,28 +48,28 @@ pub struct FloorInfo {
 /// that aren't either treasures or gates are considered Teki.
 /// Treasures held inside enemies *are* defined in TekiInfo, however. See the
 /// `carrying` field.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TekiInfo {
     internal_name: String,
-    carrying: Option<String>,  // The object held by this Teki, if any.
+    carrying: Option<String>, // The object held by this Teki, if any.
     minimum_amount: u8,
-    filler_distribution_weight: u8,  // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    group: u8,  // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
-    spawn_method: String,  // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    filler_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    group: u8, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
+    spawn_method: String, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
 /// Defines 'loose' treasures, i.e. those that are not held by an enemy, but
 /// rather sitting out in the open or buried.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ItemInfo {
     internal_name: String,
     amount: u8,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GateInfo {
     health: f32,
-    spawn_distribution_weight: u8,  // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
 }
 
 /// CapInfo specifies what objects will spawn in dedicated Cap/Alcove spawn
@@ -82,31 +82,33 @@ pub struct GateInfo {
 ///
 /// CapInfo is most frequently used for falling eggs and falling bomb rocks,
 /// like the ones found on FC1 and SCx2 (among many others).
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CapInfo {
     internal_name: String,
-    carrying: Option<String>,  // The object held by this Cap Teki, if any.
+    carrying: Option<String>, // The object held by this Cap Teki, if any.
     minimum_amount: u8,
-    filler_distribution_weight: u8,  // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    group: u8,  // Does not control spawn location like it does in TekiInfo.
-    spawn_method: String,  // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    filler_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    group: u8,                      // Does not control spawn location like it does in TekiInfo.
+    spawn_method: String, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
-
-impl CaveInfo {
-}
+impl CaveInfo {}
 
 // The cached macro doesn't work inside impl blocks, so this has to be a
 // top-level function.
 #[cached]
-fn get_caveinfo(cave: String) -> CaveInfo {
+pub fn get_caveinfo(cave: String) -> CaveInfo {
     // Load raw text of the caveinfo file
     let filename = cave_name_to_caveinfo_filename(&cave);
-    let mut caveinfo_raw = String::new();
+    let mut caveinfo_bytes: Vec<u8> = vec![];
     File::open(format!("./caveinfo/{}", filename))
-        .expect(&format!("Cannot find caveinfo file '{}' for cave '{}'", filename, cave))
-        .read_to_string(&mut caveinfo_raw)
+        .expect(&format!(
+            "Cannot find caveinfo file '{}' for cave '{}'",
+            filename, cave
+        ))
+        .read_to_end(&mut caveinfo_bytes)
         .expect(&format!("Couldn't read caveinfo file '{}'!", filename));
+    let caveinfo_raw: String = SHIFT_JIS.decode(&caveinfo_bytes).0.into_owned();
 
     // Send it off to the parsing mines
     parse_caveinfo(&caveinfo_raw)
@@ -120,17 +122,17 @@ pub fn get_sublevel_info(sublevel: &str) -> FloorInfo {
 
 fn cave_name_to_caveinfo_filename(cave_name: &str) -> &'static str {
     match cave_name {
-        "EC" => "tutorial1.txt",
-        "SCx" => "tutorial2.txt",
-        "FC" => "tutorial3.txt",
-        "HoB" => "forest1.txt",
-        "WFG" => "forest2.txt",
-        "BK" => "forest3.txt",
-        "SH" => "forest4.txt",
-        "CoS" => "yakushima1.txt",
-        "GK" => "yakushima2.txt",
-        "SR" => "yakushima3.txt",
-        "SmC" => "yakushima4.txt",
+        "EC" => "tutorial_1.txt",
+        "SCx" => "tutorial_2.txt",
+        "FC" => "tutorial_3.txt",
+        "HoB" => "forest_1.txt",
+        "WFG" => "forest_2.txt",
+        "BK" => "forest_3.txt",
+        "SH" => "forest_4.txt",
+        "CoS" => "yakushima_1.txt",
+        "GK" => "yakushima_2.txt",
+        "SR" => "yakushima_3.txt",
+        "SmC" => "yakushima_4.txt",
         // TODO: add Wistful Wilds caves
         _ => panic!("Unrecognized cave name \"{}\"", cave_name),
     }

@@ -1,12 +1,12 @@
-#![feature(try_blocks)]
+#![feature(option_result_contains)]
 
-pub mod seed;
 pub mod caveinfo;
 pub mod layout;
+pub mod seed;
 
-use seed::Seed;
+use caveinfo::get_caveinfo;
 
 fn main() {
-    let x = Seed(12);
-    println!("{}", x);
+    let caveinfo = get_caveinfo("EC".to_string());
+    println!("{:?}", caveinfo);
 }

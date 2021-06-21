@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 cached = "0.23.0"
 nom = "6.1.2"
+encoding_rs = "0.8.28"

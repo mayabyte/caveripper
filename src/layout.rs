@@ -7,9 +7,7 @@ use crate::{caveinfo::CaveInfo, seed::Seed};
 /// the set-seed mod) and specify exact positions for every tile, teki,
 /// and treasure.
 
-pub struct Layout {
-
-}
+pub struct Layout {}
 
 impl Layout {
     pub fn generate(seed: &Seed, caveinfo: &CaveInfo) -> Layout {
