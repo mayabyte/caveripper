@@ -20,6 +20,15 @@ pub struct CaveInfo {
     floors: Vec<FloorInfo>,
 }
 
+impl From<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
+    fn from(raw_sections: Vec<[parse::Section<'_>; 5]>) -> CaveInfo {
+        CaveInfo {
+            num_floors: raw_sections.len() as u8,
+            floors: raw_sections.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
 /// TekiInfo, ItemInfo, GateInfo, and CapInfo sections that follow it until
 /// the next FloorInfo section begins or the file ends.
@@ -34,11 +43,52 @@ pub struct FloorInfo {
     cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
     has_geyser: bool,
     exit_plugged: bool,
-    // cave_unit_definition_file,
+    cave_unit_definition_file_name: String,
     teki_info: Vec<TekiInfo>,
     item_info: Vec<ItemInfo>,
     gate_info: Vec<GateInfo>,
     cap_info: Vec<CapInfo>,
+}
+
+impl FloorInfo {
+    /// This is the 'real' `From` impl, and it's separate for two reasons:
+    /// 1. Being able to return an Option makes the code *way* nicer, and TryFrom
+    ///    only exists for Result types.
+    /// 2. The correct thing to do in the case of most errors this conversion could
+    ///    encounter is to panic, so actually spending time fleshing out the errors
+    ///    for a TryFrom implementation isn't worth it.
+    fn convert_from_sections(raw_sections: [parse::Section<'_>; 5]) -> Option<FloorInfo> {
+        let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
+            raw_sections;
+
+        let sublevel: u8 = floorinfo_section.get_tag("000")?;
+        let max_main_objects: u8 = floorinfo_section.get_tag("002")?;
+        let max_treasures: u8 = floorinfo_section.get_tag("003")?;
+        let max_gates: u8 = floorinfo_section.get_tag("004")?;
+        let num_rooms: u8 = floorinfo_section.get_tag("005")?;
+        let corridor_probability: f32 = floorinfo_section.get_tag("006")?;
+        let has_geyser: bool = if floorinfo_section.get_tag::<u8>("007")? > 0 {
+            true
+        } else {
+            false
+        };
+        let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
+        let exit_plugged: bool = if floorinfo_section.get_tag::<u8>("010")? > 0 {
+            true
+        } else {
+            false
+        };
+        let cap_probability: f32 = floorinfo_section.get_tag("014")?;
+
+        unimplemented!()
+    }
+}
+
+impl From<[parse::Section<'_>; 5]> for FloorInfo {
+    fn from(raw_sections: [parse::Section<'_>; 5]) -> FloorInfo {
+        FloorInfo::convert_from_sections(raw_sections)
+            .expect("Failed to fetch all needed info from CaveInfo file.")
+    }
 }
 
 /// "Teki" is a Japanese word literally meaning "opponent" or "threat". This
@@ -58,6 +108,12 @@ pub struct TekiInfo {
     spawn_method: String, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
+impl From<parse::Section<'_>> for Vec<TekiInfo> {
+    fn from(section: parse::Section) -> Vec<TekiInfo> {
+        unimplemented!()
+    }
+}
+
 /// Defines 'loose' treasures, i.e. those that are not held by an enemy, but
 /// rather sitting out in the open or buried.
 #[derive(Debug, Clone)]
@@ -66,10 +122,22 @@ pub struct ItemInfo {
     amount: u8,
 }
 
+impl From<parse::Section<'_>> for Vec<ItemInfo> {
+    fn from(section: parse::Section) -> Vec<ItemInfo> {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GateInfo {
     health: f32,
     spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+}
+
+impl From<parse::Section<'_>> for Vec<GateInfo> {
+    fn from(section: parse::Section) -> Vec<GateInfo> {
+        unimplemented!()
+    }
 }
 
 /// CapInfo specifies what objects will spawn in dedicated Cap/Alcove spawn
@@ -92,7 +160,11 @@ pub struct CapInfo {
     spawn_method: String, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
-impl CaveInfo {}
+impl From<parse::Section<'_>> for Vec<CapInfo> {
+    fn from(section: parse::Section) -> Vec<CapInfo> {
+        unimplemented!()
+    }
+}
 
 // The cached macro doesn't work inside impl blocks, so this has to be a
 // top-level function.
@@ -111,9 +183,11 @@ pub fn get_caveinfo(cave: String) -> CaveInfo {
     let caveinfo_raw: String = SHIFT_JIS.decode(&caveinfo_bytes).0.into_owned();
 
     // Send it off to the parsing mines
-    parse_caveinfo(&caveinfo_raw)
+    let floor_chunks = parse_caveinfo(&caveinfo_raw)
         .expect(&format!("Couldn't parse CaveInfo file '{}'", filename))
-        .1
+        .1;
+
+    CaveInfo::from(floor_chunks)
 }
 
 pub fn get_sublevel_info(sublevel: &str) -> FloorInfo {

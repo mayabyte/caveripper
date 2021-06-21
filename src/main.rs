@@ -1,4 +1,5 @@
 #![feature(option_result_contains)]
+#![feature(slice_as_chunks)]
 
 pub mod caveinfo;
 pub mod layout;
