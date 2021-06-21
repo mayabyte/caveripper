@@ -1,6 +1,6 @@
-use std::str::FromStr;
-
 /// Parsing for CaveInfo files
+
+use std::str::FromStr;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -39,6 +39,7 @@ pub(super) fn parse_caveinfo<'c>(caveinfo_txt: &'c str) -> IResult<&str, Vec<[Se
     Ok(("", floor_chunks.to_vec()))
 }
 
+/// One 'section' enclosed by curly brackets in a CaveInfo file.
 #[derive(Clone, Debug)]
 pub(super) struct Section<'a> {
     pub lines: Vec<InfoLine<'a>>,
@@ -68,6 +69,7 @@ impl<'a> Section<'a> {
     }
 }
 
+/// Simple helper struct to make working with individual lines easier.
 #[derive(Clone, Debug)]
 pub(super) struct InfoLine<'a> {
     pub tag: Option<&'a str>,
