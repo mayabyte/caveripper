@@ -3,15 +3,6 @@
 version = 3
 
 [[package]]
-name = "CaveRipper"
-version = "0.1.0"
-dependencies = [
- "cached",
- "encoding_rs",
- "nom",
-]
-
-[[package]]
 name = "arrayvec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -94,6 +85,15 @@ name = "cached_proc_macro_types"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a4f925191b4367301851c6d99b09890311d74b0d43f274c0b34c86d308a3663"
+
+[[package]]
+name = "caveripper"
+version = "0.1.0"
+dependencies = [
+ "cached",
+ "encoding_rs",
+ "nom",
+]
 
 [[package]]
 name = "cfg-if"
