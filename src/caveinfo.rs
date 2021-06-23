@@ -1,4 +1,9 @@
+mod caveinfoerror;
 mod gamedata;
+mod parse;
+#[cfg(test)]
+mod test;
+
 /// CaveInfo is a representation of the generation parameters for a given
 /// sublevel.
 /// For example, each sublevel's CaveInfo file specifies what treasures to
@@ -8,11 +13,8 @@ mod gamedata;
 ///
 /// For info on the CaveInfo file format, see
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
-mod parse;
 
-#[cfg(test)]
-mod test;
-
+pub use caveinfoerror::CaveInfoError;
 pub use gamedata::*;
 
 use cached::proc_macro::cached;
@@ -21,7 +23,11 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use parse::parse_caveinfo;
 use regex::Regex;
-use std::{fs::File, io::Read};
+use std::{
+    convert::{TryFrom, TryInto},
+    fs::File,
+    io::Read,
+};
 
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
@@ -29,12 +35,16 @@ pub struct CaveInfo {
     pub floors: Vec<FloorInfo>,
 }
 
-impl From<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
-    fn from(raw_sections: Vec<[parse::Section<'_>; 5]>) -> CaveInfo {
-        CaveInfo {
+impl TryFrom<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
+    type Error = CaveInfoError;
+    fn try_from(raw_sections: Vec<[parse::Section<'_>; 5]>) -> Result<CaveInfo, CaveInfoError> {
+        Ok(CaveInfo {
             num_floors: raw_sections.len() as u8,
-            floors: raw_sections.into_iter().map(Into::into).collect(),
-        }
+            floors: raw_sections
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
     }
 }
 
@@ -59,18 +69,13 @@ pub struct FloorInfo {
     cap_info: Vec<CapInfo>,
 }
 
-impl FloorInfo {
-    /// This is the 'real' `From` impl, and it's separate for two reasons:
-    /// 1. Being able to return an Option makes the code *way* nicer, and TryFrom
-    ///    only exists for Result types.
-    /// 2. The correct thing to do in the case of most errors this conversion could
-    ///    encounter is to panic, so actually spending time fleshing out the errors
-    ///    for a TryFrom implementation isn't worth it.
-    fn convert_from_sections(raw_sections: [parse::Section<'_>; 5]) -> Option<FloorInfo> {
+impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
+    type Error = CaveInfoError;
+    fn try_from(raw_sections: [parse::Section<'_>; 5]) -> Result<FloorInfo, CaveInfoError> {
         let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
             raw_sections;
 
-        Some(FloorInfo {
+        Ok(FloorInfo {
             sublevel: floorinfo_section.get_tag("000")?,
             max_main_objects: floorinfo_section.get_tag("002")?,
             max_treasures: floorinfo_section.get_tag("003")?,
@@ -81,18 +86,11 @@ impl FloorInfo {
             has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
             exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
             cave_unit_definition_file_name: floorinfo_section.get_tag("008")?,
-            teki_info: tekiinfo_section.into(),
-            item_info: iteminfo_section.into(),
-            gate_info: gateinfo_section.into(),
-            cap_info: capinfo_section.into(),
+            teki_info: tekiinfo_section.try_into()?,
+            item_info: iteminfo_section.try_into()?,
+            gate_info: gateinfo_section.try_into()?,
+            cap_info: capinfo_section.try_into()?,
         })
-    }
-}
-
-impl From<[parse::Section<'_>; 5]> for FloorInfo {
-    fn from(raw_sections: [parse::Section<'_>; 5]) -> FloorInfo {
-        FloorInfo::convert_from_sections(raw_sections)
-            .expect("Failed to fetch all needed info from CaveInfo file.")
     }
 }
 
@@ -113,54 +111,51 @@ pub struct TekiInfo {
     spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
-impl TekiInfo {
-    fn convert_from_section(section: parse::Section) -> Option<Vec<TekiInfo>> {
+impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<Vec<TekiInfo>, CaveInfoError> {
         section
             .lines
             .iter()
             .skip(1) // First line contains the number of Teki
             .tuples()
-            .map(|(item_line, group_line)| -> Option<TekiInfo> {
-                let internal_identifier = item_line.items.get(0)?;
-                let amount_code = item_line.items.get(1)?;
-                let group: u8 = group_line.items.get(0)?.parse().ok()?;
+            .map(
+                |(item_line, group_line)| -> Result<TekiInfo, CaveInfoError> {
+                    let internal_identifier = item_line.get_line_item(0)?;
+                    let amount_code = item_line.get_line_item(1)?;
+                    let group: u8 = group_line.get_line_item(0)?.parse()?;
 
-                let (spawn_method, internal_name, carrying) =
-                    extract_internal_identifier(internal_identifier);
+                    let (spawn_method, internal_name, carrying) =
+                        extract_internal_identifier(internal_identifier);
 
-                // Determine amount and filler_distribution_weight based on teki type
-                let minimum_amount: u8;
-                let filler_distribution_weight: u8;
-                if group == 6 {
-                    // 6 is the group number for decorative teki
-                    minimum_amount = amount_code.parse().ok()?;
-                    filler_distribution_weight = 0;
-                } else {
-                    let (minimum_amount_str, filler_distribution_weight_str) =
-                        amount_code.split_at(amount_code.len() - 1);
+                    // Determine amount and filler_distribution_weight based on teki type
+                    let minimum_amount: u8;
+                    let filler_distribution_weight: u8;
+                    if group == 6 {
+                        // 6 is the group number for decorative teki
+                        minimum_amount = amount_code.parse()?;
+                        filler_distribution_weight = 0;
+                    } else {
+                        let (minimum_amount_str, filler_distribution_weight_str) =
+                            amount_code.split_at(amount_code.len() - 1);
 
-                    // If there is only one digit, it represents the filler_distribution_weight
-                    // and minimum_amount defaults to 0.
-                    minimum_amount = minimum_amount_str.parse().unwrap_or(0);
-                    filler_distribution_weight = filler_distribution_weight_str.parse().ok()?;
-                }
+                        // If there is only one digit, it represents the filler_distribution_weight
+                        // and minimum_amount defaults to 0.
+                        minimum_amount = minimum_amount_str.parse().unwrap_or(0);
+                        filler_distribution_weight = filler_distribution_weight_str.parse()?;
+                    }
 
-                Some(TekiInfo {
-                    internal_name,
-                    carrying,
-                    minimum_amount,
-                    filler_distribution_weight,
-                    group,
-                    spawn_method,
-                })
-            })
+                    Ok(TekiInfo {
+                        internal_name,
+                        carrying,
+                        minimum_amount,
+                        filler_distribution_weight,
+                        group,
+                        spawn_method,
+                    })
+                },
+            )
             .collect()
-    }
-}
-
-impl From<parse::Section<'_>> for Vec<TekiInfo> {
-    fn from(section: parse::Section) -> Vec<TekiInfo> {
-        TekiInfo::convert_from_section(section).expect("Couldn't decode invalid TekiInfo section.")
     }
 }
 
@@ -173,24 +168,24 @@ pub struct ItemInfo {
     filler_distribution_weight: u8,
 }
 
-impl From<parse::Section<'_>> for Vec<ItemInfo> {
-    fn from(section: parse::Section) -> Vec<ItemInfo> {
+impl TryFrom<parse::Section<'_>> for Vec<ItemInfo> {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<Vec<ItemInfo>, CaveInfoError> {
         section
             .lines
             .iter()
             .skip(1)
-            .map(|line| -> Option<ItemInfo> {
-                let amount_code_str = line.items.get(1)?;
+            .map(|line| -> Result<ItemInfo, CaveInfoError> {
+                let amount_code_str = line.get_line_item(1)?;
                 let (min_amount_str, filler_distribution_weight_str) =
                     amount_code_str.split_at(amount_code_str.len() - 1);
-                Some(ItemInfo {
-                    internal_name: line.items.get(0)?.to_string(),
-                    min_amount: min_amount_str.parse().ok()?,
-                    filler_distribution_weight: filler_distribution_weight_str.parse().ok()?,
+                Ok(ItemInfo {
+                    internal_name: line.get_line_item(0)?.to_string(),
+                    min_amount: min_amount_str.parse()?,
+                    filler_distribution_weight: filler_distribution_weight_str.parse()?,
                 })
             })
-            .collect::<Option<Vec<ItemInfo>>>()
-            .expect("Failed to extract ItemInfo.")
+            .collect()
     }
 }
 
@@ -200,28 +195,30 @@ pub struct GateInfo {
     spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
 }
 
-impl From<parse::Section<'_>> for Vec<GateInfo> {
-    fn from(section: parse::Section) -> Vec<GateInfo> {
+impl TryFrom<parse::Section<'_>> for Vec<GateInfo> {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<Vec<GateInfo>, CaveInfoError> {
         section
             .lines
             .iter()
             .skip(1)
             .tuples()
             .map(
-                |(health_line, spawn_distribution_weight_line)| -> Option<GateInfo> {
-                    Some(GateInfo {
-                        health: health_line.items.get(1)?.parse().ok()?,
+                |(health_line, spawn_distribution_weight_line)| -> Result<GateInfo, CaveInfoError> {
+                    Ok(GateInfo {
+                        health: health_line.get_line_item(1)?.parse()?,
                         spawn_distribution_weight: spawn_distribution_weight_line
-                            .items
-                            .get(0)?
+                            .get_line_item(0)?
                             .chars()
-                            .last()?
-                            .to_digit(10)? as u8,
+                            .last()
+                            .ok_or(CaveInfoError::MalformedLine)?
+                            .to_digit(10)
+                            .ok_or(CaveInfoError::ParseValueError)?
+                            as u8,
                     })
                 },
             )
-            .collect::<Option<Vec<GateInfo>>>()
-            .expect("Failed to extract GateInfo.")
+            .collect()
     }
 }
 
@@ -247,54 +244,51 @@ pub struct CapInfo {
     spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
-impl CapInfo {
+impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
     /// Almost an exact duplicate of the code for TekiInfo, which is unfortunately
     /// necessary with how the code is currently structured. May refactor in the future.
-    fn convert_from_section(section: parse::Section) -> Option<Vec<CapInfo>> {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<Vec<CapInfo>, CaveInfoError> {
         section
             .lines
             .iter()
             .skip(1) // First line contains the number of Teki
             .tuples()
-            .map(|(_, item_line, group_line)| -> Option<CapInfo> {
-                let internal_identifier = item_line.items.get(0)?;
-                let amount_code = item_line.items.get(1)?;
-                let group: u8 = group_line.items.get(0)?.parse().ok()?;
+            .map(
+                |(_, item_line, group_line)| -> Result<CapInfo, CaveInfoError> {
+                    let internal_identifier = item_line.get_line_item(0)?;
+                    let amount_code = item_line.get_line_item(1)?;
+                    let group: u8 = group_line.get_line_item(0)?.parse()?;
 
-                let (spawn_method, internal_name, carrying) =
-                    extract_internal_identifier(internal_identifier);
+                    let (spawn_method, internal_name, carrying) =
+                        extract_internal_identifier(internal_identifier);
 
-                // Determine amount and filler_distribution_weight based on teki type
-                let (minimum_amount_str, filler_distribution_weight_str) =
-                    amount_code.split_at(amount_code.len() - 1);
-                // If there is only one digit, it represents the filler_distribution_weight
-                // and minimum_amount defaults to 0.
-                let minimum_amount = minimum_amount_str.parse().unwrap_or(0);
-                let filler_distribution_weight = filler_distribution_weight_str.parse().ok()?;
+                    // Determine amount and filler_distribution_weight based on teki type
+                    let (minimum_amount_str, filler_distribution_weight_str) =
+                        amount_code.split_at(amount_code.len() - 1);
+                    // If there is only one digit, it represents the filler_distribution_weight
+                    // and minimum_amount defaults to 0.
+                    let minimum_amount = minimum_amount_str.parse().unwrap_or(0);
+                    let filler_distribution_weight = filler_distribution_weight_str.parse()?;
 
-                Some(CapInfo {
-                    internal_name,
-                    carrying,
-                    minimum_amount,
-                    filler_distribution_weight,
-                    group,
-                    spawn_method,
-                })
-            })
+                    Ok(CapInfo {
+                        internal_name,
+                        carrying,
+                        minimum_amount,
+                        filler_distribution_weight,
+                        group,
+                        spawn_method,
+                    })
+                },
+            )
             .collect()
-    }
-}
-
-impl From<parse::Section<'_>> for Vec<CapInfo> {
-    fn from(section: parse::Section) -> Vec<CapInfo> {
-        CapInfo::convert_from_section(section).expect("Couldn't decode invalid CapInfo section.")
     }
 }
 
 /// Loads the CaveInfo for an entire cave.
 /// Should use `get_sublevel_info` in most cases.
 #[cached]
-pub fn get_caveinfo(cave: String) -> CaveInfo {
+pub fn get_caveinfo(cave: String) -> Result<CaveInfo, CaveInfoError> {
     // Load raw text of the caveinfo file
     let filename = cave_name_to_caveinfo_filename(&cave);
     let mut caveinfo_bytes: Vec<u8> = vec![];
@@ -312,7 +306,7 @@ pub fn get_caveinfo(cave: String) -> CaveInfo {
         .expect(&format!("Couldn't parse CaveInfo file '{}'", filename))
         .1;
 
-    CaveInfo::from(floor_chunks)
+    CaveInfo::try_from(floor_chunks)
 }
 
 /// Gets the CaveInfo for a single sublevel.
@@ -326,7 +320,7 @@ pub fn get_sublevel_info(sublevel: &str) -> Result<FloorInfo, CaveInfoError> {
     let cave_name = captures.get(1).unwrap().as_str();
     let sublevel_num: u8 = captures.get(2).unwrap().as_str().parse().unwrap();
 
-    let mut caveinfo = get_caveinfo(cave_name.to_string());
+    let mut caveinfo = get_caveinfo(cave_name.to_string())?;
 
     // Make sure floor is in bounds to avoid panics
     if sublevel_num <= caveinfo.num_floors {
@@ -334,11 +328,6 @@ pub fn get_sublevel_info(sublevel: &str) -> Result<FloorInfo, CaveInfoError> {
     } else {
         Err(CaveInfoError::InvalidSublevel(sublevel.to_string()))
     }
-}
-
-#[derive(Debug)]
-pub enum CaveInfoError {
-    InvalidSublevel(String),
 }
 
 /// Retrieves Spawn Method, Internal Name, and Carrying Item from a combined

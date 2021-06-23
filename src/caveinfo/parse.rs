@@ -1,4 +1,6 @@
 /// Parsing for CaveInfo files
+
+use super::CaveInfoError;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -61,8 +63,13 @@ impl<'a> Section<'a> {
 
     /// Gets and parses the one useful value out of a tagged CaveInfo line.
     /// See https://pikmintkb.com/wiki/Cave_generation_parameters#FloorInfo
-    pub(super) fn get_tag<T: FromStr>(&self, tag: &str) -> Option<T> {
-        self.get_tagged_line(tag)?.get(1)?.parse().ok()
+    pub(super) fn get_tag<T: FromStr>(&self, tag: &str) -> Result<T, CaveInfoError> {
+        self.get_tagged_line(tag)
+            .ok_or_else(|| CaveInfoError::NoSuchTag(tag.to_string()))?
+            .get(1)
+            .ok_or_else(|| CaveInfoError::MalformedTagLine(tag.to_string()))?
+            .parse()
+            .map_err(|_| CaveInfoError::ParseValueError)
     }
 }
 
@@ -71,6 +78,15 @@ impl<'a> Section<'a> {
 pub(super) struct InfoLine<'a> {
     pub tag: Option<&'a str>,
     pub items: Vec<&'a str>,
+}
+
+impl InfoLine<'_> {
+    pub fn get_line_item(&self, item: usize) -> Result<&str, CaveInfoError> {
+        self.items
+            .get(item)
+            .copied()
+            .ok_or(CaveInfoError::MalformedLine)
+    }
 }
 
 // *******************
