@@ -1,0 +1,15 @@
+#
+#
+#	units definition file
+#
+#
+1 	# number of units
+# room_queen_b_tsuchi
+{
+	1 	# version
+	room_queen_b_tsuchi 	# foldername
+	10 10 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	0 	# num doors
+}

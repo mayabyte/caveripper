@@ -13,7 +13,6 @@ mod test;
 ///
 /// For info on the CaveInfo file format, see
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
-
 pub use caveinfoerror::CaveInfoError;
 pub use gamedata::*;
 
@@ -21,7 +20,7 @@ use cached::proc_macro::cached;
 use encoding_rs::SHIFT_JIS;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use parse::parse_caveinfo;
+use parse::{parse_cave_unit_definition, parse_caveinfo};
 use regex::Regex;
 use std::{
     convert::{TryFrom, TryInto},
@@ -62,7 +61,7 @@ pub struct FloorInfo {
     cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
     has_geyser: bool,
     exit_plugged: bool,
-    cave_unit_definition_file_name: String,
+    cave_units: Vec<CaveUnit>,
     teki_info: Vec<TekiInfo>,
     item_info: Vec<ItemInfo>,
     gate_info: Vec<GateInfo>,
@@ -75,6 +74,17 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
         let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
             raw_sections;
 
+        let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
+        let mut cave_unit_definition_bytes: Vec<u8> = vec![];
+        File::open(format!("./units/{}", &cave_unit_definition_file_name))
+            .map_err(|err| CaveInfoError::MissingFileError(err.to_string()))?
+            .read_to_end(&mut cave_unit_definition_bytes)
+            .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
+        let cave_unit_definition_text: String =
+            SHIFT_JIS.decode(&cave_unit_definition_bytes).0.into_owned();
+        let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
+            .expect("Couldn't parse Cave Unit Definition file!");
+
         Ok(FloorInfo {
             sublevel: floorinfo_section.get_tag("000")?,
             max_main_objects: floorinfo_section.get_tag("002")?,
@@ -85,7 +95,10 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             cap_probability: floorinfo_section.get_tag("014")?,
             has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
             exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
-            cave_unit_definition_file_name: floorinfo_section.get_tag("008")?,
+            cave_units: cave_unit_sections
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<_>, _>>()?,
             teki_info: tekiinfo_section.try_into()?,
             item_info: iteminfo_section.try_into()?,
             gate_info: gateinfo_section.try_into()?,
@@ -285,6 +298,128 @@ impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
     }
 }
 
+/// Cave Unit Definition files record info about what map tiles can be
+/// generated on a given sublevel. Each CaveUnit represents one possible
+/// map tile.
+/// https://pikmintkb.com/wiki/Cave_unit_definition_file
+#[derive(Debug, Clone)]
+pub struct CaveUnit {
+    unit_folder_name: String,
+    width: usize,  // In cave grid cells, not in-game coords
+    height: usize, // In cave grid cells, not in-game coords
+    room_type: RoomType,
+    num_doors: usize,
+    doors: Vec<DoorUnit>,
+}
+
+impl TryFrom<parse::Section<'_>> for CaveUnit {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<CaveUnit, CaveInfoError> {
+        let unit_folder_name = section.get_line(1)?.get_line_item(0)?.to_string();
+        let width = section.get_line(2)?.get_line_item(0)?.parse()?;
+        let height = section.get_line(2)?.get_line_item(1)?.parse()?;
+        let room_type = section
+            .get_line(3)?
+            .get_line_item(0)?
+            .parse::<usize>()?
+            .into();
+        let num_doors = section.get_line(5)?.get_line_item(0)?.parse()?;
+
+        // DoorUnits
+        let doors = if num_doors > 0 {
+            let num_lines_per_door_unit = (section.lines.len() - 6) / num_doors;
+            section.lines[6..]
+                .chunks(num_lines_per_door_unit)
+                .map(
+                    |doorunit_lines: &[parse::InfoLine]| -> Result<DoorUnit, CaveInfoError> {
+                        doorunit_lines.try_into()
+                    },
+                )
+                .collect::<Result<Vec<_>, _>>()?
+        } else {
+            vec![]
+        };
+
+        Ok(CaveUnit {
+            unit_folder_name,
+            width,
+            height,
+            room_type,
+            num_doors,
+            doors,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DoorUnit {
+    direction: u8,         // 0, 1, 2, or 3
+    offset: usize,         // Appears unused?
+    waypoint_index: usize, // Index of the waypoint connected to this door
+    num_links: usize,
+    door_links: Vec<DoorLink>,
+}
+
+impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
+    type Error = CaveInfoError;
+    fn try_from(lines: &[parse::InfoLine]) -> Result<DoorUnit, CaveInfoError> {
+        let direction = lines[1].get_line_item(0)?.parse()?;
+        let offset = lines[1].get_line_item(1)?.parse()?;
+        let waypoint_index = lines[1].get_line_item(2)?.parse()?;
+        let num_links = lines[2].get_line_item(0)?.parse()?;
+        let door_links = lines[3..]
+            .into_iter()
+            .map(|line| line.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(DoorUnit {
+            direction,
+            offset,
+            waypoint_index,
+            num_links,
+            door_links,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DoorLink {
+    distance: f32,
+    door_id: usize,
+    tekiflag: bool, // Whether or not a teki should spawn in the seam of this door
+}
+
+impl TryFrom<&parse::InfoLine<'_>> for DoorLink {
+    type Error = CaveInfoError;
+    fn try_from(line: &parse::InfoLine) -> Result<DoorLink, CaveInfoError> {
+        let distance = line.get_line_item(0)?.parse()?;
+        let door_id = line.get_line_item(1)?.parse()?;
+        let tekiflag = line.get_line_item(2)?.parse::<u8>()? > 0;
+        Ok(DoorLink {
+            distance,
+            door_id,
+            tekiflag,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RoomType {
+    Room,
+    Hallway,
+    DeadEnd,
+}
+
+impl From<usize> for RoomType {
+    fn from(roomtype: usize) -> RoomType {
+        match roomtype {
+            0 => RoomType::DeadEnd,
+            1 => RoomType::Room,
+            2 => RoomType::Hallway,
+            _ => panic!("Invalid room type specified"),
+        }
+    }
+}
+
 /// Loads the CaveInfo for an entire cave.
 /// Should use `get_sublevel_info` in most cases.
 #[cached]
@@ -293,12 +428,9 @@ pub fn get_caveinfo(cave: String) -> Result<CaveInfo, CaveInfoError> {
     let filename = cave_name_to_caveinfo_filename(&cave);
     let mut caveinfo_bytes: Vec<u8> = vec![];
     File::open(format!("./caveinfo/{}", filename))
-        .expect(&format!(
-            "Cannot find caveinfo file '{}' for cave '{}'",
-            filename, cave
-        ))
+        .map_err(|err| CaveInfoError::MissingFileError(err.to_string()))?
         .read_to_end(&mut caveinfo_bytes)
-        .expect(&format!("Couldn't read caveinfo file '{}'!", filename));
+        .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
     let caveinfo_raw: String = SHIFT_JIS.decode(&caveinfo_bytes).0.into_owned();
 
     // Send it off to the parsing mines

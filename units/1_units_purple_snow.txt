@@ -1,0 +1,15 @@
+#
+#
+#	units definition file
+#
+#
+1 	# number of units
+# room_purple14x14_snow
+{
+	1 	# version
+	room_purple14x14_snow 	# foldername
+	14 14 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	0 	# num doors
+}

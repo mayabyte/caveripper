@@ -1,0 +1,857 @@
+#
+#
+#	units definition file
+#
+#
+19 	# number of units
+# cap_toy
+{
+	1 	# version
+	cap_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	0 	# room type
+	0 0 	# room Flags
+	1 	# num doors
+	0 	# index
+	2 0 0 	# dir/offs/wpindex
+	0 	# door links
+}
+# item_cap_toy
+{
+	1 	# version
+	item_cap_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	0 	# room type
+	0 0 	# room Flags
+	1 	# num doors
+	0 	# index
+	2 0 0 	# dir/offs/wpindex
+	0 	# door links
+}
+# way3_toy
+{
+	1 	# version
+	way3_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	2 	# room type
+	0 0 	# room Flags
+	3 	# num doors
+	0 	# index
+	1 0 0 	# dir/offs/wpindex
+	2 	# door links
+	170.004532 1 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	1 	# index
+	2 0 1 	# dir/offs/wpindex
+	2 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	2 	# index
+	3 0 2 	# dir/offs/wpindex
+	2 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+	170.004532 1 1 	# dist/door-id/tekiflag
+}
+# way4_toy
+{
+	1 	# version
+	way4_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	2 	# room type
+	0 0 	# room Flags
+	4 	# num doors
+	0 	# index
+	0 0 0 	# dir/offs/wpindex
+	3 	# door links
+	170.004532 1 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	170.004532 3 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 0 1 	# dir/offs/wpindex
+	3 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	170.004532 3 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 0 2 	# dir/offs/wpindex
+	3 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+	170.004532 1 1 	# dist/door-id/tekiflag
+	170.004532 3 1 	# dist/door-id/tekiflag
+	3 	# index
+	3 0 3 	# dir/offs/wpindex
+	3 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+	170.004532 1 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+}
+# wayl_toy
+{
+	1 	# version
+	wayl_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	2 	# room type
+	0 0 	# room Flags
+	2 	# num doors
+	0 	# index
+	2 0 0 	# dir/offs/wpindex
+	1 	# door links
+	136.006516 1 1 	# dist/door-id/tekiflag
+	1 	# index
+	3 0 1 	# dir/offs/wpindex
+	1 	# door links
+	136.006516 0 1 	# dist/door-id/tekiflag
+}
+# way2_toy
+{
+	1 	# version
+	way2_toy 	# foldername
+	1 1 	# dX/dZ ; cell size
+	2 	# room type
+	0 0 	# room Flags
+	2 	# num doors
+	0 	# index
+	0 0 0 	# dir/offs/wpindex
+	1 	# door links
+	170.004532 1 1 	# dist/door-id/tekiflag
+	1 	# index
+	2 0 1 	# dir/offs/wpindex
+	1 	# door links
+	170.004532 0 1 	# dist/door-id/tekiflag
+}
+# way2x2_toy
+{
+	1 	# version
+	way2x2_toy 	# foldername
+	1 2 	# dX/dZ ; cell size
+	2 	# room type
+	0 0 	# room Flags
+	2 	# num doors
+	0 	# index
+	0 0 0 	# dir/offs/wpindex
+	1 	# door links
+	340.009064 1 1 	# dist/door-id/tekiflag
+	1 	# index
+	2 0 1 	# dir/offs/wpindex
+	1 	# door links
+	340.009064 0 1 	# dist/door-id/tekiflag
+}
+# room_small_5_toy
+{
+	1 	# version
+	room_small_5_toy 	# foldername
+	3 3 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	5 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	510.013580 2 1 	# dist/door-id/tekiflag
+	850.022644 3 1 	# dist/door-id/tekiflag
+	510.013580 4 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 2 1 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+	850.022644 4 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 2 2 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	170.004532 1 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+	850.022644 4 1 	# dist/door-id/tekiflag
+	3 	# index
+	3 2 3 	# dir/offs/wpindex
+	4 	# door links
+	850.022644 0 1 	# dist/door-id/tekiflag
+	510.013580 1 1 	# dist/door-id/tekiflag
+	510.013580 2 1 	# dist/door-id/tekiflag
+	510.013580 4 1 	# dist/door-id/tekiflag
+	4 	# index
+	3 0 4 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	850.022644 1 1 	# dist/door-id/tekiflag
+	850.022644 2 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+}
+# room_mid_8_toy
+{
+	1 	# version
+	room_mid_8_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	8 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	850.031311 2 1 	# dist/door-id/tekiflag
+	1363.520020 3 1 	# dist/door-id/tekiflag
+	1363.520020 4 1 	# dist/door-id/tekiflag
+	1223.956543 5 1 	# dist/door-id/tekiflag
+	1223.956543 6 1 	# dist/door-id/tekiflag
+	510.022247 7 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	510.022247 2 1 	# dist/door-id/tekiflag
+	1023.510925 3 1 	# dist/door-id/tekiflag
+	1023.510925 4 1 	# dist/door-id/tekiflag
+	1563.965576 5 1 	# dist/door-id/tekiflag
+	1563.965576 6 1 	# dist/door-id/tekiflag
+	850.031311 7 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 1 2 	# dir/offs/wpindex
+	7 	# door links
+	850.031311 0 1 	# dist/door-id/tekiflag
+	510.022217 1 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	1903.983398 5 1 	# dist/door-id/tekiflag
+	1903.983398 6 1 	# dist/door-id/tekiflag
+	1190.049072 7 1 	# dist/door-id/tekiflag
+	3 	# index
+	1 4 3 	# dir/offs/wpindex
+	7 	# door links
+	1363.520020 0 1 	# dist/door-id/tekiflag
+	1023.510864 1 1 	# dist/door-id/tekiflag
+	1023.519531 2 1 	# dist/door-id/tekiflag
+	510.030884 4 1 	# dist/door-id/tekiflag
+	2417.471924 5 1 	# dist/door-id/tekiflag
+	2417.471924 6 1 	# dist/door-id/tekiflag
+	1703.537598 7 1 	# dist/door-id/tekiflag
+	4 	# index
+	2 4 4 	# dir/offs/wpindex
+	7 	# door links
+	1363.520020 0 1 	# dist/door-id/tekiflag
+	1023.510864 1 1 	# dist/door-id/tekiflag
+	1023.519531 2 1 	# dist/door-id/tekiflag
+	510.030884 3 1 	# dist/door-id/tekiflag
+	2417.471924 5 1 	# dist/door-id/tekiflag
+	2417.471924 6 1 	# dist/door-id/tekiflag
+	1703.537598 7 1 	# dist/door-id/tekiflag
+	5 	# index
+	2 1 5 	# dir/offs/wpindex
+	7 	# door links
+	1223.956543 0 1 	# dist/door-id/tekiflag
+	1563.965576 1 1 	# dist/door-id/tekiflag
+	1903.983154 2 1 	# dist/door-id/tekiflag
+	2417.471924 3 1 	# dist/door-id/tekiflag
+	2417.471924 4 1 	# dist/door-id/tekiflag
+	510.030884 6 1 	# dist/door-id/tekiflag
+	1223.965088 7 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 4 6 	# dir/offs/wpindex
+	7 	# door links
+	1223.956543 0 1 	# dist/door-id/tekiflag
+	1563.965576 1 1 	# dist/door-id/tekiflag
+	1903.983154 2 1 	# dist/door-id/tekiflag
+	2417.471924 3 1 	# dist/door-id/tekiflag
+	2417.471924 4 1 	# dist/door-id/tekiflag
+	510.030884 5 1 	# dist/door-id/tekiflag
+	1223.965088 7 1 	# dist/door-id/tekiflag
+	7 	# index
+	3 0 7 	# dir/offs/wpindex
+	7 	# door links
+	510.022217 0 1 	# dist/door-id/tekiflag
+	850.031311 1 1 	# dist/door-id/tekiflag
+	1190.049072 2 1 	# dist/door-id/tekiflag
+	1703.537598 3 1 	# dist/door-id/tekiflag
+	1703.537598 4 1 	# dist/door-id/tekiflag
+	1223.965088 5 1 	# dist/door-id/tekiflag
+	1223.965088 6 1 	# dist/door-id/tekiflag
+}
+# room_large_7_toy
+{
+	1 	# version
+	room_large_7_toy 	# foldername
+	9 9 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	7 	# num doors
+	0 	# index
+	0 1 0 	# dir/offs/wpindex
+	6 	# door links
+	951.528198 1 1 	# dist/door-id/tekiflag
+	1998.331909 2 1 	# dist/door-id/tekiflag
+	1894.989624 3 1 	# dist/door-id/tekiflag
+	1719.712524 4 1 	# dist/door-id/tekiflag
+	948.863037 5 1 	# dist/door-id/tekiflag
+	510.030884 6 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	6 	# door links
+	951.528259 0 1 	# dist/door-id/tekiflag
+	1386.812866 2 1 	# dist/door-id/tekiflag
+	2336.487061 3 1 	# dist/door-id/tekiflag
+	2161.210205 4 1 	# dist/door-id/tekiflag
+	1390.360474 5 1 	# dist/door-id/tekiflag
+	951.528259 6 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 4 2 	# dir/offs/wpindex
+	6 	# door links
+	1998.331787 0 1 	# dist/door-id/tekiflag
+	1386.812744 1 1 	# dist/door-id/tekiflag
+	1377.110596 3 1 	# dist/door-id/tekiflag
+	2085.087891 4 1 	# dist/door-id/tekiflag
+	2323.237305 5 1 	# dist/door-id/tekiflag
+	1998.331787 6 1 	# dist/door-id/tekiflag
+	3 	# index
+	2 4 3 	# dir/offs/wpindex
+	6 	# door links
+	1894.989502 0 1 	# dist/door-id/tekiflag
+	2336.487061 1 1 	# dist/door-id/tekiflag
+	1377.110596 2 1 	# dist/door-id/tekiflag
+	1047.986084 4 1 	# dist/door-id/tekiflag
+	1286.135498 5 1 	# dist/door-id/tekiflag
+	1894.989502 6 1 	# dist/door-id/tekiflag
+	4 	# index
+	3 8 4 	# dir/offs/wpindex
+	6 	# door links
+	1719.712402 0 1 	# dist/door-id/tekiflag
+	2161.209717 1 1 	# dist/door-id/tekiflag
+	2085.087646 2 1 	# dist/door-id/tekiflag
+	1047.986084 3 1 	# dist/door-id/tekiflag
+	1110.858521 5 1 	# dist/door-id/tekiflag
+	1719.712402 6 1 	# dist/door-id/tekiflag
+	5 	# index
+	3 4 5 	# dir/offs/wpindex
+	6 	# door links
+	948.863037 0 1 	# dist/door-id/tekiflag
+	1390.360352 1 1 	# dist/door-id/tekiflag
+	2323.237305 2 1 	# dist/door-id/tekiflag
+	1286.135620 3 1 	# dist/door-id/tekiflag
+	1110.858643 4 1 	# dist/door-id/tekiflag
+	948.863037 6 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 1 6 	# dir/offs/wpindex
+	6 	# door links
+	510.030884 0 1 	# dist/door-id/tekiflag
+	951.528198 1 1 	# dist/door-id/tekiflag
+	1998.331909 2 1 	# dist/door-id/tekiflag
+	1894.989624 3 1 	# dist/door-id/tekiflag
+	1719.712524 4 1 	# dist/door-id/tekiflag
+	948.863037 5 1 	# dist/door-id/tekiflag
+}
+# room_hitode4x7_3_toy
+{
+	1 	# version
+	room_hitode4x7_3_toy 	# foldername
+	7 4 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	3 	# num doors
+	0 	# index
+	1 0 0 	# dir/offs/wpindex
+	2 	# door links
+	828.500549 1 1 	# dist/door-id/tekiflag
+	1305.301025 2 1 	# dist/door-id/tekiflag
+	1 	# index
+	2 4 1 	# dir/offs/wpindex
+	2 	# door links
+	828.500610 0 1 	# dist/door-id/tekiflag
+	1056.860962 2 1 	# dist/door-id/tekiflag
+	2 	# index
+	3 2 2 	# dir/offs/wpindex
+	2 	# door links
+	1305.301025 0 1 	# dist/door-id/tekiflag
+	1056.860840 1 1 	# dist/door-id/tekiflag
+}
+# room_hitode6x6_3_toy
+{
+	1 	# version
+	room_hitode6x6_3_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	3 	# num doors
+	0 	# index
+	0 0 0 	# dir/offs/wpindex
+	2 	# door links
+	1531.378662 1 1 	# dist/door-id/tekiflag
+	1140.935059 2 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 4 1 	# dir/offs/wpindex
+	2 	# door links
+	1531.378540 0 1 	# dist/door-id/tekiflag
+	1349.721680 2 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 0 2 	# dir/offs/wpindex
+	2 	# door links
+	1140.935059 0 1 	# dist/door-id/tekiflag
+	1349.721680 1 1 	# dist/door-id/tekiflag
+}
+# room_hitode6x7_4_toy
+{
+	1 	# version
+	room_hitode6x7_4_toy 	# foldername
+	6 7 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	4 	# num doors
+	0 	# index
+	0 3 0 	# dir/offs/wpindex
+	3 	# door links
+	789.537476 1 1 	# dist/door-id/tekiflag
+	1280.350708 2 1 	# dist/door-id/tekiflag
+	1090.472656 3 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 2 1 	# dir/offs/wpindex
+	3 	# door links
+	789.537415 0 1 	# dist/door-id/tekiflag
+	1008.766602 2 1 	# dist/door-id/tekiflag
+	1046.208740 3 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 4 2 	# dir/offs/wpindex
+	3 	# door links
+	1280.350830 0 1 	# dist/door-id/tekiflag
+	1008.766724 1 1 	# dist/door-id/tekiflag
+	1154.723877 3 1 	# dist/door-id/tekiflag
+	3 	# index
+	3 3 3 	# dir/offs/wpindex
+	3 	# door links
+	1090.472656 0 1 	# dist/door-id/tekiflag
+	1046.208618 1 1 	# dist/door-id/tekiflag
+	1154.723999 2 1 	# dist/door-id/tekiflag
+}
+# room_vs_hitode6x7_4_toy
+{
+	1 	# version
+	room_vs_hitode6x7_4_toy 	# foldername
+	6 7 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	4 	# num doors
+	0 	# index
+	0 3 0 	# dir/offs/wpindex
+	3 	# door links
+	789.537476 1 1 	# dist/door-id/tekiflag
+	1280.350708 2 1 	# dist/door-id/tekiflag
+	1195.542236 3 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 2 1 	# dir/offs/wpindex
+	3 	# door links
+	789.537415 0 1 	# dist/door-id/tekiflag
+	1008.766602 2 1 	# dist/door-id/tekiflag
+	1053.006836 3 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 4 2 	# dir/offs/wpindex
+	3 	# door links
+	1280.350830 0 1 	# dist/door-id/tekiflag
+	1008.766724 1 1 	# dist/door-id/tekiflag
+	1181.658203 3 1 	# dist/door-id/tekiflag
+	3 	# index
+	3 3 3 	# dir/offs/wpindex
+	3 	# door links
+	1195.542236 0 1 	# dist/door-id/tekiflag
+	1053.006836 1 1 	# dist/door-id/tekiflag
+	1181.658203 2 1 	# dist/door-id/tekiflag
+}
+# room_small2_5_toy
+{
+	1 	# version
+	room_small2_5_toy 	# foldername
+	3 3 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	5 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	510.013580 2 1 	# dist/door-id/tekiflag
+	650.842529 3 1 	# dist/door-id/tekiflag
+	510.013580 4 1 	# dist/door-id/tekiflag
+	1 	# index
+	1 2 1 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	170.004532 2 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+	650.842529 4 1 	# dist/door-id/tekiflag
+	2 	# index
+	2 2 2 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	170.004532 1 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+	650.842529 4 1 	# dist/door-id/tekiflag
+	3 	# index
+	3 2 3 	# dir/offs/wpindex
+	4 	# door links
+	650.842529 0 1 	# dist/door-id/tekiflag
+	510.013580 1 1 	# dist/door-id/tekiflag
+	510.013580 2 1 	# dist/door-id/tekiflag
+	510.013580 4 1 	# dist/door-id/tekiflag
+	4 	# index
+	3 0 4 	# dir/offs/wpindex
+	4 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	650.842529 1 1 	# dist/door-id/tekiflag
+	650.842529 2 1 	# dist/door-id/tekiflag
+	510.013580 3 1 	# dist/door-id/tekiflag
+}
+# room_mid2_8_toy
+{
+	1 	# version
+	room_mid2_8_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	8 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	709.503174 2 1 	# dist/door-id/tekiflag
+	1163.391846 3 1 	# dist/door-id/tekiflag
+	1163.391846 4 1 	# dist/door-id/tekiflag
+	1100.039551 5 1 	# dist/door-id/tekiflag
+	1100.039551 6 1 	# dist/door-id/tekiflag
+	510.022247 7 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	481.745056 2 1 	# dist/door-id/tekiflag
+	1023.314026 3 1 	# dist/door-id/tekiflag
+	1023.314026 4 1 	# dist/door-id/tekiflag
+	1224.156982 5 1 	# dist/door-id/tekiflag
+	1224.156982 6 1 	# dist/door-id/tekiflag
+	850.031311 7 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 1 2 	# dir/offs/wpindex
+	7 	# door links
+	709.503235 0 1 	# dist/door-id/tekiflag
+	481.745056 1 1 	# dist/door-id/tekiflag
+	1055.057617 3 1 	# dist/door-id/tekiflag
+	1055.057617 4 1 	# dist/door-id/tekiflag
+	1255.900635 5 1 	# dist/door-id/tekiflag
+	1255.900635 6 1 	# dist/door-id/tekiflag
+	1049.520996 7 1 	# dist/door-id/tekiflag
+	3 	# index
+	1 4 3 	# dir/offs/wpindex
+	7 	# door links
+	1163.391968 0 1 	# dist/door-id/tekiflag
+	1023.314087 1 1 	# dist/door-id/tekiflag
+	1055.057617 2 1 	# dist/door-id/tekiflag
+	510.030884 4 1 	# dist/door-id/tekiflag
+	1023.519531 5 1 	# dist/door-id/tekiflag
+	1023.519531 6 1 	# dist/door-id/tekiflag
+	1428.950439 7 1 	# dist/door-id/tekiflag
+	4 	# index
+	2 4 4 	# dir/offs/wpindex
+	7 	# door links
+	1163.391968 0 1 	# dist/door-id/tekiflag
+	1023.314087 1 1 	# dist/door-id/tekiflag
+	1055.057617 2 1 	# dist/door-id/tekiflag
+	510.030884 3 1 	# dist/door-id/tekiflag
+	1023.519531 5 1 	# dist/door-id/tekiflag
+	1023.519531 6 1 	# dist/door-id/tekiflag
+	1428.950439 7 1 	# dist/door-id/tekiflag
+	5 	# index
+	2 1 5 	# dir/offs/wpindex
+	7 	# door links
+	1100.039673 0 1 	# dist/door-id/tekiflag
+	1224.156982 1 1 	# dist/door-id/tekiflag
+	1255.900635 2 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	510.030884 6 1 	# dist/door-id/tekiflag
+	1207.311646 7 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 4 6 	# dir/offs/wpindex
+	7 	# door links
+	1100.039673 0 1 	# dist/door-id/tekiflag
+	1224.156982 1 1 	# dist/door-id/tekiflag
+	1255.900635 2 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	510.030884 5 1 	# dist/door-id/tekiflag
+	1207.311646 7 1 	# dist/door-id/tekiflag
+	7 	# index
+	3 0 7 	# dir/offs/wpindex
+	7 	# door links
+	510.022217 0 1 	# dist/door-id/tekiflag
+	850.031311 1 1 	# dist/door-id/tekiflag
+	1049.520996 2 1 	# dist/door-id/tekiflag
+	1428.950684 3 1 	# dist/door-id/tekiflag
+	1428.950684 4 1 	# dist/door-id/tekiflag
+	1207.311523 5 1 	# dist/door-id/tekiflag
+	1207.311523 6 1 	# dist/door-id/tekiflag
+}
+# room_mid_sara_8_toy
+{
+	1 	# version
+	room_mid_sara_8_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	8 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	720.200073 2 1 	# dist/door-id/tekiflag
+	1233.688721 3 1 	# dist/door-id/tekiflag
+	1233.688721 4 1 	# dist/door-id/tekiflag
+	1101.020264 5 1 	# dist/door-id/tekiflag
+	1101.020264 6 1 	# dist/door-id/tekiflag
+	510.016357 7 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	510.022247 2 1 	# dist/door-id/tekiflag
+	1023.510925 3 1 	# dist/door-id/tekiflag
+	1023.510925 4 1 	# dist/door-id/tekiflag
+	1441.029297 5 1 	# dist/door-id/tekiflag
+	1441.029297 6 1 	# dist/door-id/tekiflag
+	850.025391 7 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 1 2 	# dir/offs/wpindex
+	7 	# door links
+	720.200012 0 1 	# dist/door-id/tekiflag
+	510.022217 1 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	1537.008057 5 1 	# dist/door-id/tekiflag
+	1537.008057 6 1 	# dist/door-id/tekiflag
+	1060.211914 7 1 	# dist/door-id/tekiflag
+	3 	# index
+	1 4 3 	# dir/offs/wpindex
+	7 	# door links
+	1233.688721 0 1 	# dist/door-id/tekiflag
+	1023.510864 1 1 	# dist/door-id/tekiflag
+	1023.519531 2 1 	# dist/door-id/tekiflag
+	510.030884 4 1 	# dist/door-id/tekiflag
+	1023.519531 5 1 	# dist/door-id/tekiflag
+	1023.519531 6 1 	# dist/door-id/tekiflag
+	1573.700439 7 1 	# dist/door-id/tekiflag
+	4 	# index
+	2 4 4 	# dir/offs/wpindex
+	7 	# door links
+	1233.688721 0 1 	# dist/door-id/tekiflag
+	1023.510864 1 1 	# dist/door-id/tekiflag
+	1023.519531 2 1 	# dist/door-id/tekiflag
+	510.030884 3 1 	# dist/door-id/tekiflag
+	1023.519531 5 1 	# dist/door-id/tekiflag
+	1023.519531 6 1 	# dist/door-id/tekiflag
+	1573.700439 7 1 	# dist/door-id/tekiflag
+	5 	# index
+	2 1 5 	# dir/offs/wpindex
+	7 	# door links
+	1101.020264 0 1 	# dist/door-id/tekiflag
+	1441.029297 1 1 	# dist/door-id/tekiflag
+	1537.008057 2 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	510.030884 6 1 	# dist/door-id/tekiflag
+	1184.613281 7 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 4 6 	# dir/offs/wpindex
+	7 	# door links
+	1101.020264 0 1 	# dist/door-id/tekiflag
+	1441.029297 1 1 	# dist/door-id/tekiflag
+	1537.008057 2 1 	# dist/door-id/tekiflag
+	1023.519531 3 1 	# dist/door-id/tekiflag
+	1023.519531 4 1 	# dist/door-id/tekiflag
+	510.030884 5 1 	# dist/door-id/tekiflag
+	1184.613281 7 1 	# dist/door-id/tekiflag
+	7 	# index
+	3 0 7 	# dir/offs/wpindex
+	7 	# door links
+	510.016357 0 1 	# dist/door-id/tekiflag
+	850.025452 1 1 	# dist/door-id/tekiflag
+	1060.211914 2 1 	# dist/door-id/tekiflag
+	1573.700439 3 1 	# dist/door-id/tekiflag
+	1573.700439 4 1 	# dist/door-id/tekiflag
+	1184.613281 5 1 	# dist/door-id/tekiflag
+	1184.613281 6 1 	# dist/door-id/tekiflag
+}
+# room_mid_sara2_8_toy
+{
+	1 	# version
+	room_mid_sara2_8_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	8 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	720.200073 2 1 	# dist/door-id/tekiflag
+	1192.565430 3 1 	# dist/door-id/tekiflag
+	1192.565430 4 1 	# dist/door-id/tekiflag
+	1085.201172 5 1 	# dist/door-id/tekiflag
+	971.719666 6 1 	# dist/door-id/tekiflag
+	510.042847 7 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	510.022247 2 1 	# dist/door-id/tekiflag
+	1023.567566 3 1 	# dist/door-id/tekiflag
+	1023.567566 4 1 	# dist/door-id/tekiflag
+	1210.017456 5 1 	# dist/door-id/tekiflag
+	1189.891113 6 1 	# dist/door-id/tekiflag
+	850.051880 7 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 1 2 	# dir/offs/wpindex
+	7 	# door links
+	720.200012 0 1 	# dist/door-id/tekiflag
+	510.022217 1 1 	# dist/door-id/tekiflag
+	1023.576172 3 1 	# dist/door-id/tekiflag
+	1023.576172 4 1 	# dist/door-id/tekiflag
+	1210.026001 5 1 	# dist/door-id/tekiflag
+	1189.899658 6 1 	# dist/door-id/tekiflag
+	1060.238281 7 1 	# dist/door-id/tekiflag
+	3 	# index
+	1 4 3 	# dir/offs/wpindex
+	7 	# door links
+	1192.565430 0 1 	# dist/door-id/tekiflag
+	1023.567444 1 1 	# dist/door-id/tekiflag
+	1023.576111 2 1 	# dist/door-id/tekiflag
+	510.030884 4 1 	# dist/door-id/tekiflag
+	942.365356 5 1 	# dist/door-id/tekiflag
+	1106.735107 6 1 	# dist/door-id/tekiflag
+	1356.547363 7 1 	# dist/door-id/tekiflag
+	4 	# index
+	2 4 4 	# dir/offs/wpindex
+	7 	# door links
+	1192.565430 0 1 	# dist/door-id/tekiflag
+	1023.567444 1 1 	# dist/door-id/tekiflag
+	1023.576111 2 1 	# dist/door-id/tekiflag
+	510.030884 3 1 	# dist/door-id/tekiflag
+	942.365356 5 1 	# dist/door-id/tekiflag
+	1106.735107 6 1 	# dist/door-id/tekiflag
+	1356.547363 7 1 	# dist/door-id/tekiflag
+	5 	# index
+	2 1 5 	# dir/offs/wpindex
+	7 	# door links
+	1085.201172 0 1 	# dist/door-id/tekiflag
+	1210.017456 1 1 	# dist/door-id/tekiflag
+	1210.026123 2 1 	# dist/door-id/tekiflag
+	942.365356 3 1 	# dist/door-id/tekiflag
+	942.365356 4 1 	# dist/door-id/tekiflag
+	547.616455 6 1 	# dist/door-id/tekiflag
+	1249.183228 7 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 4 6 	# dir/offs/wpindex
+	7 	# door links
+	971.719604 0 1 	# dist/door-id/tekiflag
+	1189.891113 1 1 	# dist/door-id/tekiflag
+	1189.899658 2 1 	# dist/door-id/tekiflag
+	1106.735107 3 1 	# dist/door-id/tekiflag
+	1106.735107 4 1 	# dist/door-id/tekiflag
+	547.616455 5 1 	# dist/door-id/tekiflag
+	1135.701660 7 1 	# dist/door-id/tekiflag
+	7 	# index
+	3 0 7 	# dir/offs/wpindex
+	7 	# door links
+	510.042816 0 1 	# dist/door-id/tekiflag
+	850.051880 1 1 	# dist/door-id/tekiflag
+	1060.238281 2 1 	# dist/door-id/tekiflag
+	1356.547363 3 1 	# dist/door-id/tekiflag
+	1356.547363 4 1 	# dist/door-id/tekiflag
+	1249.183228 5 1 	# dist/door-id/tekiflag
+	1135.701660 6 1 	# dist/door-id/tekiflag
+}
+# room_mid_tower_8_toy
+{
+	1 	# version
+	room_mid_tower_8_toy 	# foldername
+	6 6 	# dX/dZ ; cell size
+	1 	# room type
+	0 1 	# room Flags
+	8 	# num doors
+	0 	# index
+	0 2 0 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 1 1 	# dist/door-id/tekiflag
+	850.031311 2 1 	# dist/door-id/tekiflag
+	1360.933105 3 1 	# dist/door-id/tekiflag
+	1360.933105 4 1 	# dist/door-id/tekiflag
+	1274.581543 5 1 	# dist/door-id/tekiflag
+	1274.581543 6 1 	# dist/door-id/tekiflag
+	510.013123 7 1 	# dist/door-id/tekiflag
+	1 	# index
+	0 4 1 	# dir/offs/wpindex
+	7 	# door links
+	510.013580 0 1 	# dist/door-id/tekiflag
+	510.022247 2 1 	# dist/door-id/tekiflag
+	1020.924072 3 1 	# dist/door-id/tekiflag
+	1020.924072 4 1 	# dist/door-id/tekiflag
+	1370.657227 5 1 	# dist/door-id/tekiflag
+	1370.657227 6 1 	# dist/door-id/tekiflag
+	850.022156 7 1 	# dist/door-id/tekiflag
+	2 	# index
+	1 1 2 	# dir/offs/wpindex
+	7 	# door links
+	850.031311 0 1 	# dist/door-id/tekiflag
+	510.022217 1 1 	# dist/door-id/tekiflag
+	1020.932739 3 1 	# dist/door-id/tekiflag
+	1020.932739 4 1 	# dist/door-id/tekiflag
+	1370.666016 5 1 	# dist/door-id/tekiflag
+	1370.666016 6 1 	# dist/door-id/tekiflag
+	1190.039917 7 1 	# dist/door-id/tekiflag
+	3 	# index
+	1 4 3 	# dir/offs/wpindex
+	7 	# door links
+	1360.933228 0 1 	# dist/door-id/tekiflag
+	1020.924072 1 1 	# dist/door-id/tekiflag
+	1020.932739 2 1 	# dist/door-id/tekiflag
+	510.030884 4 1 	# dist/door-id/tekiflag
+	1020.061768 5 1 	# dist/door-id/tekiflag
+	1020.061768 6 1 	# dist/door-id/tekiflag
+	1502.449463 7 1 	# dist/door-id/tekiflag
+	4 	# index
+	2 4 4 	# dir/offs/wpindex
+	7 	# door links
+	1360.933228 0 1 	# dist/door-id/tekiflag
+	1020.924072 1 1 	# dist/door-id/tekiflag
+	1020.932739 2 1 	# dist/door-id/tekiflag
+	510.030884 3 1 	# dist/door-id/tekiflag
+	1020.061768 5 1 	# dist/door-id/tekiflag
+	1020.061768 6 1 	# dist/door-id/tekiflag
+	1502.449463 7 1 	# dist/door-id/tekiflag
+	5 	# index
+	2 1 5 	# dir/offs/wpindex
+	7 	# door links
+	1274.581543 0 1 	# dist/door-id/tekiflag
+	1370.657349 1 1 	# dist/door-id/tekiflag
+	1370.666016 2 1 	# dist/door-id/tekiflag
+	1020.061768 3 1 	# dist/door-id/tekiflag
+	1020.061768 4 1 	# dist/door-id/tekiflag
+	510.030884 6 1 	# dist/door-id/tekiflag
+	1124.578369 7 1 	# dist/door-id/tekiflag
+	6 	# index
+	3 4 6 	# dir/offs/wpindex
+	7 	# door links
+	1274.581543 0 1 	# dist/door-id/tekiflag
+	1370.657349 1 1 	# dist/door-id/tekiflag
+	1370.666016 2 1 	# dist/door-id/tekiflag
+	1020.061768 3 1 	# dist/door-id/tekiflag
+	1020.061768 4 1 	# dist/door-id/tekiflag
+	510.030884 5 1 	# dist/door-id/tekiflag
+	1124.578369 7 1 	# dist/door-id/tekiflag
+	7 	# index
+	3 0 7 	# dir/offs/wpindex
+	7 	# door links
+	510.013123 0 1 	# dist/door-id/tekiflag
+	850.022156 1 1 	# dist/door-id/tekiflag
+	1190.039795 2 1 	# dist/door-id/tekiflag
+	1634.609131 3 1 	# dist/door-id/tekiflag
+	1634.609131 4 1 	# dist/door-id/tekiflag
+	1124.578369 5 1 	# dist/door-id/tekiflag
+	1124.578369 6 1 	# dist/door-id/tekiflag
+}
