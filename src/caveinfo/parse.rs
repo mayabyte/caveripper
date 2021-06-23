@@ -1,6 +1,4 @@
 /// Parsing for CaveInfo files
-
-use std::str::FromStr;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -10,6 +8,7 @@ use nom::{
     sequence::{delimited, preceded, tuple},
     IResult,
 };
+use std::str::FromStr;
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
 /// CaveInfo struct, ready for passing to the generator.
@@ -19,8 +18,6 @@ pub(super) fn parse_caveinfo<'c>(caveinfo_txt: &'c str) -> IResult<&str, Vec<[Se
     let num_floors: u8 = header_section
         .get_tag("000")
         .expect("Couldn't parse CaveInfo header section!");
-
-    println!("{}", num_floors);
 
     // CaveInfo files have one unique line after the header section that
     // repeats the floor number before the #FloorInfo comment. This skips
