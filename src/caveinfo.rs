@@ -10,6 +10,9 @@ mod gamedata;
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
 mod parse;
 
+#[cfg(test)]
+mod test;
+
 pub use gamedata::*;
 
 use cached::proc_macro::cached;
@@ -135,7 +138,10 @@ impl TekiInfo {
                 } else {
                     let (minimum_amount_str, filler_distribution_weight_str) =
                         amount_code.split_at(amount_code.len() - 1);
-                    minimum_amount = minimum_amount_str.parse().ok()?;
+
+                    // If there is only one digit, it represents the filler_distribution_weight
+                    // and minimum_amount defaults to 0.
+                    minimum_amount = minimum_amount_str.parse().unwrap_or(0);
                     filler_distribution_weight = filler_distribution_weight_str.parse().ok()?;
                 }
 
@@ -261,7 +267,9 @@ impl CapInfo {
                 // Determine amount and filler_distribution_weight based on teki type
                 let (minimum_amount_str, filler_distribution_weight_str) =
                     amount_code.split_at(amount_code.len() - 1);
-                let minimum_amount = minimum_amount_str.parse().ok()?;
+                // If there is only one digit, it represents the filler_distribution_weight
+                // and minimum_amount defaults to 0.
+                let minimum_amount = minimum_amount_str.parse().unwrap_or(0);
                 let filler_distribution_weight = filler_distribution_weight_str.parse().ok()?;
 
                 Some(CapInfo {
@@ -331,32 +339,6 @@ pub fn get_sublevel_info(sublevel: &str) -> Result<FloorInfo, CaveInfoError> {
 #[derive(Debug)]
 pub enum CaveInfoError {
     InvalidSublevel(String),
-}
-
-fn cave_name_to_caveinfo_filename(cave_name: &str) -> &'static str {
-    match cave_name.to_ascii_lowercase().as_str() {
-        "ec" => "tutorial_1.txt",
-        "scx" => "tutorial_2.txt",
-        "fc" => "tutorial_3.txt",
-        "hob" => "forest_1.txt",
-        "wfg" => "forest_2.txt",
-        "bk" => "forest_3.txt",
-        "sh" => "forest_4.txt",
-        "cos" => "yakushima_1.txt",
-        "gk" => "yakushima_2.txt",
-        "sr" => "yakushima_3.txt",
-        "smc" => "yakushima_4.txt",
-        // TODO: add Wistful Wilds caves
-        _ => panic!("Unrecognized cave name \"{}\"", cave_name),
-    }
-}
-
-fn is_item_name(name: &str) -> bool {
-    TREASURES
-        .lock()
-        .unwrap()
-        .binary_search(&name.trim_start_matches('_'))
-        .is_ok()
 }
 
 /// Retrieves Spawn Method, Internal Name, and Carrying Item from a combined
