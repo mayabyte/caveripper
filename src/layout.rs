@@ -1,4 +1,4 @@
-use crate::{caveinfo::CaveInfo, seed::Seed};
+use crate::{caveinfo::FloorInfo, seed::Seed};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -10,7 +10,7 @@ use crate::{caveinfo::CaveInfo, seed::Seed};
 pub struct Layout {}
 
 impl Layout {
-    pub fn generate(seed: &Seed, caveinfo: &CaveInfo) -> Layout {
+    pub fn generate(seed: &Seed, caveinfo: &FloorInfo) -> Layout {
         unimplemented!()
     }
 }
