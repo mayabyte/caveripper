@@ -3,7 +3,6 @@
 
 pub mod caveinfo;
 pub mod layout;
-pub mod seed;
 pub mod pikmin_math;
 
 use std::error::Error;

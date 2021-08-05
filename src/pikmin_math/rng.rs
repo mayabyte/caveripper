@@ -48,4 +48,29 @@ impl PikminRng {
         // possible alternative: `(self.rand_raw() as f64 / 32768f64) as f32`
         self.rand_raw() as f32 / 32768f32
     }
+
+    /// Shuffles the given list by pushing randomly-chosen elements to the
+    /// back of the list, n times where n is the length of the list.
+    pub fn rand_backs<T>(&self, mut list: Vec<T>) {
+        for _ in 0..list.len() {
+            let index = self.rand_u16(list.len() as u32);
+            let elem = list.remove(index as usize);
+            list.push(elem);
+        }
+    }
+
+    /// Takes a list of weights and chooses a random weight. Returns the index of
+    /// the chosen weight in the original list rather than the weight itself.
+    pub fn rand_index_weight(&self, weights: &[u16]) -> Option<usize> {
+        let total: u16 = weights.iter().sum();
+        let mut cumulative_sum = 0;
+        let threshold = self.rand_u16(total as u32);
+        for idx in 0..weights.len() {
+            cumulative_sum += weights[idx];
+            if cumulative_sum > threshold {
+                return Some(idx);
+            }
+        }
+        None
+    }
 }

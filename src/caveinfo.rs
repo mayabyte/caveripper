@@ -22,11 +22,7 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use parse::{parse_cave_unit_definition, parse_caveinfo};
 use regex::Regex;
-use std::{
-    convert::{TryFrom, TryInto},
-    fs::File,
-    io::Read,
-};
+use std::{cmp::Ordering, convert::{TryFrom, TryInto}, fs::File, io::Read};
 
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
@@ -52,20 +48,26 @@ impl TryFrom<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
 /// the next FloorInfo section begins or the file ends.
 #[derive(Debug, Clone)]
 pub struct FloorInfo {
-    sublevel: u8, // 0-indexed
-    max_main_objects: u8,
-    max_treasures: u8,
-    max_gates: u8,
-    num_rooms: u8,             // Excludes corridors and caps/alcoves.
-    corridor_probability: f32, // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
-    cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
-    has_geyser: bool,
-    exit_plugged: bool,
-    cave_units: Vec<CaveUnit>,
-    teki_info: Vec<TekiInfo>,
-    item_info: Vec<ItemInfo>,
-    gate_info: Vec<GateInfo>,
-    cap_info: Vec<CapInfo>,
+    pub sublevel: u16, // 0-indexed
+    pub max_main_objects: u16,
+    pub max_treasures: u16,
+    pub max_gates: u16,
+    pub num_rooms: u16,             // Excludes corridors and caps/alcoves.
+    pub corridor_probability: f32, // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
+    pub cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
+    pub has_geyser: bool,
+    pub exit_plugged: bool,
+    pub cave_units: Vec<CaveUnit>,
+    pub teki_info: Vec<TekiInfo>,
+    pub item_info: Vec<ItemInfo>,
+    pub gate_info: Vec<GateInfo>,
+    pub cap_info: Vec<CapInfo>,
+}
+
+impl FloorInfo {
+    pub fn teki_group(&self, group: u16) -> impl Iterator<Item=&TekiInfo> {
+        self.teki_info.iter().filter(move |teki| teki.group == group)
+    }
 }
 
 impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
@@ -95,10 +97,14 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             cap_probability: floorinfo_section.get_tag("014")?,
             has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
             exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
-            cave_units: cave_unit_sections
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?,
+            cave_units: expand_rotations(
+                sort_cave_units(
+                    cave_unit_sections
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<Vec<_>, _>>()?
+                )
+            ),
             teki_info: tekiinfo_section.try_into()?,
             item_info: iteminfo_section.try_into()?,
             gate_info: gateinfo_section.try_into()?,
@@ -116,12 +122,12 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
 /// `carrying` field.
 #[derive(Debug, Clone)]
 pub struct TekiInfo {
-    internal_name: String,
-    carrying: Option<String>, // The object held by this Teki, if any.
-    minimum_amount: u8,
-    filler_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    group: u8, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
-    spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    pub internal_name: String,
+    pub carrying: Option<String>, // The object held by this Teki, if any.
+    pub minimum_amount: u16,
+    pub filler_distribution_weight: u16, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    pub group: u16, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
+    pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
 impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
@@ -136,14 +142,14 @@ impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
                 |(item_line, group_line)| -> Result<TekiInfo, CaveInfoError> {
                     let internal_identifier = item_line.get_line_item(0)?;
                     let amount_code = item_line.get_line_item(1)?;
-                    let group: u8 = group_line.get_line_item(0)?.parse()?;
+                    let group: u16 = group_line.get_line_item(0)?.parse()?;
 
                     let (spawn_method, internal_name, carrying) =
                         extract_internal_identifier(internal_identifier);
 
                     // Determine amount and filler_distribution_weight based on teki type
-                    let minimum_amount: u8;
-                    let filler_distribution_weight: u8;
+                    let minimum_amount: u16;
+                    let filler_distribution_weight: u16;
                     if group == 6 {
                         // 6 is the group number for decorative teki
                         minimum_amount = amount_code.parse()?;
@@ -304,12 +310,13 @@ impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
 /// https://pikmintkb.com/wiki/Cave_unit_definition_file
 #[derive(Debug, Clone)]
 pub struct CaveUnit {
-    unit_folder_name: String,
-    width: usize,  // In cave grid cells, not in-game coords
-    height: usize, // In cave grid cells, not in-game coords
-    room_type: RoomType,
-    num_doors: usize,
-    doors: Vec<DoorUnit>,
+    pub unit_folder_name: String,
+    pub width: usize,  // In cave grid cells, not in-game coords
+    pub height: usize, // In cave grid cells, not in-game coords
+    pub room_type: RoomType,
+    pub num_doors: usize,
+    pub doors: Vec<DoorUnit>,
+    pub rotation: u8,
 }
 
 impl TryFrom<parse::Section<'_>> for CaveUnit {
@@ -347,14 +354,96 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
             room_type,
             num_doors,
             doors,
+            rotation: 0
         })
     }
+}
+
+
+/// Implementations for (PartialEq) and (Partial)Ord for CaveUnit.
+/// The generation algorithm sorts units by total size (breaking ties with
+/// number of doors) as the very first step, so this is important to understand.
+
+impl PartialEq for CaveUnit {
+    fn eq(&self, other: &Self) -> bool {
+        (self.width * self.height) == (other.width * other.height) && self.num_doors == other.num_doors
+    }
+}
+impl Eq for CaveUnit {}
+
+impl PartialOrd for CaveUnit {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for CaveUnit {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let size_self = self.width * self.height;
+        let size_other = other.width * other.height;
+        if size_self == size_other {
+            self.num_doors.cmp(&other.num_doors)
+        } else {
+            size_self.cmp(&size_other)
+        }
+    }
+}
+
+impl CaveUnit {
+    pub fn copy_and_rotate_to(&self, rotation: u8) -> Self {
+        let mut new_unit = self.clone();
+        new_unit.rotation = rotation % 4;
+        if rotation % 2 == 1 {
+            new_unit.width = self.height;
+            new_unit.height = self.width;
+        }
+
+        new_unit.doors.iter_mut()
+            .for_each(|mut door| {
+                // I have no idea what this is doing, but I've copied it as faithfully as I can.
+                // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/MapUnit.java#L72
+                match door.direction {
+                    0 | 2 if rotation == 2 || rotation == 3 => { door.offset = self.width - 1 - door.offset; }
+                    1 | 3 if rotation == 1 || rotation == 2 => { door.offset = self.height - 1 - door.offset; },
+                    _ => panic!("Invalid door direction found")
+                }
+                door.direction = (door.direction + rotation) % 4;
+            });
+
+        new_unit
+    }
+}
+
+/// The sorting algorithm required by the generation algorithm for cave units.
+/// This sort is unstable! I've implemented it manually here to ensure it
+/// exactly matches the one in Pikmin 2.
+fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
+    // This is kinda like Bubble Sort, except it compares the entire
+    // remaining list to the current element rather than just the next elem.
+    let mut idx = 0;
+    while idx < unsorted.len()-1 {
+        // SAFETY: idx is always checked to be within [0,unsorted.len()-1), so is
+        // always a valid index.
+        while unsorted[idx+1..].iter().any(|elem| elem > unsafe{unsorted.get_unchecked(idx)}) {
+            let current = unsorted.remove(idx);
+            unsorted.push(current);
+        }
+        idx = idx + 1;
+    }
+    unsorted
+}
+
+/// Takes a Vec of CaveUnits and returns a vec with the same cave units, but
+/// duplicated for each possible rotation.
+fn expand_rotations(input: Vec<CaveUnit>) -> Vec<CaveUnit> {
+    input.into_iter()
+        .flat_map(|unit| [unit.clone(), unit.copy_and_rotate_to(1), unit.copy_and_rotate_to(2), unit.copy_and_rotate_to(3)])
+        .collect()
 }
 
 #[derive(Debug, Clone)]
 pub struct DoorUnit {
     direction: u8,         // 0, 1, 2, or 3
-    offset: usize,         // Appears unused?
+    offset: usize,         // Appears to be the offset from center on the side of the room it's facing
     waypoint_index: usize, // Index of the waypoint connected to this door
     num_links: usize,
     door_links: Vec<DoorLink>,
