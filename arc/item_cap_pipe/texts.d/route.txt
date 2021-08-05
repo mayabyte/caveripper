@@ -1,0 +1,15 @@
+2 	# numWayPoints
+# waypoint 0
+{
+	0 	# index
+	1 	# numLinks
+	1 	# link 0
+	0.000000 0.000000 85.000000 60.000000 
+}
+# waypoint 1
+{
+	1 	# index
+	1 	# numLinks
+	0 	# link 0
+	0.000000 0.000000 0.000000 60.000000 
+}

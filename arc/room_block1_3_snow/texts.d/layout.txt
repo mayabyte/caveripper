@@ -1,0 +1,236 @@
+# BaseGen file
+26 	 # num gens
+# basegen 0
+{
+	4 	# type [FixObj]
+	0.000000 0.000000 -200.000000 	# pos
+	300.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 1
+{
+	2 	# type [Item]
+	-135.000000 0.000000 185.000000 	# pos
+	150.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 2
+{
+	2 	# type [Item]
+	185.000000 20.500000 -75.000000 	# pos
+	335.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 3
+{
+	0 	# type [Teki A]
+	185.000000 20.500000 -50.000000 	# pos
+	335.000000 	# ang
+	10.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 4
+{
+	0 	# type [Teki A]
+	130.000000 20.500000 -20.000000 	# pos
+	335.000000 	# ang
+	10.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 5
+{
+	0 	# type [Teki A]
+	-215.000000 0.000000 65.000000 	# pos
+	145.000000 	# ang
+	70.000000 	# radius
+	1 	# min num
+	3 	# max num
+}
+# basegen 6
+{
+	0 	# type [Teki A]
+	-30.000000 0.000000 20.000000 	# pos
+	0.000000 	# ang
+	85.000000 	# radius
+	2 	# min num
+	4 	# max num
+}
+# basegen 7
+{
+	0 	# type [Teki A]
+	-85.000000 0.000000 -150.000000 	# pos
+	180.000000 	# ang
+	85.000000 	# radius
+	2 	# min num
+	4 	# max num
+}
+# basegen 8
+{
+	0 	# type [Teki A]
+	100.000000 0.000000 145.000000 	# pos
+	155.000000 	# ang
+	70.000000 	# radius
+	1 	# min num
+	3 	# max num
+}
+# basegen 9
+{
+	1 	# type [Teki B]
+	-115.000000 0.000000 85.000000 	# pos
+	270.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 10
+{
+	1 	# type [Teki B]
+	70.000000 0.000000 220.000000 	# pos
+	10.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 11
+{
+	1 	# type [Teki B]
+	-170.000000 0.000000 -85.000000 	# pos
+	60.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 12
+{
+	1 	# type [Teki B]
+	95.000000 0.000000 70.000000 	# pos
+	330.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 13
+{
+	1 	# type [Teki B]
+	-60.000000 0.000000 -215.000000 	# pos
+	190.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 14
+{
+	6 	# type [Plant]
+	-20.000000 0.000000 240.000000 	# pos
+	180.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 15
+{
+	6 	# type [Plant]
+	180.000000 0.000000 90.000000 	# pos
+	245.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 16
+{
+	6 	# type [Plant]
+	-195.000000 0.000000 -155.000000 	# pos
+	135.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 17
+{
+	6 	# type [Plant]
+	-225.000000 0.000000 -20.000000 	# pos
+	75.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 18
+{
+	6 	# type [Plant]
+	25.000000 0.000000 -70.000000 	# pos
+	340.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 19
+{
+	6 	# type [Plant]
+	170.000000 0.000000 170.000000 	# pos
+	300.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 20
+{
+	6 	# type [Plant]
+	0.000000 0.000000 -240.000000 	# pos
+	225.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 21
+{
+	6 	# type [Plant]
+	15.000000 0.000000 65.000000 	# pos
+	320.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 22
+{
+	6 	# type [Plant]
+	-220.000000 0.000000 150.000000 	# pos
+	50.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 23
+{
+	6 	# type [Plant]
+	-130.000000 0.000000 -255.000000 	# pos
+	160.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 24
+{
+	6 	# type [Plant]
+	-80.000000 0.000000 220.000000 	# pos
+	200.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 25
+{
+	6 	# type [Plant]
+	125.000000 0.000000 270.000000 	# pos
+	0.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}

@@ -1,0 +1,83 @@
+# BaseGen file
+9 	 # num gens
+# basegen 0
+{
+	7 	# type [Start]
+	0.000000 0.000000 0.000000 	# pos
+	0.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 1
+{
+	2 	# type [Item]
+	-85.000000 0.000000 85.000000 	# pos
+	135.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 2
+{
+	1 	# type [Teki B]
+	100.000000 0.000000 80.000000 	# pos
+	350.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 3
+{
+	8 	# type [Teki F]
+	-15.000000 0.000000 15.000000 	# pos
+	70.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 4
+{
+	1 	# type [Teki B]
+	80.000000 0.000000 -80.000000 	# pos
+	305.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 5
+{
+	1 	# type [Teki B]
+	-95.000000 0.000000 -85.000000 	# pos
+	165.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 6
+{
+	0 	# type [Teki A]
+	10.000000 0.000000 90.000000 	# pos
+	270.000000 	# ang
+	60.000000 	# radius
+	1 	# min num
+	2 	# max num
+}
+# basegen 7
+{
+	0 	# type [Teki A]
+	95.000000 0.000000 -10.000000 	# pos
+	0.000000 	# ang
+	60.000000 	# radius
+	1 	# min num
+	2 	# max num
+}
+# basegen 8
+{
+	0 	# type [Teki A]
+	-10.000000 0.000000 -90.000000 	# pos
+	90.000000 	# ang
+	60.000000 	# radius
+	1 	# min num
+	2 	# max num
+}

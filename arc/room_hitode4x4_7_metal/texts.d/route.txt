@@ -1,0 +1,133 @@
+16 	# numWayPoints
+# waypoint 0
+{
+	0 	# index
+	1 	# numLinks
+	7 	# link 0
+	-255.000000 0.000000 -340.000000 85.000000 
+}
+# waypoint 1
+{
+	1 	# index
+	1 	# numLinks
+	8 	# link 0
+	255.000000 0.000000 -340.000000 85.000000 
+}
+# waypoint 2
+{
+	2 	# index
+	1 	# numLinks
+	8 	# link 0
+	340.000000 0.000000 -255.000000 85.000000 
+}
+# waypoint 3
+{
+	3 	# index
+	1 	# numLinks
+	9 	# link 0
+	340.000000 0.000000 85.000000 85.000000 
+}
+# waypoint 4
+{
+	4 	# index
+	1 	# numLinks
+	10 	# link 0
+	-85.000000 0.000000 340.000000 85.000000 
+}
+# waypoint 5
+{
+	5 	# index
+	1 	# numLinks
+	11 	# link 0
+	-340.000000 0.000000 85.000000 85.000000 
+}
+# waypoint 6
+{
+	6 	# index
+	1 	# numLinks
+	7 	# link 0
+	-340.000000 0.000000 -255.000076 85.000000 
+}
+# waypoint 7
+{
+	7 	# index
+	4 	# numLinks
+	0 	# link 0
+	6 	# link 1
+	11 	# link 2
+	12 	# link 3
+	-230.000000 0.000000 -230.000000 60.000000 
+}
+# waypoint 8
+{
+	8 	# index
+	4 	# numLinks
+	1 	# link 0
+	2 	# link 1
+	9 	# link 2
+	12 	# link 3
+	230.000000 0.000000 -230.000000 60.000000 
+}
+# waypoint 9
+{
+	9 	# index
+	3 	# numLinks
+	3 	# link 0
+	8 	# link 1
+	12 	# link 2
+	230.000000 0.000000 60.000000 60.000000 
+}
+# waypoint 10
+{
+	10 	# index
+	3 	# numLinks
+	4 	# link 0
+	11 	# link 1
+	12 	# link 2
+	-85.000000 0.000000 190.000000 60.000000 
+}
+# waypoint 11
+{
+	11 	# index
+	4 	# numLinks
+	5 	# link 0
+	10 	# link 1
+	7 	# link 2
+	12 	# link 3
+	-230.000000 0.000000 85.000000 60.000000 
+}
+# waypoint 12
+{
+	12 	# index
+	5 	# numLinks
+	7 	# link 0
+	11 	# link 1
+	8 	# link 2
+	9 	# link 3
+	10 	# link 4
+	0.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 13
+{
+	13 	# index
+	1 	# numLinks
+	12 	# link 0
+	100.000000 0.000000 100.000000 60.000000 
+}
+# waypoint 14
+{
+	14 	# index
+	2 	# numLinks
+	12 	# link 0
+	10 	# link 1
+	60.000000 0.000000 190.000000 60.000000 
+}
+# waypoint 15
+{
+	15 	# index
+	3 	# numLinks
+	13 	# link 0
+	9 	# link 1
+	14 	# link 2
+	190.000000 0.000000 190.000000 60.000000 
+}

@@ -1,0 +1,202 @@
+23 	# numWayPoints
+# waypoint 0
+{
+	0 	# index
+	1 	# numLinks
+	8 	# link 0
+	-85.000000 0.000000 -510.000000 85.000000 
+}
+# waypoint 1
+{
+	1 	# index
+	1 	# numLinks
+	9 	# link 0
+	255.000000 0.000000 -510.000000 85.000000 
+}
+# waypoint 2
+{
+	2 	# index
+	1 	# numLinks
+	10 	# link 0
+	510.000000 0.000000 -255.000000 85.000000 
+}
+# waypoint 3
+{
+	3 	# index
+	1 	# numLinks
+	11 	# link 0
+	510.000000 0.000000 255.000000 85.000000 
+}
+# waypoint 4
+{
+	4 	# index
+	1 	# numLinks
+	11 	# link 0
+	255.000000 0.000000 510.000000 85.000000 
+}
+# waypoint 5
+{
+	5 	# index
+	1 	# numLinks
+	12 	# link 0
+	-255.000000 0.000000 510.000000 85.000000 
+}
+# waypoint 6
+{
+	6 	# index
+	1 	# numLinks
+	21 	# link 0
+	-510.000000 0.000000 255.000000 85.000000 
+}
+# waypoint 7
+{
+	7 	# index
+	1 	# numLinks
+	13 	# link 0
+	-510.000000 0.000000 -425.000000 85.000000 
+}
+# waypoint 8
+{
+	8 	# index
+	5 	# numLinks
+	0 	# link 0
+	9 	# link 1
+	10 	# link 2
+	13 	# link 3
+	22 	# link 4
+	-85.000000 0.000000 -425.000000 85.000000 
+}
+# waypoint 9
+{
+	9 	# index
+	3 	# numLinks
+	1 	# link 0
+	8 	# link 1
+	10 	# link 2
+	255.000000 0.000000 -425.000000 85.000000 
+}
+# waypoint 10
+{
+	10 	# index
+	6 	# numLinks
+	2 	# link 0
+	8 	# link 1
+	9 	# link 2
+	16 	# link 3
+	17 	# link 4
+	22 	# link 5
+	255.000000 0.000000 -255.000000 85.000000 
+}
+# waypoint 11
+{
+	11 	# index
+	5 	# numLinks
+	3 	# link 0
+	4 	# link 1
+	16 	# link 2
+	17 	# link 3
+	18 	# link 4
+	255.000000 0.000000 255.000000 85.000000 
+}
+# waypoint 12
+{
+	12 	# index
+	4 	# numLinks
+	5 	# link 0
+	17 	# link 1
+	18 	# link 2
+	21 	# link 3
+	-230.000000 0.000000 320.000000 60.000000 
+}
+# waypoint 13
+{
+	13 	# index
+	3 	# numLinks
+	7 	# link 0
+	8 	# link 1
+	22 	# link 2
+	-300.000000 0.000000 -425.000000 85.000000 
+}
+# waypoint 14
+{
+	14 	# index
+	3 	# numLinks
+	17 	# link 0
+	21 	# link 1
+	22 	# link 2
+	-255.000000 0.000000 -55.000000 45.000000 
+}
+# waypoint 15
+{
+	15 	# index
+	1 	# numLinks
+	14 	# link 0
+	-455.000000 0.000000 -55.000000 45.000000 
+}
+# waypoint 16
+{
+	16 	# index
+	3 	# numLinks
+	10 	# link 0
+	11 	# link 1
+	17 	# link 2
+	225.000000 0.000000 -30.000000 45.000000 
+}
+# waypoint 17
+{
+	17 	# index
+	8 	# numLinks
+	10 	# link 0
+	11 	# link 1
+	12 	# link 2
+	14 	# link 3
+	16 	# link 4
+	18 	# link 5
+	21 	# link 6
+	22 	# link 7
+	-45.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 18
+{
+	18 	# index
+	3 	# numLinks
+	11 	# link 0
+	12 	# link 1
+	17 	# link 2
+	-5.000000 0.000000 250.000000 45.000000 
+}
+# waypoint 19
+{
+	19 	# index
+	1 	# numLinks
+	18 	# link 0
+	-5.000000 0.000000 445.000000 45.000000 
+}
+# waypoint 20
+{
+	20 	# index
+	1 	# numLinks
+	16 	# link 0
+	425.000000 0.000000 -30.000000 45.000000 
+}
+# waypoint 21
+{
+	21 	# index
+	4 	# numLinks
+	6 	# link 0
+	12 	# link 1
+	14 	# link 2
+	17 	# link 3
+	-300.000000 0.000000 200.000000 60.000000 
+}
+# waypoint 22
+{
+	22 	# index
+	5 	# numLinks
+	14 	# link 0
+	8 	# link 1
+	17 	# link 2
+	13 	# link 3
+	10 	# link 4
+	-150.000000 0.000000 -220.000000 85.000000 
+}

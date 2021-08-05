@@ -1,0 +1,20 @@
+# BaseGen file
+2 	 # num gens
+# basegen 0
+{
+	2 	# type [Item]
+	85.000000 0.000000 85.000000 	# pos
+	225.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 1
+{
+	8 	# type [Teki F]
+	0.000000 0.000000 0.000000 	# pos
+	230.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}

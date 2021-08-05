@@ -1,0 +1,393 @@
+52 	# numWayPoints
+# waypoint 0
+{
+	0 	# index
+	1 	# numLinks
+	7 	# link 0
+	-510.000000 0.000000 -765.000000 85.000000 
+}
+# waypoint 1
+{
+	1 	# index
+	1 	# numLinks
+	8 	# link 0
+	0.000000 0.000000 -765.000000 85.000000 
+}
+# waypoint 2
+{
+	2 	# index
+	1 	# numLinks
+	9 	# link 0
+	765.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 3
+{
+	3 	# index
+	1 	# numLinks
+	10 	# link 0
+	0.000000 0.000000 765.000000 85.000000 
+}
+# waypoint 4
+{
+	4 	# index
+	1 	# numLinks
+	11 	# link 0
+	-765.000000 0.000000 680.000000 85.000000 
+}
+# waypoint 5
+{
+	5 	# index
+	1 	# numLinks
+	12 	# link 0
+	-765.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 6
+{
+	6 	# index
+	1 	# numLinks
+	7 	# link 0
+	-765.000000 0.000000 -510.000000 85.000000 
+}
+# waypoint 7
+{
+	7 	# index
+	4 	# numLinks
+	0 	# link 0
+	6 	# link 1
+	13 	# link 2
+	20 	# link 3
+	-510.000000 0.000000 -510.000000 85.000000 
+}
+# waypoint 8
+{
+	8 	# index
+	3 	# numLinks
+	1 	# link 0
+	13 	# link 1
+	14 	# link 2
+	0.000000 0.000000 -595.000000 85.000000 
+}
+# waypoint 9
+{
+	9 	# index
+	3 	# numLinks
+	2 	# link 0
+	15 	# link 1
+	16 	# link 2
+	595.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 10
+{
+	10 	# index
+	3 	# numLinks
+	3 	# link 0
+	17 	# link 1
+	19 	# link 2
+	0.000000 0.000000 595.000000 85.000000 
+}
+# waypoint 11
+{
+	11 	# index
+	2 	# numLinks
+	19 	# link 0
+	4 	# link 1
+	-595.000000 0.000000 680.000000 85.000000 
+}
+# waypoint 12
+{
+	12 	# index
+	3 	# numLinks
+	5 	# link 0
+	19 	# link 1
+	20 	# link 2
+	-595.000000 0.000000 0.000000 85.000000 
+}
+# waypoint 13
+{
+	13 	# index
+	2 	# numLinks
+	7 	# link 0
+	8 	# link 1
+	-300.000000 0.000000 -595.000000 85.000000 
+}
+# waypoint 14
+{
+	14 	# index
+	2 	# numLinks
+	8 	# link 0
+	15 	# link 1
+	340.000000 0.000000 -595.000000 85.000000 
+}
+# waypoint 15
+{
+	15 	# index
+	2 	# numLinks
+	14 	# link 0
+	9 	# link 1
+	595.000000 0.000000 -360.000000 85.000000 
+}
+# waypoint 16
+{
+	16 	# index
+	2 	# numLinks
+	17 	# link 0
+	9 	# link 1
+	570.000000 0.000000 370.000000 85.000000 
+}
+# waypoint 17
+{
+	17 	# index
+	2 	# numLinks
+	10 	# link 0
+	16 	# link 1
+	355.000000 0.000000 595.000000 85.000000 
+}
+# waypoint 18
+{
+	18 	# index
+	2 	# numLinks
+	19 	# link 0
+	21 	# link 1
+	-255.000000 0.000000 315.000000 60.000000 
+}
+# waypoint 19
+{
+	19 	# index
+	4 	# numLinks
+	10 	# link 0
+	11 	# link 1
+	18 	# link 2
+	12 	# link 3
+	-425.000000 0.000000 475.000000 85.000000 
+}
+# waypoint 20
+{
+	20 	# index
+	2 	# numLinks
+	12 	# link 0
+	7 	# link 1
+	-595.000000 0.000000 -255.000000 85.000000 
+}
+# waypoint 21
+{
+	21 	# index
+	2 	# numLinks
+	23 	# link 0
+	18 	# link 1
+	-140.000000 0.000000 210.000000 85.000000 
+}
+# waypoint 22
+{
+	22 	# index
+	1 	# numLinks
+	21 	# link 0
+	105.000000 0.000000 225.000000 140.000000 
+}
+# waypoint 23
+{
+	23 	# index
+	2 	# numLinks
+	24 	# link 0
+	21 	# link 1
+	-300.000000 0.000000 50.000000 85.000000 
+}
+# waypoint 24
+{
+	24 	# index
+	2 	# numLinks
+	25 	# link 0
+	23 	# link 1
+	-140.000000 0.000000 -200.000000 85.000000 
+}
+# waypoint 25
+{
+	25 	# index
+	1 	# numLinks
+	24 	# link 0
+	240.000000 0.000000 -255.000000 140.000000 
+}
+# waypoint 26
+{
+	26 	# index
+	1 	# numLinks
+	24 	# link 0
+	-340.000000 100.000000 -230.000000 30.000000 
+}
+# waypoint 27
+{
+	27 	# index
+	3 	# numLinks
+	10 	# link 0
+	22 	# link 1
+	17 	# link 2
+	105.000000 120.000000 435.000000 30.000000 
+}
+# waypoint 28
+{
+	28 	# index
+	1 	# numLinks
+	24 	# link 0
+	-240.000000 0.000000 -340.000000 60.000000 
+}
+# waypoint 29
+{
+	29 	# index
+	1 	# numLinks
+	23 	# link 0
+	-355.000000 0.000000 -100.000000 60.000000 
+}
+# waypoint 30
+{
+	30 	# index
+	1 	# numLinks
+	22 	# link 0
+	340.000000 0.000000 140.000000 75.000000 
+}
+# waypoint 31
+{
+	31 	# index
+	1 	# numLinks
+	22 	# link 0
+	300.000000 0.000000 300.000000 60.000000 
+}
+# waypoint 32
+{
+	32 	# index
+	1 	# numLinks
+	25 	# link 0
+	200.000000 0.000000 -70.000000 60.000000 
+}
+# waypoint 33
+{
+	33 	# index
+	1 	# numLinks
+	18 	# link 0
+	-170.000000 10.000000 385.000000 10.000000 
+}
+# waypoint 34
+{
+	34 	# index
+	1 	# numLinks
+	18 	# link 0
+	-325.000000 10.000000 230.000000 10.000000 
+}
+# waypoint 35
+{
+	35 	# index
+	1 	# numLinks
+	47 	# link 0
+	-455.000000 10.000000 40.000000 10.000000 
+}
+# waypoint 36
+{
+	36 	# index
+	1 	# numLinks
+	35 	# link 0
+	-455.000000 40.000000 -230.000000 10.000000 
+}
+# waypoint 37
+{
+	37 	# index
+	1 	# numLinks
+	36 	# link 0
+	-400.000000 40.000000 -375.000000 10.000000 
+}
+# waypoint 38
+{
+	38 	# index
+	1 	# numLinks
+	37 	# link 0
+	-255.000000 40.000000 -455.000000 10.000000 
+}
+# waypoint 39
+{
+	39 	# index
+	2 	# numLinks
+	40 	# link 0
+	38 	# link 1
+	250.000000 10.000000 -455.000000 10.000000 
+}
+# waypoint 40
+{
+	40 	# index
+	1 	# numLinks
+	41 	# link 0
+	390.000000 10.000000 -390.000000 10.000000 
+}
+# waypoint 41
+{
+	41 	# index
+	1 	# numLinks
+	42 	# link 0
+	455.000000 10.000000 -240.000000 10.000000 
+}
+# waypoint 42
+{
+	42 	# index
+	1 	# numLinks
+	43 	# link 0
+	455.000000 10.000000 -125.000000 10.000000 
+}
+# waypoint 43
+{
+	43 	# index
+	1 	# numLinks
+	44 	# link 0
+	455.000000 10.000000 240.000000 10.000000 
+}
+# waypoint 44
+{
+	44 	# index
+	1 	# numLinks
+	45 	# link 0
+	390.000000 10.000000 390.000000 10.000000 
+}
+# waypoint 45
+{
+	45 	# index
+	1 	# numLinks
+	46 	# link 0
+	230.000000 10.000000 455.000000 10.000000 
+}
+# waypoint 46
+{
+	46 	# index
+	1 	# numLinks
+	33 	# link 0
+	-50.000000 10.000000 455.000000 10.000000 
+}
+# waypoint 47
+{
+	47 	# index
+	1 	# numLinks
+	34 	# link 0
+	-390.000000 10.000000 170.000000 10.000000 
+}
+# waypoint 48
+{
+	48 	# index
+	1 	# numLinks
+	42 	# link 0
+	360.000000 10.000000 -15.000000 10.000000 
+}
+# waypoint 49
+{
+	49 	# index
+	1 	# numLinks
+	48 	# link 0
+	250.000000 10.000000 35.000000 10.000000 
+}
+# waypoint 50
+{
+	50 	# index
+	1 	# numLinks
+	49 	# link 0
+	-60.000000 10.000000 35.000000 10.000000 
+}
+# waypoint 51
+{
+	51 	# index
+	1 	# numLinks
+	12 	# link 0
+	-720.000000 50.000000 120.000000 30.000000 
+}

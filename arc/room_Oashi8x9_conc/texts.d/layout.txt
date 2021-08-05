@@ -1,0 +1,47 @@
+# BaseGen file
+5 	 # num gens
+# basegen 0
+{
+	8 	# type [Teki F]
+	-85.000000 0.000000 0.000000 	# pos
+	90.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 1
+{
+	6 	# type [Plant]
+	140.000000 0.000000 -225.000000 	# pos
+	315.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 2
+{
+	6 	# type [Plant]
+	140.000000 0.000000 225.000000 	# pos
+	225.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 3
+{
+	6 	# type [Plant]
+	-310.000000 0.000000 225.000000 	# pos
+	135.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}
+# basegen 4
+{
+	6 	# type [Plant]
+	-310.000000 0.000000 -225.000000 	# pos
+	45.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}

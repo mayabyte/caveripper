@@ -20,7 +20,7 @@ use cached::proc_macro::cached;
 use encoding_rs::SHIFT_JIS;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use parse::{parse_cave_unit_definition, parse_caveinfo};
+use parse::{parse_cave_unit_definition, parse_caveinfo, parse_cave_unit_layout_file};
 use regex::Regex;
 use std::{cmp::Ordering, convert::{TryFrom, TryInto}, fs::File, io::Read};
 
@@ -77,13 +77,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             raw_sections;
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let mut cave_unit_definition_bytes: Vec<u8> = vec![];
-        File::open(format!("./units/{}", &cave_unit_definition_file_name))
-            .map_err(|err| CaveInfoError::MissingFileError(err.to_string()))?
-            .read_to_end(&mut cave_unit_definition_bytes)
-            .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
-        let cave_unit_definition_text: String =
-            SHIFT_JIS.decode(&cave_unit_definition_bytes).0.into_owned();
+        let cave_unit_definition_text = read_file_to_string(format!("./units/{}", &cave_unit_definition_file_name))?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
 
@@ -311,12 +305,13 @@ impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
 #[derive(Debug, Clone)]
 pub struct CaveUnit {
     pub unit_folder_name: String,
-    pub width: usize,  // In cave grid cells, not in-game coords
-    pub height: usize, // In cave grid cells, not in-game coords
+    pub width: u16,  // In cave grid cells, not in-game coords
+    pub height: u16, // In cave grid cells, not in-game coords
     pub room_type: RoomType,
     pub num_doors: usize,
     pub doors: Vec<DoorUnit>,
-    pub rotation: u8,
+    pub rotation: u16,
+    pub spawn_points: Vec<SpawnPoint>,
 }
 
 impl TryFrom<parse::Section<'_>> for CaveUnit {
@@ -347,6 +342,17 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
             vec![]
         };
 
+        // Cave Unit Layout File (spawn points)
+        let spawn_points = match read_file_to_string(format!("./arc/{}/texts.d/layout.txt", unit_folder_name)) {
+            Ok(cave_unit_layout_file_txt) => {
+                let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
+                    .expect("Couldn't parse cave unit layout file!").1;
+                spawn_points_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
+            },
+            Err(CaveInfoError::MissingFileError(_)) => Vec::new(),
+            Err(e) => return Err(e),
+        };
+
         Ok(CaveUnit {
             unit_folder_name,
             width,
@@ -354,7 +360,8 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
             room_type,
             num_doors,
             doors,
-            rotation: 0
+            rotation: 0,
+            spawn_points,
         })
     }
 }
@@ -389,7 +396,7 @@ impl Ord for CaveUnit {
 }
 
 impl CaveUnit {
-    pub fn copy_and_rotate_to(&self, rotation: u8) -> Self {
+    pub fn copy_and_rotate_to(&self, rotation: u16) -> Self {
         let mut new_unit = self.clone();
         new_unit.rotation = rotation % 4;
         if rotation % 2 == 1 {
@@ -402,14 +409,18 @@ impl CaveUnit {
                 // I have no idea what this is doing, but I've copied it as faithfully as I can.
                 // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/MapUnit.java#L72
                 match door.direction {
-                    0 | 2 if rotation == 2 || rotation == 3 => { door.offset = self.width - 1 - door.offset; }
-                    1 | 3 if rotation == 1 || rotation == 2 => { door.offset = self.height - 1 - door.offset; },
-                    _ => panic!("Invalid door direction found")
+                    0 | 2 if rotation == 2 || rotation == 3 => { door.side_lateral_offset = self.width - 1 - door.side_lateral_offset; }
+                    1 | 3 if rotation == 1 || rotation == 2 => { door.side_lateral_offset = self.height - 1 - door.side_lateral_offset; },
+                    _ => {/* do nothing */}
                 }
                 door.direction = (door.direction + rotation) % 4;
             });
 
         new_unit
+    }
+
+    pub fn has_start_spawnpoint(&self) -> bool {
+        self.spawn_points.iter().any(|spawn_point| spawn_point.group == 7)
     }
 }
 
@@ -442,18 +453,18 @@ fn expand_rotations(input: Vec<CaveUnit>) -> Vec<CaveUnit> {
 
 #[derive(Debug, Clone)]
 pub struct DoorUnit {
-    direction: u8,         // 0, 1, 2, or 3
-    offset: usize,         // Appears to be the offset from center on the side of the room it's facing
-    waypoint_index: usize, // Index of the waypoint connected to this door
-    num_links: usize,
-    door_links: Vec<DoorLink>,
+    pub direction: u16,         // 0, 1, 2, or 3
+    pub side_lateral_offset: u16, // Appears to be the offset from center on the side of the room it's facing?
+    pub waypoint_index: usize, // Index of the waypoint connected to this door
+    pub num_links: usize,
+    pub door_links: Vec<DoorLink>,  // Door links are other doors that are reachable through the room that hosts this door.
 }
 
 impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
     type Error = CaveInfoError;
     fn try_from(lines: &[parse::InfoLine]) -> Result<DoorUnit, CaveInfoError> {
         let direction = lines[1].get_line_item(0)?.parse()?;
-        let offset = lines[1].get_line_item(1)?.parse()?;
+        let side_lateral_offset = lines[1].get_line_item(1)?.parse()?;
         let waypoint_index = lines[1].get_line_item(2)?.parse()?;
         let num_links = lines[2].get_line_item(0)?.parse()?;
         let door_links = lines[3..]
@@ -462,7 +473,7 @@ impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(DoorUnit {
             direction,
-            offset,
+            side_lateral_offset,
             waypoint_index,
             num_links,
             door_links,
@@ -491,7 +502,7 @@ impl TryFrom<&parse::InfoLine<'_>> for DoorLink {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RoomType {
     Room,
     Hallway,
@@ -509,22 +520,47 @@ impl From<usize> for RoomType {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SpawnPoint {
+    pub group: u16,
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub pos_z: f32,
+    pub angle_degrees: f32,
+    pub radius: f32,
+    pub min_num: u16,
+    pub max_num: u16,
+}
+
+impl TryFrom<parse::Section<'_>> for SpawnPoint {
+    type Error = CaveInfoError;
+    fn try_from(section: parse::Section) -> Result<SpawnPoint, Self::Error> {
+        Ok(
+            SpawnPoint {
+                group: section.get_line(0)?.get_line_item(0)?.parse()?,
+                pos_x: section.get_line(1)?.get_line_item(0)?.parse()?,
+                pos_y: section.get_line(1)?.get_line_item(1)?.parse()?,
+                pos_z: section.get_line(1)?.get_line_item(2)?.parse()?,
+                angle_degrees: section.get_line(2)?.get_line_item(0)?.parse()?,
+                radius: section.get_line(3)?.get_line_item(0)?.parse()?,
+                min_num: section.get_line(4)?.get_line_item(0)?.parse()?,
+                max_num: section.get_line(5)?.get_line_item(0)?.parse()?,
+            }
+        )
+    }
+}
+
 /// Loads the CaveInfo for an entire cave.
 /// Should use `get_sublevel_info` in most cases.
 #[cached]
 pub fn get_caveinfo(cave: String) -> Result<CaveInfo, CaveInfoError> {
     // Load raw text of the caveinfo file
-    let filename = cave_name_to_caveinfo_filename(&cave);
-    let mut caveinfo_bytes: Vec<u8> = vec![];
-    File::open(format!("./caveinfo/{}", filename))
-        .map_err(|err| CaveInfoError::MissingFileError(err.to_string()))?
-        .read_to_end(&mut caveinfo_bytes)
-        .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
-    let caveinfo_raw: String = SHIFT_JIS.decode(&caveinfo_bytes).0.into_owned();
+    let caveinfo_filename = cave_name_to_caveinfo_filename(&cave);
+    let caveinfo_txt = read_file_to_string(format!("./caveinfo/{}", &caveinfo_filename))?;
 
     // Send it off to the parsing mines
-    let floor_chunks = parse_caveinfo(&caveinfo_raw)
-        .expect(&format!("Couldn't parse CaveInfo file '{}'", filename))
+    let floor_chunks = parse_caveinfo(&caveinfo_txt)
+        .expect(&format!("Couldn't parse CaveInfo file '{}'", caveinfo_filename))
         .1;
 
     CaveInfo::try_from(floor_chunks)
@@ -579,4 +615,15 @@ fn extract_internal_identifier(
     };
 
     (spawn_method, internal_name, carrying)
+}
+
+fn read_file_to_string(path: String) -> Result<String, CaveInfoError> {
+    let mut file_bytes: Vec<u8> = vec![];
+    File::open(&path)
+        .map_err(|_| CaveInfoError::MissingFileError(path))?
+        .read_to_end(&mut file_bytes)
+        .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
+    let cave_unit_definition_text: String =
+        SHIFT_JIS.decode(&file_bytes).0.into_owned();
+    Ok(cave_unit_definition_text)
 }

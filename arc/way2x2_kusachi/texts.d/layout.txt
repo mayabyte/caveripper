@@ -1,0 +1,11 @@
+# BaseGen file
+1 	 # num gens
+# basegen 0
+{
+	6 	# type [Plant]
+	-45.000000 0.000000 100.000000 	# pos
+	135.000000 	# ang
+	0.000000 	# radius
+	1 	# min num
+	1 	# max num
+}

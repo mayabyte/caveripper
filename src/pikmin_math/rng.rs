@@ -9,6 +9,7 @@ use std::cell::Cell;
 /// The set-seed Gecko code just replaces this seed with a given value
 /// as soon as the game enters the cave generation function, resulting in
 /// the same layouts every time.
+#[derive(Default)]
 pub struct PikminRng {
     seed: Cell<u32>,
     pub initial_seed: u32
@@ -50,13 +51,18 @@ impl PikminRng {
     }
 
     /// Shuffles the given list by pushing randomly-chosen elements to the
-    /// back of the list, n times where n is the length of the list.
-    pub fn rand_backs<T>(&self, mut list: Vec<T>) {
-        for _ in 0..list.len() {
+    /// back of the list. Do this N times.
+    pub fn rand_backs_n<T>(&self, list: &mut Vec<T>, n: usize) {
+        for _ in 0..n {
             let index = self.rand_u16(list.len() as u32);
             let elem = list.remove(index as usize);
             list.push(elem);
         }
+    }
+
+    /// Shortcut for rand_backs_n where n = the length of the provided list.
+    pub fn rand_backs<T>(&self, list: &mut Vec<T>) {
+        self.rand_backs_n(list, list.len())
     }
 
     /// Takes a list of weights and chooses a random weight. Returns the index of

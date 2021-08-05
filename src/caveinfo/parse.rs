@@ -54,6 +54,16 @@ pub(super) fn parse_cave_unit_definition(
     count(section, num_units)(rest)
 }
 
+pub(super) fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IResult<&str, Vec<Section>> {
+    // Skip the first line, which is just a comment containing "BaseGen file"
+    let (cave_unit_layout_file_txt, ()) = skip_lines(cave_unit_layout_file_txt, 1)?;
+
+    let (rest, (num_gens_str, _, _)) = tuple((digit1, multispace1, line_comment))(cave_unit_layout_file_txt)?;
+    let num_gens = num_gens_str.parse().expect("Couldn't parse num gens from Cave Unit Layout File!");
+
+    count(section, num_gens)(rest)
+}
+
 /// One 'section' enclosed by curly brackets in a CaveInfo file.
 #[derive(Clone, Debug)]
 pub(super) struct Section<'a> {
