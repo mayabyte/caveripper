@@ -8,9 +8,10 @@ pub mod pikmin_math;
 use std::error::Error;
 
 use caveinfo::get_sublevel_info;
+use layout::Layout;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let caveinfo = get_sublevel_info("SCx1")?;
-    println!("{:#?}", caveinfo);
+    Layout::generate(12345678u32, caveinfo);
     Ok(())
 }

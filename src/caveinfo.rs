@@ -68,6 +68,10 @@ impl FloorInfo {
     pub fn teki_group(&self, group: u16) -> impl Iterator<Item=&TekiInfo> {
         self.teki_info.iter().filter(move |teki| teki.group == group)
     }
+
+    pub fn max_num_doors_single_unit(&self) -> usize {
+        self.cave_units.iter().map(|unit| unit.num_doors).max().unwrap_or_default()
+    }
 }
 
 impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {

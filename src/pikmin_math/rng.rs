@@ -79,4 +79,12 @@ impl PikminRng {
         }
         None
     }
+
+    /// For each element of the list, swaps the element there with a random element.
+    pub fn rand_swaps<T>(&self, list: &mut Vec<T>) {
+        for i in 0..list.len() {
+            let swap_to = self.rand_u16(list.len() as u32) as usize;
+            list.swap(i, swap_to);
+        }
+    }
 }
