@@ -9,9 +9,12 @@ use std::error::Error;
 
 use caveinfo::get_sublevel_info;
 use layout::Layout;
+use layout::render::render_layout;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let caveinfo = get_sublevel_info("SCx1")?;
-    Layout::generate(12345678u32, caveinfo);
+    let layout = Layout::generate(0x12345678u32, caveinfo);
+    // println!("{:#?}", &layout);
+    render_layout(&layout);
     Ok(())
 }
