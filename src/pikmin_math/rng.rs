@@ -9,17 +9,17 @@ use std::cell::Cell;
 /// The set-seed Gecko code just replaces this seed with a given value
 /// as soon as the game enters the cave generation function, resulting in
 /// the same layouts every time.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PikminRng {
     seed: Cell<u32>,
-    pub initial_seed: u32
+    num_rng_calls: Cell<usize>
 }
 
 impl PikminRng {
     pub fn new(seed: u32) -> Self {
         Self {
             seed: Cell::new(seed),
-            initial_seed: seed
+            num_rng_calls: Cell::new(0),
         }
     }
 
@@ -29,14 +29,17 @@ impl PikminRng {
         let new_seed = old_seed.wrapping_mul(0x41C64E6D).wrapping_add(0x3039);
         self.seed.set(new_seed);
 
+        // Update RNG call count
+        let old_count = self.num_rng_calls.get();
+        self.num_rng_calls.set(old_count + 1);
+
         (new_seed >> 0x10) & 0x7FFF
     }
 
     /// Most of the game's internal values are 16-bit integers, so it crunches
     /// the raw RNG results down into 16-bit space via division for compatibility.
-    pub fn rand_u16(&self, max: u32) -> u16 {
-        // unsure if this multiplication is meant to be wrapping?
-        ((self.rand_raw() * max) / 32768) as u16
+    pub fn rand_int(&self, max: u32) -> u32 {
+        (self.rand_raw() as f32 * (max as f32 / 32768f32)) as u32
     }
 
     /// Similar to the above, the game only uses f32s. Since f32 can't represent
@@ -54,7 +57,7 @@ impl PikminRng {
     /// back of the list. Do this N times.
     pub fn rand_backs_n<T>(&self, list: &mut Vec<T>, n: usize) {
         for _ in 0..n {
-            let index = self.rand_u16(list.len() as u32);
+            let index = self.rand_int(list.len() as u32);
             let elem = list.remove(index as usize);
             list.push(elem);
         }
@@ -67,10 +70,10 @@ impl PikminRng {
 
     /// Takes a list of weights and chooses a random weight. Returns the index of
     /// the chosen weight in the original list rather than the weight itself.
-    pub fn rand_index_weight(&self, weights: &[u16]) -> Option<usize> {
-        let total: u16 = weights.iter().sum();
-        let mut cumulative_sum = 0;
-        let threshold = self.rand_u16(total as u32);
+    pub fn rand_index_weight(&self, weights: &[u32]) -> Option<usize> {
+        let total: u32 = weights.iter().sum();
+        let mut cumulative_sum: u32 = 0;
+        let threshold = self.rand_int(total);
         for idx in 0..weights.len() {
             cumulative_sum += weights[idx];
             if cumulative_sum > threshold {
@@ -83,7 +86,7 @@ impl PikminRng {
     /// For each element of the list, swaps the element there with a random element.
     pub fn rand_swaps<T>(&self, list: &mut Vec<T>) {
         for i in 0..list.len() {
-            let swap_to = self.rand_u16(list.len() as u32) as usize;
+            let swap_to = self.rand_int(list.len() as u32) as usize;
             list.swap(i, swap_to);
         }
     }

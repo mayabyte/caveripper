@@ -1,3 +1,5 @@
+pub mod render;
+
 use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, rc::{Rc, Weak}};
 use itertools::Itertools;
 
@@ -44,9 +46,9 @@ struct LayoutBuilder {
     cap_queue: Vec<CaveUnit>,
     room_queue: Vec<CaveUnit>,
     corridor_queue: Vec<CaveUnit>,
-    allocated_enemy_slots_by_group: [u16; 10],
-    enemy_weight_sum_by_group: [u16; 10],
-    num_slots_used_for_min: u16,
+    allocated_enemy_slots_by_group: [u32; 10],
+    enemy_weight_sum_by_group: [u32; 10],
+    num_slots_used_for_min: u32,
     map_min_x: isize,
     map_min_z: isize,
     map_max_x: isize,
@@ -92,7 +94,7 @@ impl LayoutBuilder {
             for teki in caveinfo.teki_group(enemy_type) {
                 self.allocated_enemy_slots_by_group[enemy_type as usize] += teki.minimum_amount;
                 self.enemy_weight_sum_by_group[enemy_type as usize] += teki.filler_distribution_weight;
-                self.num_slots_used_for_min += teki.minimum_amount as u16;
+                self.num_slots_used_for_min += teki.minimum_amount;
             }
         }
 
@@ -129,7 +131,7 @@ impl LayoutBuilder {
                 {
                     // Choose a random door to attempt to add a room onto
                     let open_doors = self.open_doors();
-                    let destination_door = open_doors[self.rng.rand_u16(open_doors.len() as u32) as usize].clone();
+                    let destination_door = open_doors[self.rng.rand_int(open_doors.len() as u32) as usize].clone();
 
                     // Calculate the corridor probability for this generation step
                     let mut corridor_probability = caveinfo.corridor_probability;
@@ -237,10 +239,7 @@ impl LayoutBuilder {
             }
         }
 
-        println!("{:#?}", self.layout.borrow());
-
-
-        unimplemented!();
+        // println!("{:#?}", self.layout.borrow());
 
         // Done!
         self.layout.into_inner()
@@ -251,6 +250,7 @@ impl LayoutBuilder {
             door.borrow_mut().attached_to = Some(self.layout.borrow().map_units.len());
         }
         self.layout.borrow_mut().map_units.push(unit);
+        println!("{:?}", self.rng);
 
         if checks {
             self.attach_close_doors();

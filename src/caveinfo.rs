@@ -48,11 +48,11 @@ impl TryFrom<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
 /// the next FloorInfo section begins or the file ends.
 #[derive(Debug, Clone)]
 pub struct FloorInfo {
-    pub sublevel: u16, // 0-indexed
-    pub max_main_objects: u16,
-    pub max_treasures: u16,
-    pub max_gates: u16,
-    pub num_rooms: u16,             // Excludes corridors and caps/alcoves.
+    pub sublevel: u32, // 0-indexed
+    pub max_main_objects: u32,
+    pub max_treasures: u32,
+    pub max_gates: u32,
+    pub num_rooms: u32,             // Excludes corridors and caps/alcoves.
     pub corridor_probability: f32, // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
     pub cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
     pub has_geyser: bool,
@@ -65,7 +65,7 @@ pub struct FloorInfo {
 }
 
 impl FloorInfo {
-    pub fn teki_group(&self, group: u16) -> impl Iterator<Item=&TekiInfo> {
+    pub fn teki_group(&self, group: u32) -> impl Iterator<Item=&TekiInfo> {
         self.teki_info.iter().filter(move |teki| teki.group == group)
     }
 
@@ -122,9 +122,9 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
 pub struct TekiInfo {
     pub internal_name: String,
     pub carrying: Option<String>, // The object held by this Teki, if any.
-    pub minimum_amount: u16,
-    pub filler_distribution_weight: u16, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    pub group: u16, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
+    pub minimum_amount: u32,
+    pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    pub group: u32, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
     pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
@@ -140,14 +140,14 @@ impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
                 |(item_line, group_line)| -> Result<TekiInfo, CaveInfoError> {
                     let internal_identifier = item_line.get_line_item(0)?;
                     let amount_code = item_line.get_line_item(1)?;
-                    let group: u16 = group_line.get_line_item(0)?.parse()?;
+                    let group: u32 = group_line.get_line_item(0)?.parse()?;
 
                     let (spawn_method, internal_name, carrying) =
                         extract_internal_identifier(internal_identifier);
 
                     // Determine amount and filler_distribution_weight based on teki type
-                    let minimum_amount: u16;
-                    let filler_distribution_weight: u16;
+                    let minimum_amount: u32;
+                    let filler_distribution_weight: u32;
                     if group == 6 {
                         // 6 is the group number for decorative teki
                         minimum_amount = amount_code.parse()?;
@@ -435,7 +435,7 @@ fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
     // This is kinda like Bubble Sort, except it compares the entire
     // remaining list to the current element rather than just the next elem.
     let mut idx = 0;
-    while idx < unsorted.len()-1 {
+    while idx < unsorted.len() {
         // SAFETY: idx is always checked to be within [0,unsorted.len()-1), so is
         // always a valid index.
         while unsorted[idx+1..].iter().any(|elem| elem > unsafe{unsorted.get_unchecked(idx)}) {
