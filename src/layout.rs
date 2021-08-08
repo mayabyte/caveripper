@@ -1,4 +1,6 @@
 pub mod render;
+#[cfg(test)]
+pub mod test;
 
 use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, rc::{Rc, Weak}};
 use itertools::Itertools;
@@ -249,8 +251,9 @@ impl LayoutBuilder {
         for door in unit.doors.iter() {
             door.borrow_mut().attached_to = Some(self.layout.borrow().map_units.len());
         }
-        self.layout.borrow_mut().map_units.push(unit);
+        println!("x:{} z:{} r:{} w:{} h:{}", unit.x, unit.z, unit.unit.rotation, unit.unit.width, unit.unit.height);
         println!("{:?}", self.rng);
+        self.layout.borrow_mut().map_units.push(unit);
 
         if checks {
             self.attach_close_doors();
@@ -385,19 +388,20 @@ impl LayoutBuilder {
     /// Attempts to place a new map unit connected to destination_door, if it fits.
     /// Returns true if the map unit was successfully placed, otherwise returns false.
     fn try_place_unit_at(&self, destination_door: Rc<RefCell<PlacedDoor>>, new_unit: &CaveUnit, door_index: usize) -> Option<PlacedMapUnit> {
-        let (candidate_unit_x, candidate_unit_z) = match new_unit.doors[door_index].direction {
-            0 => (destination_door.borrow().x + destination_door.borrow().door_unit.side_lateral_offset as isize, destination_door.borrow().z),
-            1 => (destination_door.borrow().x + new_unit.width as isize, destination_door.borrow().z + destination_door.borrow().door_unit.side_lateral_offset as isize),
-            2 => (destination_door.borrow().x + destination_door.borrow().door_unit.side_lateral_offset as isize, destination_door.borrow().z + new_unit.height as isize),
-            3 => (destination_door.borrow().x, destination_door.borrow().z + destination_door.borrow().door_unit.side_lateral_offset as isize),
+        // Ensure doors are facing each other
+        if !destination_door.borrow().door_unit.facing(&new_unit.doors[door_index]) {
+            return None;
+        }
+
+        let new_unit_door = &new_unit.doors[door_index];
+        let (candidate_unit_x, candidate_unit_z) = match new_unit_door.direction {
+            0 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as isize, destination_door.borrow().z),
+            1 => (destination_door.borrow().x - new_unit.width as isize, destination_door.borrow().z - new_unit_door.side_lateral_offset as isize),
+            2 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as isize, destination_door.borrow().z - new_unit.height as isize),
+            3 => (destination_door.borrow().x, destination_door.borrow().z - new_unit_door.side_lateral_offset as isize),
             _ => panic!("Invalid door direction")
         };
         let candidate_unit = PlacedMapUnit::new(new_unit, candidate_unit_x, candidate_unit_z);
-
-        // Ensure doors are facing each other
-        if !destination_door.borrow().facing(&candidate_unit.doors[door_index].borrow()) {
-            return None;
-        }
 
         // Make sure the new unit wouldn't overlap any already placed units
         for placed_unit in self.layout.borrow().map_units.iter() {
@@ -411,7 +415,7 @@ impl LayoutBuilder {
         // facing straight into the outer wall of a placed room, which we don't want.
         for new_door in candidate_unit.doors.iter() {
             // If every door lines up with an existing door, we can move on.
-            if self.open_doors().iter().all(|open_door| new_door.borrow().lines_up_with(&open_door.borrow())) {
+            if self.open_doors().iter().any(|open_door| new_door.borrow().lines_up_with(&open_door.borrow())) {
                 continue;
             }
 
@@ -433,7 +437,7 @@ impl LayoutBuilder {
         // Same thing again, but this time checking existing doors against the new map unit
         for open_door in self.open_doors() {
             // If every door lines up with an existing door, we can move on.
-            if candidate_unit.doors.iter().all(|new_door| open_door.borrow().lines_up_with(&new_door.borrow())) {
+            if candidate_unit.doors.iter().any(|new_door| open_door.borrow().lines_up_with(&new_door.borrow())) {
                 continue;
             }
 
@@ -530,6 +534,6 @@ impl PlacedDoor {
     }
 }
 
-fn boxes_overlap(x1: isize, z1: isize, w1: u16, h1: u16, x2: isize, z2: isize, w2: u16, h2: u16) -> bool {
+pub fn boxes_overlap(x1: isize, z1: isize, w1: u16, h1: u16, x2: isize, z2: isize, w2: u16, h2: u16) -> bool {
     !((x1 + w1 as isize <= x2 || x2 + w2 as isize <= x1) || (z1 + h1 as isize <= z2 || z2 + h2 as isize <= z1))
 }

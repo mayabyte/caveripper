@@ -455,13 +455,19 @@ fn expand_rotations(input: Vec<CaveUnit>) -> Vec<CaveUnit> {
         .collect()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DoorUnit {
     pub direction: u16,         // 0, 1, 2, or 3
     pub side_lateral_offset: u16, // Appears to be the offset from center on the side of the room it's facing?
     pub waypoint_index: usize, // Index of the waypoint connected to this door
     pub num_links: usize,
     pub door_links: Vec<DoorLink>,  // Door links are other doors that are reachable through the room that hosts this door.
+}
+
+impl DoorUnit {
+    pub fn facing(&self, other: &DoorUnit) -> bool {
+        (self.direction as isize - other.direction as isize).abs() == 2
+    }
 }
 
 impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
@@ -485,7 +491,7 @@ impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DoorLink {
     distance: f32,
     door_id: usize,
