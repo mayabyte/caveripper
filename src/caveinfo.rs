@@ -92,7 +92,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             max_gates: floorinfo_section.get_tag("004")?,
             num_rooms: floorinfo_section.get_tag("005")?,
             corridor_probability: floorinfo_section.get_tag("006")?,
-            cap_probability: floorinfo_section.get_tag("014")?,
+            cap_probability: floorinfo_section.get_tag::<f32>("014")? / 100f32,
             has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
             exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
             cave_units: expand_rotations(
@@ -402,7 +402,7 @@ impl Ord for CaveUnit {
 impl CaveUnit {
     pub fn copy_and_rotate_to(&self, rotation: u16) -> Self {
         let mut new_unit = self.clone();
-        new_unit.rotation = rotation % 4;
+        new_unit.rotation = (new_unit.rotation + rotation) % 4;
         if rotation % 2 == 1 {
             new_unit.width = self.height;
             new_unit.height = self.width;
@@ -434,15 +434,19 @@ impl CaveUnit {
 fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
     // This is kinda like Bubble Sort, except it compares the entire
     // remaining list to the current element rather than just the next elem.
-    let mut idx = 0;
-    while idx < unsorted.len() {
-        // SAFETY: idx is always checked to be within [0,unsorted.len()-1), so is
-        // always a valid index.
-        while unsorted[idx+1..].iter().any(|elem| elem > unsafe{unsorted.get_unchecked(idx)}) {
-            let current = unsorted.remove(idx);
-            unsorted.push(current);
+    let mut i = 0;
+    while i < unsorted.len() {
+        let mut j = i+1;
+        while j < unsorted.len() {
+            if unsorted[i] > unsorted[j] {
+                let current = unsorted.remove(i);
+                unsorted.push(current);
+                i -= 1;
+                break;
+            }
+            j += 1;
         }
-        idx = idx + 1;
+        i += 1;
     }
     unsorted
 }
@@ -451,7 +455,7 @@ fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
 /// duplicated for each possible rotation.
 fn expand_rotations(input: Vec<CaveUnit>) -> Vec<CaveUnit> {
     input.into_iter()
-        .flat_map(|unit| [unit.clone(), unit.copy_and_rotate_to(1), unit.copy_and_rotate_to(2), unit.copy_and_rotate_to(3)])
+        .flat_map(|unit| [unit.copy_and_rotate_to(0), unit.copy_and_rotate_to(1), unit.copy_and_rotate_to(2), unit.copy_and_rotate_to(3)])
         .collect()
 }
 

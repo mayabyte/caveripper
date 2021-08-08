@@ -37,6 +37,7 @@ impl<'token> Layout {
             map_max_x: 0,
             map_max_z: 0,
             map_has_diameter_36: false,
+            marked_open_doors_as_caps: false,
         };
         layoutbuilder.generate(seed, caveinfo)
     }
@@ -56,6 +57,7 @@ struct LayoutBuilder {
     map_max_x: isize,
     map_max_z: isize,
     map_has_diameter_36: bool,
+    marked_open_doors_as_caps: bool,
 }
 
 impl LayoutBuilder {
@@ -122,9 +124,9 @@ impl LayoutBuilder {
         // Keep placing map units until all doors have been closed
         if self.open_doors().len() > 0 {
             let mut num_loops = 0;
-            while num_loops <= 10000 {
+            while num_loops <= 20 {
                 num_loops += 1;
-                let mut map_unit_placed = false;
+                let mut unit_to_place = None;
 
                 // Check if the number of placed rooms has reached the max, and place one if not
                 if self.layout.borrow().map_units.iter()
@@ -148,8 +150,7 @@ impl LayoutBuilder {
 
                     // Try to place a room of each type in the order defined above, only moving on to
                     // the next type if none of the available units fit.
-                    let mut unit_to_place = None;
-                    'place_unit: for room_type in room_type_priority {
+                    'place_room: for room_type in room_type_priority {
                         let unit_queue = match room_type {
                             RoomType::Room => &self.room_queue,
                             RoomType::DeadEnd => &self.cap_queue,
@@ -169,14 +170,10 @@ impl LayoutBuilder {
                                     // Have to let the unit escape this context because self can't
                                     // be mutably borrowed here.
                                     unit_to_place = Some(approved_unit);
-                                    map_unit_placed = true;
-                                    break 'place_unit;
+                                    break 'place_room;
                                 }
                             }
                         }
-                    }
-                    if let Some(unit_to_place) = unit_to_place {
-                        self.place_map_unit(unit_to_place, true);
                     }
                 }
                 // If we've already placed all the rooms we're allowed to, try to place a
@@ -192,7 +189,7 @@ impl LayoutBuilder {
 
                     // Hallway placement
                     let open_doors = self.open_doors();
-                    for open_door in open_doors.iter() {
+                    'place_hallway: for open_door in open_doors.iter() {
                         if open_door.borrow().marked_as_cap {
                             continue;
                         }
@@ -200,39 +197,124 @@ impl LayoutBuilder {
                         // Find the closest door the above door can link to.
                         // A door counts as 'linkable' if it's inside a 10x10 rectangle
                         // in front of the starting door.
-                        let link_door = open_doors.iter()
-                            .filter(|candidate| {
-                                // If this door is attached to the same map unit as
-                                // the starting door, skip it.
-                                open_door.borrow().attached_to != candidate.borrow().attached_to
-                            })
-                            .filter_map(|candidate| {
-                                // Check the 10x10 rectangle in front
-                                let open_door = open_door.borrow();
+                        let mut link_door = None;
+                        let mut link_door_dist = isize::MAX;
+                        for candidate in open_doors.iter() {
+                            if open_door.borrow().attached_to == candidate.borrow().attached_to {
+                                continue;
+                            }
 
-                                let dx = open_door.x as isize - candidate.borrow().x as isize;
-                                let dz = open_door.z as isize - candidate.borrow().z as isize;
+                            let open_door = open_door.borrow();
 
-                                if dx.abs() < 10 && dz.abs() < 10
-                                    && !(open_door.door_unit.direction == 0 && dz > 0)
-                                    && !(open_door.door_unit.direction == 1 && dx < 0)
-                                    && !(open_door.door_unit.direction == 2 && dz < 0)
-                                    && !(open_door.door_unit.direction == 4 && dx > 0)
-                                {
-                                    Some((candidate, dx.abs() + dz.abs()))
-                                }
-                                else {
-                                    None
-                                }
-                            })
-                            .min_by_key(|(_, dist)| *dist);
+                            let dx = candidate.borrow().x - open_door.x;
+                            let dz = candidate.borrow().z - open_door.z;
+
+                            if dx.abs() >= 10 || dz.abs() >= 10 { continue; }
+                            if open_door.door_unit.direction == 0 && dz > 0 { continue; }
+                            if open_door.door_unit.direction == 1 && dx < 0 { continue; }
+                            if open_door.door_unit.direction == 2 && dz < 0 { continue; }
+                            if open_door.door_unit.direction == 3 && dx > 0 { continue; }
+
+                            let distance = dx.abs() + dz.abs();
+                            if distance < link_door_dist {
+                                link_door = Some(candidate);
+                                link_door_dist = distance;
+                            }
+                        }
                         let link_door = match link_door {
                             None => continue,
-                            Some((d, _)) => d
+                            Some(d) => d
                         };
 
-                        // woo complicated snaking logic
+                        // Temp variables to make the below formula easier to write
+                        let dx = link_door.borrow().x - open_door.borrow().x;
+                        let dz = link_door.borrow().z - open_door.borrow().z;
+                        let link_door_dir = link_door.borrow().door_unit.direction;
+                        let open_door_dir = open_door.borrow().door_unit.direction;
+
+                        // Determine the direction priority to try placing this hallway in.
+                        // This is the logic responsible for 'snaking' corridors.
+                        //
+                        // I don't know of a simple way to explain this, but my guess is that
+                        // this logic is the result of some kind of compiler optimization and there
+                        // exists a smaller formula to describe it.
+                        let priority = match open_door_dir {
+                            0 => {
+                                if dz > -2 { if dx >= 0 { 1 } else { 3 } }
+                                else { match dx {
+                                    _ if dx < -1 => 3,
+                                    -1 => if link_door_dir == 2 || link_door_dir == 3 { 3 } else { 0 },
+                                    0  => if link_door_dir == 0 || link_door_dir == 3 { 3 } else { 0 },
+                                    1  => if link_door_dir == 1 || link_door_dir == 2 { 1 } else { 0 },
+                                    _ if dx > 1 => 1,
+                                    _ => unreachable!()
+                                }}
+                            },
+                            1 => {
+                                if dx == 0 { if dz > 0 { 2 } else { 0 } }
+                                else { match dz {
+                                    _ if dz < -1 => 0,
+                                    -1 => if link_door_dir == 0 || link_door_dir == 3 { 0 } else { 1 },
+                                    0  => if link_door_dir == 0 || link_door_dir == 1 { 0 } else { 1 },
+                                    1  => if link_door_dir == 2 || link_door_dir == 3 { 2 } else { 1 },
+                                    _ if dz > 1 => 2,
+                                    _ => unreachable!()
+                                }}
+                            },
+                            2 => {
+                                if dz == 0 { if dx > 0 { 1 } else { 3 } }
+                                else { match dx {
+                                    _ if dx < -1 => 3,
+                                    -1 => if link_door_dir == 0 || link_door_dir == 3 { 3 } else { 2 },
+                                    0  => if link_door_dir == 2 || link_door_dir == 3 { 3 } else { 2 },
+                                    1  => if link_door_dir == 0 || link_door_dir == 1 { 1 } else { 2 },
+                                    _ if dx > 1 => 1,
+                                    _ => unreachable!()
+                                }}
+                            },
+                            3 => {
+                                if dx > -2 { if dz > 0 { 2 } else { 0 } }
+                                else { match dz {
+                                    _ if dz < -1 => 0,
+                                    -1 => if link_door_dir == 0 || link_door_dir == 1 { 0 } else { 3 },
+                                    0  => if link_door_dir == 0 || link_door_dir == 3 { 0 } else { 3 },
+                                    1  => if link_door_dir == 1 || link_door_dir == 2 { 2 } else { 3 },
+                                    _ if dz > 1 => 2,
+                                    _ => unreachable!()
+                                }}
+                            },
+                            _ => panic!("Invalid direction in hallway snaking")
+                        };
+
+                        // Try placing a hallway with the desired shape. If that doesn't work,
+                        // try placing a straight hallway instead.
+                        let dir_hallway_0 = (open_door_dir + 2) % 4;  // Flip the direction 180 degrees
+                        for dir_hallway_1 in [priority, open_door_dir] {
+                            for hallway_unit in hallway_queue.iter() {
+                                let door_dir_0 = hallway_unit.doors[0].direction;
+                                let door_dir_1 = hallway_unit.doors[1].direction;
+                                if door_dir_0 == dir_hallway_0 && door_dir_1 == dir_hallway_1 {
+                                    unit_to_place = self.try_place_unit_at(open_door.clone(), &hallway_unit, 0);
+                                }
+                                else if door_dir_0 == dir_hallway_1 && door_dir_1 == dir_hallway_0 {
+                                    unit_to_place = self.try_place_unit_at(open_door.clone(), &hallway_unit, 1);
+                                }
+                                if unit_to_place.is_some() {
+                                    break 'place_hallway;
+                                }
+                            }
+                        }
                     }
+                }
+
+                if let Some(unit_to_place) = unit_to_place {
+                    self.place_map_unit(unit_to_place, true);
+                }
+                // If neither a room nor a hallway can be placed via the 'normal' logic above,
+                // try to cap off any remaining open doors using caps or open hallways (or rooms,
+                // but in reality this is very rare).
+                else {
+                    // TODO
                 }
 
                 if self.open_doors().len() > 0 { continue; }
@@ -240,8 +322,6 @@ impl LayoutBuilder {
                 break;
             }
         }
-
-        // println!("{:#?}", self.layout.borrow());
 
         // Done!
         self.layout.into_inner()
@@ -251,8 +331,6 @@ impl LayoutBuilder {
         for door in unit.doors.iter() {
             door.borrow_mut().attached_to = Some(self.layout.borrow().map_units.len());
         }
-        println!("x:{} z:{} r:{} w:{} h:{}", unit.x, unit.z, unit.unit.rotation, unit.unit.width, unit.unit.height);
-        println!("{:?}", self.rng);
         self.layout.borrow_mut().map_units.push(unit);
 
         if checks {
@@ -459,7 +537,12 @@ impl LayoutBuilder {
     /// This means they won't be used as starting points to generate new hallways,
     /// however they can still be attached if hallways stemming from elsewhere
     /// line up by chance.
-    fn mark_random_open_doors_as_caps(&self, caveinfo: &FloorInfo) {
+    fn mark_random_open_doors_as_caps(&mut self, caveinfo: &FloorInfo) {
+        if self.marked_open_doors_as_caps {
+            return;
+        }
+        self.marked_open_doors_as_caps = true;
+
         let mut num_marked = 0;  // We'll stop after 16 maximum.
         for open_door in self.open_doors() {
             if self.rng.rand_f32() < caveinfo.cap_probability {

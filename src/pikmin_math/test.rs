@@ -53,6 +53,22 @@ fn test_rand_backs() {
     assert_eq!(expected, actual);
 }
 
+#[test]
+fn test_rand_swaps() {
+    let expected: Vec<Vec<u32>> = read_to_string("./reference/randSwaps_2k.txt").unwrap()
+        .lines()
+        .map(|line| line.split_terminator(',').map(|num| num.parse::<u32>().unwrap()).collect())
+        .collect();
+    let rng = PikminRng::new(TEST_SEED);
+    let actual: Vec<Vec<u32>> = (0..2000).map(|i| {
+        let mut list = (0..i).collect();
+        rng.rand_swaps(&mut list);
+        list
+    })
+    .collect();
+    assert_eq!(expected, actual);
+}
+
 // #[test]
 // fn test_rand_index_weight() {
 //     let expected: Vec<isize> = read_to_string("./reference/randIndexWeight_10k.txt").unwrap()

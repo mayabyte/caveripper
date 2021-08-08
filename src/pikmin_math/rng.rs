@@ -12,7 +12,7 @@ use std::cell::Cell;
 #[derive(Default, Debug)]
 pub struct PikminRng {
     seed: Cell<u32>,
-    num_rng_calls: Cell<usize>
+    pub num_rng_calls: Cell<usize>
 }
 
 impl PikminRng {

@@ -5,8 +5,16 @@ public class Rng {
     static int seed;
     public static void main(String args[]) {
         seed = 0x12345678;
-        for (int i = 0; i < 1000000; i++) {
-            System.out.println(rand());
+        for (int i = 0; i < 2000; i++) {
+            List<Integer> l = new ArrayList();
+            for (int j = 0; j < i; j++) {
+                l.add(j);
+            }
+            randSwaps(l);
+            for (int x:l) {
+                System.out.print(x + ",");
+            }
+            System.out.println();
         }
     }
 
