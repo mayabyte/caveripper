@@ -2,7 +2,7 @@ pub mod render;
 #[cfg(test)]
 pub mod test;
 
-use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, rc::{Rc, Weak}};
+use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, convert::TryInto, rc::{Rc, Weak}};
 use itertools::Itertools;
 
 use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, RoomType}, pikmin_math::PikminRng};
@@ -348,7 +348,101 @@ impl LayoutBuilder {
                 }
 
                 if self.open_doors().len() > 0 { continue; }
+                let mut cap_to_replace = None;
 
+                // changeCapToHallMapUnit //
+                // Change all alcoves with a corridor directly behind them into a corridor unit.
+                let hallway_unit_names: Vec<&str> = self.corridor_queue.iter()
+                    .filter(|unit| unit.width == 1 && unit.height == 1 && unit.num_doors == 2)
+                    // Filter out east-to-west hallways. Not sure why this is done.
+                    .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
+                    .map(|unit| unit.unit_folder_name.as_ref())
+                    .collect();
+
+                if hallway_unit_names.len() > 0 {
+                    'change_cap_to_hallway: for i in 0..self.layout.borrow().map_units.len() {
+                        let placed_unit = &self.layout.borrow().map_units[i];
+                        if placed_unit.unit.room_type != RoomType::DeadEnd { continue; }
+
+                        // Compute space behind alcove
+                        let (space_x, space_z) = match placed_unit.doors[0].borrow().door_unit.direction {
+                            0 => (placed_unit.x, placed_unit.z + 1),
+                            1 => (placed_unit.x - 1, placed_unit.z),
+                            2 => (placed_unit.x, placed_unit.z - 1),
+                            3 => (placed_unit.x + 1, placed_unit.z),
+                            _ => panic!("Invalid door direction in changeCapToHallMapUnit")
+                        };
+
+                        // Check for a corridor in the space behind this alcove
+                        let corridor_behind_idx = self.layout.borrow().map_units.iter()
+                            .filter(|unit| unit.unit.room_type == RoomType::Hallway)
+                            .filter(|unit| unit.x != placed_unit.x && unit.z != placed_unit.z) // Don't check self
+                            .enumerate()
+                            .find_map(|(idx, unit)| {
+                                if unit.x == space_x && unit.z == space_z {
+                                    Some(idx)
+                                }
+                                else {
+                                    None
+                                }
+                            });
+
+                        if let Some(corridor_behind_idx) = corridor_behind_idx {
+                            // Set reflexive adjacent_door pointers to None before deletion
+                            if let Some(adjacent_door) = &placed_unit.doors[0].borrow().adjacent_door {
+                                adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
+                            }
+                            let corridor_behind = &self.layout.borrow().map_units[corridor_behind_idx];
+                            for door in corridor_behind.doors.iter() {
+                                if let Some(adjacent_door) = &door.borrow().adjacent_door {
+                                    adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
+                                }
+                            }
+
+                            // Store this for later
+                            let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction.clone();
+                            let attach_to = placed_unit.doors[0].borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap();
+
+                            // Remove the one with the greater index first so we don't have to re-find
+                            // the other one after shifting.
+                            if i > corridor_behind_idx {
+                                self.layout.borrow_mut().map_units.remove(i);
+                                self.layout.borrow_mut().map_units.remove(corridor_behind_idx);
+                            }
+                            else {
+                                self.layout.borrow_mut().map_units.remove(corridor_behind_idx);
+                                self.layout.borrow_mut().map_units.remove(i);
+                            }
+
+                            // Add a hallway unit in the cap's place. Note that another hallway unit
+                            // isn't added in place of the deleted hallway behind the cap; it will be
+                            // added in a normal hallway pass after this.
+                            let chosen_hallway = hallway_unit_names[self.rng.rand_int(hallway_unit_names.len() as u32) as usize];
+                            for unit in self.corridor_queue.iter() {
+                                if unit.unit_folder_name == chosen_hallway && unit.doors[0].direction == cap_door_dir {
+                                    if let Some(approved_unit) = self.try_place_unit_at(attach_to.clone(), unit, 0) {
+                                        cap_to_replace = Some(approved_unit);
+                                        break 'change_cap_to_hallway;
+                                    }
+                                }
+                            }
+                            panic!("Deleted cap in cap-to-hallway replacement step but couldn't replace it with a hallway!");
+                        }
+                    }
+                    if let Some(cap_to_replace) = cap_to_replace {
+                        self.place_map_unit(cap_to_replace, true);
+                    }
+                }
+
+                if self.open_doors().len() > 0 { continue; }
+
+                // Look for instances of two 1x1 hallway units in a row and change them to
+                // single 2x1 hallway units.
+
+                // TODO
+
+
+                // After this, we're finished setting room tiles.
                 break;
             }
         }
