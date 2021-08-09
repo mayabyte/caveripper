@@ -497,9 +497,9 @@ impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DoorLink {
-    distance: f32,
-    door_id: usize,
-    tekiflag: bool, // Whether or not a teki should spawn in the seam of this door
+    pub distance: f32,
+    pub door_id: usize, // Id of the other door
+    pub tekiflag: bool, // Whether or not a teki should spawn in the seam of this door
 }
 
 impl TryFrom<&parse::InfoLine<'_>> for DoorLink {
