@@ -314,7 +314,37 @@ impl LayoutBuilder {
                 // try to cap off any remaining open doors using caps or open hallways (or rooms,
                 // but in reality this is very rare).
                 else {
-                    // TODO
+                    let mut cap_to_place = None;
+                    'place_cap: for open_door in self.open_doors() {
+                        for room_type in [RoomType::DeadEnd, RoomType::Hallway, RoomType::Room] {
+                            let unit_queue = match room_type {
+                                RoomType::Room => &self.room_queue,
+                                RoomType::DeadEnd => &self.cap_queue,
+                                RoomType::Hallway => {
+                                    self.shuffle_corridor_priority(&caveinfo);
+                                    &self.corridor_queue
+                                }
+                            };
+                            for num_doors in 1..=caveinfo.max_num_doors_single_unit() {
+                                for map_unit in unit_queue {
+                                    if map_unit.num_doors != num_doors { continue; }
+
+                                    let mut door_priority = (0..num_doors).collect_vec();
+                                    self.rng.rand_swaps(&mut door_priority);
+
+                                    for door_index in door_priority {
+                                        if let Some(approved_unit) = self.try_place_unit_at(open_door.clone(), map_unit, door_index) {
+                                            cap_to_place = Some(approved_unit);
+                                            break 'place_cap;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Some(cap_to_place) = cap_to_place {
+                        self.place_map_unit(cap_to_place, true);
+                    }
                 }
 
                 if self.open_doors().len() > 0 { continue; }
