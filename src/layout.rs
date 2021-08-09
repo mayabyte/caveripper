@@ -124,7 +124,7 @@ impl LayoutBuilder {
         // Keep placing map units until all doors have been closed
         if self.open_doors().len() > 0 {
             let mut num_loops = 0;
-            while num_loops <= 20 {
+            while num_loops <= 10000 {
                 num_loops += 1;
                 let mut unit_to_place = None;
 
@@ -391,7 +391,7 @@ impl LayoutBuilder {
             RoomType::Room => {
                 // Count each type of placed room so far
                 let mut room_type_counter: HashMap<&str, usize> = HashMap::new();
-                for unit in placed_units.map_units.iter() {
+                for unit in placed_units.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room) {
                     *room_type_counter.entry(&unit.unit.unit_folder_name).or_default() += 1;
                 }
 

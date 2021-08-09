@@ -12,7 +12,7 @@ use layout::Layout;
 use layout::render::render_layout;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let caveinfo = get_sublevel_info("SCx1")?;
+    let caveinfo = get_sublevel_info("CoS4")?;
     let layout = Layout::generate(0x12345678u32, caveinfo);
     // println!("{:#?}", &layout);
     render_layout(&layout);
