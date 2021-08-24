@@ -1,15 +1,25 @@
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+use std::fs::File;
+use std::io::Read;
 
-pub static TREASURES: Lazy<Mutex<Vec<&'static str>>> = Lazy::new(|| {
-    let treasure_file = include_str!("../../gamedata/treasures.txt");
-    let exploration_kit_file = include_str!("../../gamedata/treasures_exploration_kit.txt");
+pub static TREASURES: Lazy<Mutex<Vec<String>>> = Lazy::new(|| {
+    let mut treasure_file = String::new();
+    File::open("./assets/gcn/gamedata/treasures.txt").unwrap()
+        .read_to_string(&mut treasure_file)
+        .unwrap();
 
-    let mut treasure_names: Vec<&'static str> = treasure_file
+
+    let mut exploration_kit_file = String::new();
+    File::open("./assets/gcn/gamedata/treasures_exploration_kit.txt").unwrap()
+        .read_to_string(&mut exploration_kit_file)
+        .unwrap();
+
+    let mut treasure_names: Vec<String> = treasure_file
         .lines()
         .chain(exploration_kit_file.lines())
         .filter(|line| line.len() > 0)
-        .map(|line| line.split_once(',').unwrap().1)
+        .map(|line| line.split_once(',').unwrap().1.to_owned())
         .collect();
     treasure_names.sort();
     Mutex::new(treasure_names)
@@ -45,6 +55,6 @@ pub(super) fn is_item_name(name: &str) -> bool {
     TREASURES
         .lock()
         .unwrap()
-        .binary_search(&name.trim_start_matches('_'))
+        .binary_search(&name.trim_start_matches('_').to_owned())
         .is_ok()
 }

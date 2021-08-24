@@ -86,7 +86,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             raw_sections;
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let cave_unit_definition_text = read_file_to_string(format!("./units/{}", &cave_unit_definition_file_name))?;
+        let cave_unit_definition_text = read_file_to_string(format!("./assets/gcn/units/{}", &cave_unit_definition_file_name))?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
 
@@ -353,7 +353,7 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let spawn_points = match read_file_to_string(format!("./arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let spawn_points = match read_file_to_string(format!("./assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
             Ok(cave_unit_layout_file_txt) => {
                 let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
@@ -576,7 +576,7 @@ impl TryFrom<parse::Section<'_>> for SpawnPoint {
 pub fn get_caveinfo(cave: String) -> Result<CaveInfo, CaveInfoError> {
     // Load raw text of the caveinfo file
     let caveinfo_filename = cave_name_to_caveinfo_filename(&cave);
-    let caveinfo_txt = read_file_to_string(format!("./caveinfo/{}", &caveinfo_filename))?;
+    let caveinfo_txt = read_file_to_string(format!("./assets/gcn/caveinfo/{}", &caveinfo_filename))?;
 
     // Send it off to the parsing mines
     let floor_chunks = parse_caveinfo(&caveinfo_txt)
