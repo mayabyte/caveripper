@@ -1,5 +1,5 @@
 use std::error::Error;
-use cavegen::caveinfo::get_sublevel_info;
+use cavegen::caveinfo;
 use cavegen::layout::Layout;
 use cavegen::layout::render::render_layout;
 use simple_logger::SimpleLogger;
@@ -9,8 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         SimpleLogger::new().with_level(log::LevelFilter::max()).init()?;
     }
 
-    let caveinfo = get_sublevel_info("sh4")?;
-    let layout = Layout::generate(0xF59F8835u32, caveinfo);
+    let layout = Layout::generate(0xF59F8835u32, &caveinfo::SH4);
     // println!("{:#?}", &layout);
     render_layout(&layout);
     Ok(())

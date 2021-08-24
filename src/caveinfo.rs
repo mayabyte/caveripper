@@ -1,6 +1,8 @@
 mod caveinfoerror;
 pub mod gamedata;
 mod parse;
+mod caveinfo_lazy_init;
+
 #[cfg(test)]
 mod test;
 
@@ -15,12 +17,12 @@ mod test;
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
 pub use caveinfoerror::CaveInfoError;
 pub use gamedata::*;
+pub use caveinfo_lazy_init::*;
 
-use cached::proc_macro::cached;
 use encoding_rs::SHIFT_JIS;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use parse::{parse_cave_unit_definition, parse_caveinfo, parse_cave_unit_layout_file};
+use parse::{parse_cave_unit_definition, parse_cave_unit_layout_file};
 use regex::Regex;
 use std::{cmp::Ordering, convert::{TryFrom, TryInto}, fs::File, io::Read};
 
@@ -567,45 +569,6 @@ impl TryFrom<parse::Section<'_>> for SpawnPoint {
                 max_num: section.get_line(5)?.get_line_item(0)?.parse()?,
             }
         )
-    }
-}
-
-/// Loads the CaveInfo for an entire cave.
-/// Should use `get_sublevel_info` in most cases.
-#[cached]
-pub fn get_caveinfo(cave: String) -> Result<CaveInfo, CaveInfoError> {
-    // Load raw text of the caveinfo file
-    let caveinfo_filename = cave_name_to_caveinfo_filename(&cave);
-    let caveinfo_txt = read_file_to_string(format!("./assets/gcn/caveinfo/{}", &caveinfo_filename))?;
-
-    // Send it off to the parsing mines
-    let floor_chunks = parse_caveinfo(&caveinfo_txt)
-        .expect(&format!("Couldn't parse CaveInfo file '{}'", caveinfo_filename))
-        .1;
-
-    CaveInfo::try_from(floor_chunks)
-}
-
-/// Gets the CaveInfo for a single sublevel.
-/// Argument is a 'qualified sublevel string', such as "FC3", "SCx2", etc.
-static SUBLEVEL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\w+)[\s_-]?(\d+)").unwrap());
-pub fn get_sublevel_info(sublevel: &str) -> Result<FloorInfo, CaveInfoError> {
-    let captures = SUBLEVEL_RE
-        .captures(sublevel)
-        .ok_or_else(|| CaveInfoError::InvalidSublevel(sublevel.to_string()))?;
-
-    let cave_name = captures.get(1).unwrap().as_str();
-    let sublevel_num: u8 = captures.get(2).unwrap().as_str().parse().unwrap();
-
-    let mut caveinfo = get_caveinfo(cave_name.to_string())?;
-
-    // Make sure floor is in bounds to avoid panics
-    if sublevel_num <= caveinfo.num_floors {
-        let mut floor_info = caveinfo.floors.swap_remove((sublevel_num - 1u8) as usize);
-        floor_info.cave_name = Some(cave_name.to_owned());
-        Ok(floor_info)
-    } else {
-        Err(CaveInfoError::InvalidSublevel(sublevel.to_string()))
     }
 }
 

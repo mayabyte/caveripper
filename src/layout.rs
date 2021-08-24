@@ -21,7 +21,7 @@ pub struct Layout {
 }
 
 impl<'token> Layout {
-    pub fn generate(seed: u32, caveinfo: FloorInfo) -> Layout {
+    pub fn generate(seed: u32, caveinfo: &FloorInfo) -> Layout {
         let layoutbuilder = LayoutBuilder {
             layout: RefCell::new(Layout {
                 map_units: Vec::new(),
@@ -68,7 +68,7 @@ impl LayoutBuilder {
     /// This implementation follows CaveGen's as closely as possible, even
     /// when that results in non-idiomatic Rust code. It is my 'reference'
     /// implementation; a more optimized one will follow.
-    pub fn generate(mut self, seed: u32, caveinfo: FloorInfo) -> Layout {
+    pub fn generate(mut self, seed: u32, caveinfo: &FloorInfo) -> Layout {
         // Initialize an RNG session with the given seed.
         self.rng = PikminRng::new(seed);
 

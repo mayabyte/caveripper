@@ -1,9 +1,10 @@
-use super::*;
+use once_cell::sync::Lazy;
+use super::ALL_SUBLEVELS;
 
+/// Simple check to ensure all caves can be parsed without panicking.
 #[test]
-fn check_parsing_succeeds() {
-    for sublevel in ALL_SUBLEVELS_POD {
-        println!("{}", sublevel);
-        get_sublevel_info(sublevel).unwrap();
+fn test_caveinfo_parsing() {
+    for sublevel_caveinfo in ALL_SUBLEVELS {
+        Lazy::force(sublevel_caveinfo);
     }
 }
