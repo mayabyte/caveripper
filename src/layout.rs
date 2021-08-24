@@ -6,7 +6,7 @@ use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, rc::{Rc, Weak}};
 use itertools::Itertools;
 use log::debug;
 
-use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, RoomType}, pikmin_math::PikminRng};
+use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomType, SpawnPoint, TekiInfo}, pikmin_math::PikminRng};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -564,6 +564,18 @@ impl LayoutBuilder {
             }
         }
 
+        // Set the start point, a.k.a. the Research Pod
+        {
+            let mut layout_mut = self.layout.borrow_mut();
+            let mut candidates: Vec<&mut PlacedSpawnPoint> = layout_mut.map_units[0]
+                .spawnpoints.iter_mut()
+                .filter(|sp| sp.spawnpoint_unit.group == 7)
+                .collect();
+            let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
+            candidates[chosen].contains = Some(SpawnObject::Ship);
+            debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
+        }
+
         // Done!
         self.layout.into_inner()
     }
@@ -805,12 +817,14 @@ impl LayoutBuilder {
     }
 }
 
+
 #[derive(Debug, Clone)]
 pub struct PlacedMapUnit {
     pub unit: CaveUnit,
     pub x: isize,
     pub z: isize,
     pub doors: Vec<Rc<RefCell<PlacedDoor>>>,
+    pub spawnpoints: Vec<PlacedSpawnPoint>,
 }
 
 impl PlacedMapUnit {
@@ -836,8 +850,34 @@ impl PlacedMapUnit {
                 ))
             })
             .collect();
+
+        let spawnpoints = unit.spawn_points.iter()
+            .map(|sp| {
+                let base_x = x as f32 + (unit.width as f32 / 2.0) * 170.0;
+                let base_z = z as f32 + (unit.height as f32 / 2.0) * 170.0;
+                let (actual_x, actual_z) = match unit.rotation {
+                    0 => (base_x + sp.pos_x, base_z + sp.pos_z),
+                    1 => (base_x - sp.pos_z, base_z + sp.pos_x),
+                    2 => (base_x - sp.pos_x, base_z - sp.pos_z),
+                    3 => (base_x + sp.pos_z, base_z - sp.pos_x),
+                    _ => panic!("Invalid room rotation")
+                };
+                let actual_angle = (sp.angle_degrees - unit.rotation as f32 * 90.0) % 360.0;
+                PlacedSpawnPoint {
+                    x: actual_x,
+                    z: actual_z,
+                    angle: actual_angle,
+                    spawnpoint_unit: sp.clone(),
+                    contains: None
+                }
+            })
+            .collect();
+
         PlacedMapUnit {
-            unit: unit.clone(), x, z, doors
+            unit: unit.clone(),
+            x, z,
+            doors,
+            spawnpoints,
         }
     }
 
@@ -845,6 +885,7 @@ impl PlacedMapUnit {
         boxes_overlap(self.x, self.z, self.unit.width, self.unit.height, other.x, other.z, other.unit.width, other.unit.height)
     }
 }
+
 
 #[derive(Debug)]
 pub struct PlacedDoor {
@@ -868,4 +909,25 @@ impl PlacedDoor {
 
 pub fn boxes_overlap(x1: isize, z1: isize, w1: u16, h1: u16, x2: isize, z2: isize, w2: u16, h2: u16) -> bool {
     !((x1 + w1 as isize <= x2 || x2 + w2 as isize <= x1) || (z1 + h1 as isize <= z2 || z2 + h2 as isize <= z1))
+}
+
+
+#[derive(Debug, Clone)]
+pub struct PlacedSpawnPoint {
+    pub spawnpoint_unit: SpawnPoint,
+    pub x: f32,
+    pub z: f32,
+    pub angle: f32,
+    pub contains: Option<SpawnObject>,
+}
+
+
+#[derive(Debug, Clone)]
+pub enum SpawnObject {
+    Teki(TekiInfo),
+    Item(ItemInfo),
+    Gate(GateInfo),
+    Hole,
+    Geyser,
+    Ship
 }

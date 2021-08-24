@@ -1,5 +1,5 @@
-use super::Layout;
-use image::{DynamicImage, GenericImage, io::Reader as ImageReader};
+use super::{Layout, SpawnObject};
+use image::{DynamicImage, GenericImage, Pixel, io::Reader as ImageReader};
 
 pub fn render_layout(layout: &Layout) {
     let min_map_x = layout.map_units.iter().map(|unit| unit.x).min().unwrap();
@@ -29,6 +29,21 @@ pub fn render_layout(layout: &Layout) {
         let img_z = ((map_unit.z - min_map_z) * 8) as u32;
         for (radar_x, radar_z, pixel) in radar_image.enumerate_pixels() {
             image_buffer.put_pixel(img_x + radar_x, img_z + radar_z, pixel.clone());
+        }
+    }
+
+    // Draw spawned objects
+    for spawn_point in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
+        match spawn_point.contains {
+            None => continue,
+            Some(SpawnObject::Ship) => {
+                image_buffer.put_pixel(
+                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
+                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
+                    Pixel::from_channels(255, 0, 0, 255)
+                );
+            },
+            _ => panic!("unrecognized drawable spawn item!"),
         }
     }
 

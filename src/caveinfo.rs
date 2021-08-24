@@ -545,7 +545,7 @@ impl From<usize> for RoomType {
 #[derive(Debug, Clone)]
 pub struct SpawnPoint {
     pub group: u16,
-    pub pos_x: f32,
+    pub pos_x: f32,  // Positions are all relative to the origin of the unit they belong to, NOT global coords.
     pub pos_y: f32,
     pub pos_z: f32,
     pub angle_degrees: f32,
