@@ -475,85 +475,88 @@ impl LayoutBuilder {
                     }
 
                     // Check for another 1x1 hallway next to this one
-                    if let Some((unit_1_to_2_door_idx, unit_2_idx)) = self.layout.clone().borrow().map_units[unit_1_idx-1].doors.iter()
-                        .enumerate()
-                        .find_map(|(i, door)| {
-                            if let Some(door_ref) = &door.borrow().adjacent_door {
-                                let unit_idx = door_ref.upgrade()?.borrow().attached_to?;
-                                Some((i, unit_idx))
-                            }
-                            else { None }
-                        })
+                    let mut md: Option<Rc<RefCell<PlacedDoor>>> = None;
+                    let mut od: Option<Rc<RefCell<PlacedDoor>>> = None;
+                    let mut unit_2_idx = 99999999;
+                    for j in 0..2 {
+                        md = Some(self.layout.borrow().map_units[unit_1_idx-1].doors[j].clone());
+                        unit_2_idx = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().attached_to.unwrap();
+                        if hallway_unit_names_1x1.contains(&self.layout.borrow().map_units[unit_2_idx].unit.unit_folder_name) {
+                            od = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade();
+                            break;
+                        }
+                    }
+                    if od.is_none() {
+                        continue;
+                    }
+
+                    let expand_from;
+                    let desired_direction;
+                    // Create a sub-scope to avoid conflicting borrows of self.layout
                     {
-                        let expand_from;
-                        let desired_direction;
-                        // Create a sub-scope to avoid conflicting borrows of self.layout
-                        {
-                            let unit_1 = &self.layout.borrow().map_units[unit_1_idx-1];
-                            let unit_2 = &self.layout.borrow().map_units[unit_2_idx];
+                        let unit_1 = &self.layout.borrow().map_units[unit_1_idx-1];
+                        let unit_2 = &self.layout.borrow().map_units[unit_2_idx];
 
-                            // Find which door to expand from
-                            expand_from = if unit_1.x > unit_2.x || unit_1.z < unit_2.z {
-                                unit_1.doors[
-                                    unit_1.unit.doors[unit_1_to_2_door_idx].door_links[0].door_id
-                                ]
-                                .borrow().adjacent_door
-                                .as_ref().unwrap().upgrade().unwrap()
-                            }
-                            else {
-                                unit_2.doors[
-                                    unit_1.doors[unit_1_to_2_door_idx].borrow().adjacent_door.as_ref().unwrap()
-                                        .upgrade().unwrap().borrow()
-                                        .door_unit.door_links[0].door_id
-                                ]
-                                .borrow().adjacent_door
-                                .as_ref().unwrap().upgrade().unwrap()
-                            };
-
-                            // Set reflexive adjacent_door pointers to None before deletion
-                            for door in unit_1.doors.iter() {
-                                if let Some(adjacent_door) = &door.borrow().adjacent_door {
-                                    adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
-                                }
-                            }
-                            for door in unit_2.doors.iter() {
-                                if let Some(adjacent_door) = &door.borrow().adjacent_door {
-                                    adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
-                                }
-                            }
-
-                            // Store this for later
-                            desired_direction = if unit_1.x == unit_2.x { 0 } else { 1 };
-                        };
-
-                        // Delete the 1x1 hallway units
-                        if unit_1_idx-1 > unit_2_idx {
-                            self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
-                            self.layout.borrow_mut().map_units.remove(unit_2_idx);
+                        // Find which door to expand from
+                        expand_from = if unit_1.x > unit_2.x || unit_1.z < unit_2.z {
+                            unit_1.doors[
+                                md.unwrap().borrow().door_unit.door_links[0].door_id
+                            ]
+                            .borrow().adjacent_door
+                            .as_ref().unwrap().upgrade().unwrap()
                         }
                         else {
-                            self.layout.borrow_mut().map_units.remove(unit_2_idx);
-                            self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
-                        }
-                        num_placed_units -= 2;
+                            unit_2.doors[
+                                od.unwrap().borrow().door_unit.door_links[0].door_id
+                            ]
+                            .borrow().adjacent_door
+                            .as_ref().unwrap().upgrade().unwrap()
+                        };
 
-                        // Choose a 2x1 hallway unit to add in their place
-                        let mut placed = false;
-                        let name_chosen_2x1 = &hallway_unit_names_2x1[self.rng.rand_int(hallway_unit_names_2x1.len() as u32) as usize];
-                        for new_unit in self.corridor_queue.iter() {
-                            if &new_unit.unit_folder_name == name_chosen_2x1 && new_unit.doors[0].direction == desired_direction {
-                                if let Some(approved_unit) = self.try_place_unit_at(expand_from.clone(), new_unit, 0) {
-                                    debug!("Combining hallway units into type '{}' at ({}, {})",
-                                        new_unit.unit_folder_name, expand_from.borrow().x, expand_from.borrow().z);
-                                    self.place_map_unit(approved_unit, true);
-                                    num_placed_units += 1;
-                                    placed = true;
-                                    break;
-                                }
+                        // Set reflexive adjacent_door pointers to None before deletion
+                        for door in unit_1.doors.iter() {
+                            if let Some(adjacent_door) = &door.borrow().adjacent_door {
+                                adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
                             }
                         }
-                        assert!(placed, "Deleted hallway units to combine but couldn't place a new hallway unit in their place!");
+                        for door in unit_2.doors.iter() {
+                            if let Some(adjacent_door) = &door.borrow().adjacent_door {
+                                adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
+                            }
+                        }
+
+                        // Store this for later
+                        desired_direction = if unit_1.x == unit_2.x { 0 } else { 1 };
+                    };
+
+                    // Delete the 1x1 hallway units
+                    if unit_1_idx-1 > unit_2_idx {
+                        self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
+                        self.layout.borrow_mut().map_units.remove(unit_2_idx);
                     }
+                    else {
+                        self.layout.borrow_mut().map_units.remove(unit_2_idx);
+                        self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
+                    }
+                    self.recalculate_door_attachments();
+                    num_placed_units -= 2;
+
+                    // Choose a 2x1 hallway unit to add in their place
+                    let mut placed = false;
+                    let name_chosen_2x1 = &hallway_unit_names_2x1[self.rng.rand_int(hallway_unit_names_2x1.len() as u32) as usize];
+                    for new_unit in self.corridor_queue.iter() {
+                        if &new_unit.unit_folder_name == name_chosen_2x1 && new_unit.doors[0].direction == desired_direction {
+                            if let Some(approved_unit) = self.try_place_unit_at(expand_from.clone(), new_unit, 0) {
+                                debug!("Combining hallway units into type '{}' at ({}, {})",
+                                    new_unit.unit_folder_name, expand_from.borrow().x, expand_from.borrow().z);
+                                self.place_map_unit(approved_unit, true);
+                                num_placed_units += 1;
+                                placed = true;
+                                break;
+                            }
+                        }
+                    }
+                    assert!(placed, "Deleted hallway units to combine but couldn't place a new hallway unit in their place! Seed: {:#X}, Sublevel: {}", seed, caveinfo.name());
                 }
 
                 // After this, we're finished setting room tiles.
@@ -563,6 +566,14 @@ impl LayoutBuilder {
 
         // Done!
         self.layout.into_inner()
+    }
+
+    fn recalculate_door_attachments(&mut self) {
+        for (i, unit) in self.layout.borrow().map_units.iter().enumerate() {
+            for door in unit.doors.iter() {
+                door.borrow_mut().attached_to = Some(i);
+            }
+        }
     }
 
     fn place_map_unit(&mut self, unit: PlacedMapUnit, checks: bool) {
@@ -764,7 +775,6 @@ impl LayoutBuilder {
                 open_space_x, open_space_z, 1, 1,
                 candidate_unit.x, candidate_unit.z, candidate_unit.unit.width, candidate_unit.unit.height
             ) {
-                println!("aaa");
                 return None;
             }
         }

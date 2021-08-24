@@ -1,5 +1,5 @@
 mod caveinfoerror;
-mod gamedata;
+pub mod gamedata;
 mod parse;
 #[cfg(test)]
 mod test;
@@ -48,6 +48,7 @@ impl TryFrom<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
 /// the next FloorInfo section begins or the file ends.
 #[derive(Debug, Clone)]
 pub struct FloorInfo {
+    pub cave_name: Option<String>,  // Not part of the CaveInfo file, just for debugging and logging purposes.
     pub sublevel: u32, // 0-indexed
     pub max_main_objects: u32,
     pub max_treasures: u32,
@@ -72,6 +73,10 @@ impl FloorInfo {
     pub fn max_num_doors_single_unit(&self) -> usize {
         self.cave_units.iter().map(|unit| unit.num_doors).max().unwrap_or_default()
     }
+
+    pub fn name(&self) -> String {
+        format!("{}{}", self.cave_name.as_ref().expect("No cave name found!"), self.sublevel+1)
+    }
 }
 
 impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
@@ -86,6 +91,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             .expect("Couldn't parse Cave Unit Definition file!");
 
         Ok(FloorInfo {
+            cave_name: None,
             sublevel: floorinfo_section.get_tag("000")?,
             max_main_objects: floorinfo_section.get_tag("002")?,
             max_treasures: floorinfo_section.get_tag("003")?,
@@ -595,7 +601,9 @@ pub fn get_sublevel_info(sublevel: &str) -> Result<FloorInfo, CaveInfoError> {
 
     // Make sure floor is in bounds to avoid panics
     if sublevel_num <= caveinfo.num_floors {
-        Ok(caveinfo.floors.swap_remove((sublevel_num - 1u8) as usize))
+        let mut floor_info = caveinfo.floors.swap_remove((sublevel_num - 1u8) as usize);
+        floor_info.cave_name = Some(cave_name.to_owned());
+        Ok(floor_info)
     } else {
         Err(CaveInfoError::InvalidSublevel(sublevel.to_string()))
     }

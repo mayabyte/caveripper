@@ -1,14 +1,7 @@
-#![feature(option_result_contains)]
-#![feature(slice_as_chunks)]
-
-pub mod caveinfo;
-pub mod layout;
-pub mod pikmin_math;
-
 use std::error::Error;
-use caveinfo::get_sublevel_info;
-use layout::Layout;
-use layout::render::render_layout;
+use cavegen::caveinfo::get_sublevel_info;
+use cavegen::layout::Layout;
+use cavegen::layout::render::render_layout;
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -16,8 +9,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         SimpleLogger::new().with_level(log::LevelFilter::max()).init()?;
     }
 
-    let caveinfo = get_sublevel_info("scx1")?;
-    let layout = Layout::generate(0x12345678u32, caveinfo);
+    let caveinfo = get_sublevel_info("sh4")?;
+    let layout = Layout::generate(0xF59F8835u32, caveinfo);
     // println!("{:#?}", &layout);
     render_layout(&layout);
     Ok(())
