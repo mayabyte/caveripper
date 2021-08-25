@@ -1,19 +1,10 @@
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
-use std::fs::File;
-use std::io::Read;
+use crate::assets::get_file;
 
 pub static TREASURES: Lazy<Mutex<Vec<String>>> = Lazy::new(|| {
-    let mut treasure_file = String::new();
-    File::open("./assets/gcn/gamedata/treasures.txt").unwrap()
-        .read_to_string(&mut treasure_file)
-        .unwrap();
-
-
-    let mut exploration_kit_file = String::new();
-    File::open("./assets/gcn/gamedata/treasures_exploration_kit.txt").unwrap()
-        .read_to_string(&mut exploration_kit_file)
-        .unwrap();
+    let treasure_file = get_file("assets/gcn/gamedata/treasures.txt").unwrap();
+    let exploration_kit_file = get_file("assets/gcn/gamedata/treasures_exploration_kit.txt").unwrap();
 
     let mut treasure_names: Vec<String> = treasure_file
         .lines()

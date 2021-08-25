@@ -1,5 +1,6 @@
+use crate::assets::get_file_bytes;
 use super::{Layout, SpawnObject};
-use image::{DynamicImage, GenericImage, Pixel, io::Reader as ImageReader};
+use image::{DynamicImage, GenericImage, Pixel};
 
 pub fn render_layout(layout: &Layout) {
     let min_map_x = layout.map_units.iter().map(|unit| unit.x).min().unwrap();
@@ -15,9 +16,8 @@ pub fn render_layout(layout: &Layout) {
     // Draw map units
     for map_unit in layout.map_units.iter() {
         // Open the radar image for the map unit
-        let radar_image_file = format!("./assets/gcn/arc/{}/arc.d/texture.bti.png", map_unit.unit.unit_folder_name);
-        let mut radar_image = ImageReader::open(radar_image_file).unwrap()
-            .decode().unwrap();
+        let radar_image_bytes = get_file_bytes(&format!("assets/gcn/arc/{}/arc.d/texture.bti.png", map_unit.unit.unit_folder_name)).unwrap();
+        let mut radar_image = image::load_from_memory(radar_image_bytes.as_ref()).unwrap();
         for _ in 0..map_unit.unit.rotation {
             radar_image = radar_image.rotate90();
         }
@@ -47,5 +47,5 @@ pub fn render_layout(layout: &Layout) {
         }
     }
 
-    image_buffer.save_with_format("./output/layout.png", image::ImageFormat::Png).unwrap();
+    image_buffer.save_with_format("./caveripper_output/layout.png", image::ImageFormat::Png).unwrap();
 }

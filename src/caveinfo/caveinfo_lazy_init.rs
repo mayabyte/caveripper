@@ -8,15 +8,16 @@ use paste::paste;
 use crate::caveinfo::{
     CaveInfo, CaveInfoError, FloorInfo,
     cave_name_to_caveinfo_filename,
-    read_file_to_string,
     parse::parse_caveinfo,
 };
+use crate::assets::get_file_JIS;
 
 fn load_caveinfo(cave: &'static str) -> Result<CaveInfo, CaveInfoError> {
-    let caveinfo_filename = cave_name_to_caveinfo_filename(&cave);
-    let caveinfo_txt = read_file_to_string(format!("./assets/gcn/caveinfo/{}", &caveinfo_filename))?;
+    let caveinfo_filename = format!("assets/gcn/caveinfo/{}", cave_name_to_caveinfo_filename(&cave));
+    let caveinfo_txt = get_file_JIS(&caveinfo_filename)
+        .ok_or_else(|| CaveInfoError::MissingFileError(caveinfo_filename.clone()))?;
     let floor_chunks = parse_caveinfo(&caveinfo_txt)
-        .expect(&format!("Couldn't parse CaveInfo file '{}'", caveinfo_filename))
+        .map_err(|_| CaveInfoError::ParseFileError(caveinfo_filename.clone()))?
         .1;
 
     CaveInfo::try_from(floor_chunks)

@@ -13,6 +13,7 @@ pub enum CaveInfoError {
     MalformedTagLine(String),
     FileReadError(String),
     MissingFileError(String),
+    ParseFileError(String),
 }
 
 impl Error for CaveInfoError {}

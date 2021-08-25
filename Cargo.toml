@@ -20,6 +20,10 @@ version = "1.13"
 default-features = false
 features = ["colors"]
 
+[dependencies.rust-embed]
+version = "6.0"
+features = ["interpolate-folder-path", "compression"]
+
 [dev-dependencies]
 criterion = "0.3"
 rand = {version="0.8", features=["small_rng"]}
@@ -35,3 +39,6 @@ path = "src/main.rs"
 [[bench]]
 name = "benchmark_cavegen"
 harness = false
+
+[profile.release]
+lto = true

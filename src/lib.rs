@@ -4,3 +4,4 @@
 pub mod caveinfo;
 pub mod layout;
 pub mod pikmin_math;
+pub(crate) mod assets;

@@ -19,12 +19,13 @@ pub use caveinfoerror::CaveInfoError;
 pub use gamedata::*;
 pub use caveinfo_lazy_init::*;
 
-use encoding_rs::SHIFT_JIS;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use parse::{parse_cave_unit_definition, parse_cave_unit_layout_file};
 use regex::Regex;
-use std::{cmp::Ordering, convert::{TryFrom, TryInto}, fs::File, io::Read};
+use std::{cmp::Ordering, convert::{TryFrom, TryInto}};
+
+use crate::assets::get_file_JIS;
 
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
@@ -88,7 +89,9 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             raw_sections;
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let cave_unit_definition_text = read_file_to_string(format!("./assets/gcn/units/{}", &cave_unit_definition_file_name))?;
+        let cave_unit_definition_path = format!("assets/gcn/units/{}", &cave_unit_definition_file_name);
+        let cave_unit_definition_text = get_file_JIS(&cave_unit_definition_path)
+            .ok_or(CaveInfoError::MissingFileError(cave_unit_definition_path))?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
 
@@ -355,14 +358,13 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let spawn_points = match read_file_to_string(format!("./assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
-            Ok(cave_unit_layout_file_txt) => {
+        let spawn_points = match get_file_JIS(&format!("assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+            Some(cave_unit_layout_file_txt) => {
                 let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
                 spawn_points_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
             },
-            Err(CaveInfoError::MissingFileError(_)) => Vec::new(),
-            Err(e) => return Err(e),
+            None => Vec::new(),
         };
 
         Ok(CaveUnit {
@@ -600,15 +602,4 @@ fn extract_internal_identifier(
     };
 
     (spawn_method, internal_name, carrying)
-}
-
-fn read_file_to_string(path: String) -> Result<String, CaveInfoError> {
-    let mut file_bytes: Vec<u8> = vec![];
-    File::open(&path)
-        .map_err(|_| CaveInfoError::MissingFileError(path))?
-        .read_to_end(&mut file_bytes)
-        .map_err(|err| CaveInfoError::FileReadError(err.to_string()))?;
-    let cave_unit_definition_text: String =
-        SHIFT_JIS.decode(&file_bytes).0.into_owned();
-    Ok(cave_unit_definition_text)
 }
