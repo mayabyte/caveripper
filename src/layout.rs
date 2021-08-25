@@ -576,8 +576,56 @@ impl LayoutBuilder {
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
 
+        // Calculate Distance Score.
+        // Distance Score (a.k.a. Door Score) is based on the straight-line distance
+        // between doors. This is NOT dependent on enemies or anything else; it is
+        // added to Enemy Score and other score types later on to form the total Unit Score.
+        {
+            // Initialize the starting Distance Scores for each door in the starting room to 1.
+            for door in self.layout.borrow().map_units[0].doors.iter() {
+                door.borrow_mut().door_score = Some(1);
+                self.get_adjacent_door(door.clone()).borrow_mut().door_score = Some(1);
+                debug!("Set Distance Score for starting room door at ({}, {}) to 1.", door.borrow().x, door.borrow().z);
+            }
+
+            // Set door scores in a roughly breadth-first fashion by finding the smallest
+            // new door score that can be set from the doors that have already had their
+            // score calculated.
+            loop {
+                if let Some((end_door, score)) = self.layout.borrow().map_units.iter()
+                    .flat_map(|unit| unit.doors.iter())
+                    .filter(|door| door.borrow().door_score.is_some())
+                    .flat_map(|door| {
+                        door.borrow().door_unit.door_links.iter()
+                            .map(|door_link| {
+                                let map_unit = &self.layout.borrow().map_units[door.borrow().attached_to.unwrap()];
+                                let other_door = map_unit.doors[door_link.door_id].clone();
+                                let potential_score = door.borrow().door_score.unwrap() + (door_link.distance / 10.0) as u32;
+                                (other_door, potential_score)
+                            })
+                            // Only link to doors that haven't had their score set yet.
+                            .filter(|(other_door, _)| other_door.borrow().door_score.is_none())
+                            .collect::<Vec<(Rc<RefCell<PlacedDoor>>, u32)>>()
+                    })
+                    .min_by_key(|(_, potential_score)| *potential_score)
+                {
+                    end_door.borrow_mut().door_score = Some(score);
+                    self.get_adjacent_door(end_door.clone()).borrow_mut().door_score = Some(score);
+                    debug!("Set Distance Score for door at ({}, {}) to {}.", end_door.borrow().x, end_door.borrow().z, score);
+                }
+                else {
+                    // When there are no doors with unset score, we are finished.
+                    break;
+                }
+            }
+        }
+
         // Done!
         self.layout.into_inner()
+    }
+
+    fn get_adjacent_door(&self, door: Rc<RefCell<PlacedDoor>>) -> Rc<RefCell<PlacedDoor>> {
+        door.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap()
     }
 
     fn recalculate_door_attachments(&mut self) {
@@ -845,7 +893,8 @@ impl PlacedMapUnit {
                         door_unit: door.clone(),
                         attached_to: None,
                         marked_as_cap: false,
-                        adjacent_door: None
+                        adjacent_door: None,
+                        door_score: None,
                     }
                 ))
             })
@@ -895,6 +944,7 @@ pub struct PlacedDoor {
     pub attached_to: Option<usize>,
     pub marked_as_cap: bool,
     pub adjacent_door: Option<Weak<RefCell<PlacedDoor>>>,
+    pub door_score: Option<u32>,
 }
 
 impl PlacedDoor {
