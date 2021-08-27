@@ -39,6 +39,3 @@ path = "src/main.rs"
 [[bench]]
 name = "benchmark_cavegen"
 harness = false
-
-[profile.release]
-lto = true

@@ -34,13 +34,27 @@ pub fn render_layout(layout: &Layout) {
 
     // Draw spawned objects
     for spawn_point in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
-        match spawn_point.contains {
+        match spawn_point.contains.to_owned().into_inner() {
             None => continue,
             Some(SpawnObject::Ship) => {
                 image_buffer.put_pixel(
                     (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
                     (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
                     Pixel::from_channels(255, 0, 0, 255)
+                );
+            },
+            Some(SpawnObject::Hole) => {
+                image_buffer.put_pixel(
+                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
+                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
+                    Pixel::from_channels(0, 255, 0, 255)
+                );
+            },
+            Some(SpawnObject::Geyser) => {
+                image_buffer.put_pixel(
+                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
+                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
+                    Pixel::from_channels(0, 0, 255, 255)
                 );
             },
             _ => panic!("unrecognized drawable spawn item!"),

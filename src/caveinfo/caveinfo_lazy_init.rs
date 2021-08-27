@@ -20,7 +20,11 @@ fn load_caveinfo(cave: &'static str) -> Result<CaveInfo, CaveInfoError> {
         .map_err(|_| CaveInfoError::ParseFileError(caveinfo_filename.clone()))?
         .1;
 
-    CaveInfo::try_from(floor_chunks)
+    let mut result = CaveInfo::try_from(floor_chunks)?;
+    for mut sublevel in result.floors.iter_mut() {
+        sublevel.cave_name = Some(cave.to_owned());
+    }
+    Ok(result)
 }
 
 macro_rules! preload_caveinfo {
@@ -71,3 +75,9 @@ preload_caveinfo!(
     DD, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     HoH, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 );
+
+pub fn force_load_all() {
+    for sublevel in ALL_SUBLEVELS {
+        Lazy::force(sublevel);
+    }
+}

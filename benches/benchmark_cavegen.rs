@@ -1,10 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use cavegen::layout::Layout;
-use cavegen::caveinfo::ALL_SUBLEVELS;
+use cavegen::caveinfo::{ALL_SUBLEVELS, force_load_all};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 
 pub fn benchmark_layout_generation(c: &mut Criterion) {
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
+    force_load_all();
 
     c.bench_function("layout generation (reference)", |b| {
         b.iter(|| {

@@ -29,20 +29,21 @@ use crate::assets::get_file_JIS;
 
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
-    pub num_floors: u8,
+    pub num_floors: u32,
     pub floors: Vec<FloorInfo>,
 }
 
 impl TryFrom<Vec<[parse::Section<'_>; 5]>> for CaveInfo {
     type Error = CaveInfoError;
     fn try_from(raw_sections: Vec<[parse::Section<'_>; 5]>) -> Result<CaveInfo, CaveInfoError> {
-        Ok(CaveInfo {
-            num_floors: raw_sections.len() as u8,
-            floors: raw_sections
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?,
-        })
+        let num_floors = raw_sections.len() as u32;
+        let mut floors = raw_sections
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<FloorInfo>, _>>()?;
+        floors.last_mut().unwrap().is_final_floor = true;
+
+        Ok(CaveInfo{ num_floors, floors })
     }
 }
 
@@ -66,6 +67,7 @@ pub struct FloorInfo {
     pub item_info: Vec<ItemInfo>,
     pub gate_info: Vec<GateInfo>,
     pub cap_info: Vec<CapInfo>,
+    pub is_final_floor: bool,
 }
 
 impl FloorInfo {
@@ -118,6 +120,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             item_info: iteminfo_section.try_into()?,
             gate_info: gateinfo_section.try_into()?,
             cap_info: capinfo_section.try_into()?,
+            is_final_floor: false,
         })
     }
 }
@@ -358,7 +361,7 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let spawn_points = match get_file_JIS(&format!("assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let mut spawn_points = match get_file_JIS(&format!("assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
             Some(cave_unit_layout_file_txt) => {
                 let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
@@ -366,6 +369,26 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
             },
             None => Vec::new(),
         };
+
+        // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
+        // present in Caveinfo files but the generation algorithm acts as if they're there,
+        // so adding them here is a simplification.
+        // Group 9 is a special group specifically for these 'fake' hole/geyser spawnpoints.
+        // It does not appear in the game code or on the TKB.
+        if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item")) || room_type == RoomType::Hallway {
+            spawn_points.push(
+                SpawnPoint {
+                    group: 9,
+                    pos_x: 0.0,
+                    pos_y: 0.0,
+                    pos_z: 0.0,
+                    angle_degrees: 0.0,
+                    radius: 0.0,
+                    min_num: 1,
+                    max_num: 1
+                }
+            );
+        }
 
         Ok(CaveUnit {
             unit_folder_name,

@@ -2,7 +2,7 @@ pub mod render;
 #[cfg(test)]
 pub mod test;
 
-use std::{cell::RefCell, cmp::{max, min}, collections::HashMap, rc::{Rc, Weak}};
+use std::{cell::RefCell, cmp::{max, min}, rc::{Rc, Weak}};
 use itertools::Itertools;
 use log::debug;
 
@@ -20,13 +20,15 @@ pub struct Layout {
     pub map_units: Vec<PlacedMapUnit>,
 }
 
-impl<'token> Layout {
+impl Layout {
     pub fn generate(seed: u32, caveinfo: &FloorInfo) -> Layout {
         let layoutbuilder = LayoutBuilder {
             layout: RefCell::new(Layout {
                 map_units: Vec::new(),
             }),
             rng: PikminRng::new(seed),
+            starting_seed: seed,
+            cave_name: caveinfo.name(),
             cap_queue: Vec::new(),
             room_queue: Vec::new(),
             corridor_queue: Vec::new(),
@@ -39,6 +41,9 @@ impl<'token> Layout {
             map_max_z: 0,
             map_has_diameter_36: false,
             marked_open_doors_as_caps: false,
+            placed_spawn_point: None,
+            placed_exit_hole: None,
+            placed_exit_geyser: None,
         };
         layoutbuilder.generate(seed, caveinfo)
     }
@@ -46,6 +51,8 @@ impl<'token> Layout {
 
 struct LayoutBuilder {
     rng: PikminRng,
+    starting_seed: u32,
+    cave_name: String,
     layout: RefCell<Layout>,
     cap_queue: Vec<CaveUnit>,
     room_queue: Vec<CaveUnit>,
@@ -59,6 +66,9 @@ struct LayoutBuilder {
     map_max_z: isize,
     map_has_diameter_36: bool,
     marked_open_doors_as_caps: bool,
+    placed_spawn_point: Option<PlacedSpawnPoint>,
+    placed_exit_hole: Option<PlacedSpawnPoint>,
+    placed_exit_geyser: Option<PlacedSpawnPoint>,
 }
 
 impl LayoutBuilder {
@@ -564,6 +574,17 @@ impl LayoutBuilder {
             }
         }
 
+        // Recenter the map such that all positions are >= 0
+        // {
+        //     let min_x = self.layout.borrow().map_units.iter().map(|unit| unit.x).min().unwrap();
+        //     let min_z = self.layout.borrow().map_units.iter().map(|unit| unit.z).min().unwrap();
+        //     for map_unit in self.layout.borrow_mut().map_units.iter_mut() {
+        //         map_unit.x = map_unit.x - min_x;
+        //         map_unit.z = map_unit.z - min_z;
+        //     }
+        //     debug!("Recentered map.");
+        // }
+
         // Set the start point, a.k.a. the Research Pod
         {
             let mut layout_mut = self.layout.borrow_mut();
@@ -572,7 +593,8 @@ impl LayoutBuilder {
                 .filter(|sp| sp.spawnpoint_unit.group == 7)
                 .collect();
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
-            candidates[chosen].contains = Some(SpawnObject::Ship);
+            candidates[chosen].contains = RefCell::new(Some(SpawnObject::Ship));
+            self.placed_spawn_point = Some(candidates[chosen].clone());
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
 
@@ -620,8 +642,80 @@ impl LayoutBuilder {
             }
         }
 
+        // Place the exit hole and/or geyser, as applicable.
+        if !caveinfo.is_final_floor {
+            self.place_hole(SpawnObject::Hole);
+        }
+        if caveinfo.is_final_floor || caveinfo.has_geyser {
+            self.place_hole(SpawnObject::Geyser);
+        }
+
         // Done!
         self.layout.into_inner()
+    }
+
+    fn place_hole(&mut self, to_place: SpawnObject) {
+        let layout = self.layout.borrow();
+
+        // Get a list of applicable spawn points (group 4 or 9)
+        let mut hole_spawn_points = Vec::new();
+        for unit_type in [RoomType::Room, RoomType::DeadEnd, RoomType::Hallway] {
+            // Only use hallway spawn points if there are zero other available locations.
+            if unit_type == RoomType::Hallway && hole_spawn_points.len() > 0 {
+                continue;
+            }
+
+            for unit in layout.map_units.iter() {
+                if unit.unit.room_type != unit_type {
+                    continue;
+                }
+                // Hole Score of this unit is the smallest of its Door Scores.
+                let score = unit.doors.iter()
+                    .map(|door| door.borrow().door_score.unwrap())
+                    .min()
+                    // Some units have zero doors, so we default to 0 if that's the case.
+                    .unwrap_or_default();
+
+                for spawn_point in unit.spawnpoints.iter() {
+                    if spawn_point.contains.borrow().is_some() {
+                        continue;
+                    }
+
+                    let dist_to_start = spawn_point_dist(&self.placed_spawn_point.as_ref().unwrap(), spawn_point);
+                    if (spawn_point.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawn_point.spawnpoint_unit.group == 9) {
+                        *spawn_point.hole_score.borrow_mut() = Some(score);
+                        hole_spawn_points.push(spawn_point);
+                    }
+                }
+            }
+        }
+
+        // Only consider the spots with the highest score
+        let max_hole_score = hole_spawn_points.iter()
+            .filter(|sp| sp.contains.borrow().is_none())
+            .map(|sp| sp.hole_score.borrow().unwrap())
+            .max()
+            .expect(&format!("{} {:#X}", self.cave_name, self.starting_seed));
+
+        let candidate_spawnpoints = hole_spawn_points.iter()
+            .filter(|sp| sp.hole_score.borrow().unwrap() == max_hole_score)
+            .filter(|sp| sp.contains.borrow().is_none())
+            .collect::<Vec<_>>();
+
+        let hole_location = candidate_spawnpoints[self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize];
+        *hole_location.contains.borrow_mut() = Some(to_place.clone());
+
+        match to_place {
+            SpawnObject::Hole => {
+                self.placed_exit_hole = Some(hole_location.clone().clone());
+                debug!("Placed Exit Hole at ({}, {}).", hole_location.x, hole_location.z);
+            },
+            SpawnObject::Geyser => {
+                self.placed_exit_geyser = Some(hole_location.clone().clone());
+                debug!("Placed Exit Geyser at ({}, {}).", hole_location.x, hole_location.z);
+            },
+            _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
+        }
     }
 
     fn get_adjacent_door(&self, door: Rc<RefCell<PlacedDoor>>) -> Rc<RefCell<PlacedDoor>> {
@@ -669,17 +763,21 @@ impl LayoutBuilder {
             RoomType::Hallway => self.rng.rand_backs(&mut self.corridor_queue),
             RoomType::Room => {
                 // Count each type of placed room so far
-                let mut room_type_counter: HashMap<&str, usize> = HashMap::new();
+                let mut room_type_counter: Vec<(&str, usize)> = Vec::new();
                 for unit in placed_units.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room) {
-                    *room_type_counter.entry(&unit.unit.unit_folder_name).or_default() += 1;
+                    if let Some(entry) = room_type_counter.iter_mut().find(|(name, _)| name == &unit.unit.unit_folder_name) {
+                        entry.1 += 1;
+                    }
+                    else {
+                        room_type_counter.push((&unit.unit.unit_folder_name, 1));
+                    }
                 }
 
                 // Sort the room names by frequency (ascending) using a swapping sort.
-                let mut room_types_sorted: Vec<(&str, usize)> = room_type_counter.into_iter().collect();
-                for i in 0..room_types_sorted.len() {
-                    for j in i+1..room_types_sorted.len() {
-                        if room_types_sorted[i].1 > room_types_sorted[j].1 {
-                            room_types_sorted.swap(i, j);
+                for i in 0..room_type_counter.len() {
+                    for j in i+1..room_type_counter.len() {
+                        if room_type_counter[i].1 > room_type_counter[j].1 {
+                            room_type_counter.swap(i, j);
                         }
                     }
                 }
@@ -688,7 +786,7 @@ impl LayoutBuilder {
                 // for that room type to the end of the room queue. The result is that the
                 // *most* frequent room types will be at the end since they're done last,
                 // and all the rooms that haven't been used yet will be at the front.
-                for room_type in room_types_sorted {
+                for room_type in room_type_counter {
                     let room_type = room_type.0;  // Don't need the frequency anymore
                     let mut idx = 0;
                     let mut matching_rooms = Vec::new();
@@ -902,8 +1000,8 @@ impl PlacedMapUnit {
 
         let spawnpoints = unit.spawn_points.iter()
             .map(|sp| {
-                let base_x = x as f32 + (unit.width as f32 / 2.0) * 170.0;
-                let base_z = z as f32 + (unit.height as f32 / 2.0) * 170.0;
+                let base_x = (x as f32 + (unit.width as f32 / 2.0)) * 170.0;
+                let base_z = (z as f32 + (unit.height as f32 / 2.0)) * 170.0;
                 let (actual_x, actual_z) = match unit.rotation {
                     0 => (base_x + sp.pos_x, base_z + sp.pos_z),
                     1 => (base_x - sp.pos_z, base_z + sp.pos_x),
@@ -917,7 +1015,8 @@ impl PlacedMapUnit {
                     z: actual_z,
                     angle: actual_angle,
                     spawnpoint_unit: sp.clone(),
-                    contains: None
+                    contains: RefCell::new(None),
+                    hole_score: RefCell::new(None),
                 }
             })
             .collect();
@@ -968,7 +1067,15 @@ pub struct PlacedSpawnPoint {
     pub x: f32,
     pub z: f32,
     pub angle: f32,
-    pub contains: Option<SpawnObject>,
+    pub contains: RefCell<Option<SpawnObject>>,
+    pub hole_score: RefCell<Option<u32>>,
+}
+
+fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
+    let dx = a.x - b.x;
+    let dz = a.z - b.z;
+    let dy = a.spawnpoint_unit.pos_y - b.spawnpoint_unit.pos_y;
+    crate::pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
 }
 
 

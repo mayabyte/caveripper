@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         SimpleLogger::new().with_level(log::LevelFilter::max()).init()?;
     }
 
-    let layout = Layout::generate(0xF59F8835u32, &caveinfo::SH4);
+    let layout = Layout::generate(0x1DEEDCF3u32, &caveinfo::BK5);
     // println!("{:#?}", &layout);
     render_layout(&layout);
     Ok(())
