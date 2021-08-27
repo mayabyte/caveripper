@@ -3,8 +3,10 @@
 /// variable, e.g. `SH3`, that can be imported from the `crate::caveinfo` module.
 
 use std::convert::TryFrom;
+use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use paste::paste;
+use maplit::hashmap;
 use crate::caveinfo::{
     CaveInfo, CaveInfoError, FloorInfo,
     cave_name_to_caveinfo_filename,
@@ -38,6 +40,13 @@ macro_rules! preload_caveinfo {
                 ),+
             ),+
         ];
+        pub static ALL_SUBLEVELS_MAP: Lazy<HashMap<String, &Lazy<FloorInfo>>> = Lazy::new(|| hashmap! {
+            $(
+                $(
+                    concat!(stringify!($rest_cave), stringify!($rest_floors)).to_ascii_lowercase() => paste! {&[<$rest_cave $rest_floors>]}
+                ),+
+            ),+
+        });
         preload_caveinfo_individual!($($rest_cave, $($rest_floors),+),+);
     }
 }

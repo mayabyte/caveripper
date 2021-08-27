@@ -659,7 +659,7 @@ impl LayoutBuilder {
 
         // Get a list of applicable spawn points (group 4 or 9)
         let mut hole_spawn_points = Vec::new();
-        for unit_type in [RoomType::Room, RoomType::DeadEnd, RoomType::Hallway] {
+        for unit_type in [RoomType::DeadEnd, RoomType::Room, RoomType::Hallway] {
             // Only use hallway spawn points if there are zero other available locations.
             if unit_type == RoomType::Hallway && hole_spawn_points.len() > 0 {
                 continue;
