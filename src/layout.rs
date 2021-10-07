@@ -650,8 +650,88 @@ impl LayoutBuilder {
             self.place_hole(SpawnObject::Geyser);
         }
 
+        // Place door hazards, A.K.A. 'seam teki' (Enemy Group 5)
+        {
+            for num_spawned in 0..self.allocated_enemy_slots_by_group[5] {
+                // Choose a random empty door.
+                // Excludes Cap doors; the corresponding room/hallway door is used instead.
+                let mut spawn_points: Vec<Rc<RefCell<PlacedDoor>>> = Vec::new();
+                let mut spawn_point_weights: Vec<u32> = Vec::new();
+
+                for map_unit in self.layout.borrow_mut().map_units.iter_mut() {
+                    if map_unit.unit.room_type == RoomType::DeadEnd {
+                        continue;
+                    }
+                    for door in map_unit.doors.iter_mut() {
+                        if door.borrow().seam_spawnpoint.is_some() {
+                            continue;
+                        }
+                        spawn_points.push(door.clone());
+                        match map_unit.unit.room_type {
+                            RoomType::Room => spawn_point_weights.push(100),
+                            RoomType::Hallway => spawn_point_weights.push(1),
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+
+                // Choose a spot from the available ones to spawn at.
+                let chosen_spot = if spawn_points.len() > 0 {
+                    Some(&spawn_points[self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()])
+                }
+                else {
+                    None
+                };
+
+                // Choose an enemy to spawn
+                // NOTE: This will still hit RNG, even if the chosen spot check above fails!
+                let teki_to_spawn = self.choose_rand_teki(caveinfo, 5, num_spawned);
+
+                if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
+                    chosen_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    debug!(
+                        "Placed Teki \'{}\' on door seam at ({}, {}).",
+                        teki_to_spawn.internal_name,
+                        chosen_spot.borrow().x,
+                        chosen_spot.borrow().z
+                    );
+                }
+                else {
+                    // Exit the loop if there are no valid spots remaining, or if we've reached the
+                    // spawn limit for this teki type.
+                    break;
+                }
+            }
+        }
+
         // Done!
         self.layout.into_inner()
+    }
+
+    /// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
+    fn choose_rand_teki<'a>(&self, caveinfo: &'a FloorInfo, group: u32, num_spawned: u32) -> Option<&'a TekiInfo> {
+        let mut cumulative_mins = 0;
+        let mut filler_teki = Vec::new();
+        let mut filler_teki_weights = Vec::new();
+
+        for teki in caveinfo.teki_group(group) {
+            cumulative_mins += teki.minimum_amount;
+            if num_spawned < cumulative_mins {
+                return Some(teki);
+            }
+
+            if teki.filler_distribution_weight > 0 {
+                filler_teki.push(teki);
+                filler_teki_weights.push(teki.filler_distribution_weight);
+            }
+        }
+
+        if filler_teki.len() > 0 {
+            Some(&filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()])
+        }
+        else {
+            None
+        }
     }
 
     fn place_hole(&mut self, to_place: SpawnObject) {
@@ -993,6 +1073,7 @@ impl PlacedMapUnit {
                         marked_as_cap: false,
                         adjacent_door: None,
                         door_score: None,
+                        seam_spawnpoint: None,
                     }
                 ))
             })
@@ -1044,6 +1125,7 @@ pub struct PlacedDoor {
     pub marked_as_cap: bool,
     pub adjacent_door: Option<Weak<RefCell<PlacedDoor>>>,
     pub door_score: Option<u32>,
+    pub seam_spawnpoint: Option<SpawnObject>,
 }
 
 impl PlacedDoor {
