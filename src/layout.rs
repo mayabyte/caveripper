@@ -690,6 +690,7 @@ impl LayoutBuilder {
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
                     chosen_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Some(SpawnObject::TekiDuplicate);
                     debug!(
                         "Placed Teki \'{}\' on door seam at ({}, {}).",
                         teki_to_spawn.internal_name,
@@ -736,7 +737,6 @@ impl LayoutBuilder {
                 let teki_to_spawn = self.choose_rand_teki(caveinfo, 8, num_spawned);
 
                 if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
-                    // Important difference from Group 5!
                     spawn_points.remove(chosen_spot_idx);
 
                     *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Teki(teki_to_spawn.clone()));
@@ -746,6 +746,56 @@ impl LayoutBuilder {
                         chosen_spot.x,
                         chosen_spot.z
                     );
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        // Place 'hard enemies', AKA Enemy Group 1
+        {
+            let layout = self.layout.borrow();
+
+            // Valid spawn points are >=300 units away from the ship, and >=200 units away from the hole or geyser.
+            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+                .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
+                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .filter(|spawn_point| {
+                    spawn_point.spawnpoint_unit.group == 1
+                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| spawn_point_dist(hole, spawn_point) >= 200.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| spawn_point_dist(geyser, spawn_point) >= 200.0).unwrap_or(true)
+                })
+                .collect();
+
+            for num_spawned in 0..self.allocated_enemy_slots_by_group[1] {
+                // Note: this *should not* hit RNG if spawn_points is empty.
+                let chosen_spot_pair = if spawn_points.len() > 0 {
+                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
+                    Some((spawn_points[idx], idx))
+                }
+                else {
+                    None
+                };
+
+                // Note: this *still hits RNG* even if the above results in None.
+                let teki_to_spawn = self.choose_rand_teki(caveinfo, 1, num_spawned);
+
+                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
+                    spawn_points.remove(chosen_spot_idx);
+
+                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    debug!(
+                        "Placed Teki \'{}\' in Group 1 at ({}, {}).",
+                        teki_to_spawn.internal_name,
+                        chosen_spot.x,
+                        chosen_spot.z
+                    );
+                }
+                else {
+                    break;
                 }
             }
         }
@@ -1210,6 +1260,7 @@ fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
 #[derive(Debug, Clone)]
 pub enum SpawnObject {
     Teki(TekiInfo),
+    TekiDuplicate, // For opposing seam spawnpoints
     Item(ItemInfo),
     Gate(GateInfo),
     Hole,

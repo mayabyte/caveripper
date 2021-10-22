@@ -83,6 +83,7 @@ pub fn render_layout(layout: &Layout) {
 
                 image_buffer.put_pixel(x, z, Pixel::from_channels(255, 0, 255, 255));
             },
+            Some(SpawnObject::TekiDuplicate) => {/* do nothing */},
             _ => panic!("unrecognized seam teki!"),
         }
     }
