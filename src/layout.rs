@@ -41,7 +41,7 @@ impl Layout {
             map_max_z: 0,
             map_has_diameter_36: false,
             marked_open_doors_as_caps: false,
-            placed_spawn_point: None,
+            placed_start_point: None,
             placed_exit_hole: None,
             placed_exit_geyser: None,
         };
@@ -66,7 +66,7 @@ struct LayoutBuilder {
     map_max_z: isize,
     map_has_diameter_36: bool,
     marked_open_doors_as_caps: bool,
-    placed_spawn_point: Option<PlacedSpawnPoint>,
+    placed_start_point: Option<PlacedSpawnPoint>,
     placed_exit_hole: Option<PlacedSpawnPoint>,
     placed_exit_geyser: Option<PlacedSpawnPoint>,
 }
@@ -594,7 +594,7 @@ impl LayoutBuilder {
                 .collect();
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
             candidates[chosen].contains = RefCell::new(Some(SpawnObject::Ship));
-            self.placed_spawn_point = Some(candidates[chosen].clone());
+            self.placed_start_point = Some(candidates[chosen].clone());
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
 
@@ -650,7 +650,7 @@ impl LayoutBuilder {
             self.place_hole(SpawnObject::Geyser);
         }
 
-        // Place door hazards, A.K.A. 'seam teki' (Enemy Group 5)
+        // Place door hazards, AKA 'seam teki' (Enemy Group 5)
         {
             for num_spawned in 0..self.allocated_enemy_slots_by_group[5] {
                 // Choose a random empty door.
@@ -676,6 +676,7 @@ impl LayoutBuilder {
                 }
 
                 // Choose a spot from the available ones to spawn at.
+                // Note: this *should not* hit RNG if spawn_points has zero elements.
                 let chosen_spot = if spawn_points.len() > 0 {
                     Some(&spawn_points[self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()])
                 }
@@ -700,6 +701,51 @@ impl LayoutBuilder {
                     // Exit the loop if there are no valid spots remaining, or if we've reached the
                     // spawn limit for this teki type.
                     break;
+                }
+            }
+        }
+
+        // Place 'special enemies', AKA Enemy Group 8
+        {
+            let layout = self.layout.borrow();
+
+            // Valid spawn points are >=300 units away from the ship, and >=150 units away from the hole or geyser.
+            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+                .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
+                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .filter(|spawn_point| {
+                    spawn_point.spawnpoint_unit.group == 8
+                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| spawn_point_dist(hole, spawn_point) >= 150.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| spawn_point_dist(geyser, spawn_point) >= 150.0).unwrap_or(true)
+                })
+                .collect();
+
+            for num_spawned in 0..self.allocated_enemy_slots_by_group[8] {
+                // Note: this *should not* hit RNG if spawn_points is empty.
+                let chosen_spot_pair = if spawn_points.len() > 0 {
+                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
+                    Some((spawn_points[idx], idx))
+                }
+                else {
+                    None
+                };
+
+                // Note: this *still hits RNG* even if the above results in None.
+                let teki_to_spawn = self.choose_rand_teki(caveinfo, 8, num_spawned);
+
+                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
+                    // Important difference from Group 5!
+                    spawn_points.remove(chosen_spot_idx);
+
+                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    debug!(
+                        "Placed Teki \'{}\' in Group 8 at ({}, {}).",
+                        teki_to_spawn.internal_name,
+                        chosen_spot.x,
+                        chosen_spot.z
+                    );
                 }
             }
         }
@@ -761,7 +807,7 @@ impl LayoutBuilder {
                         continue;
                     }
 
-                    let dist_to_start = spawn_point_dist(&self.placed_spawn_point.as_ref().unwrap(), spawn_point);
+                    let dist_to_start = spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point);
                     if (spawn_point.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawn_point.spawnpoint_unit.group == 9) {
                         *spawn_point.hole_score.borrow_mut() = Some(score);
                         hole_spawn_points.push(spawn_point);
