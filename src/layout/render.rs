@@ -68,5 +68,24 @@ pub fn render_layout(layout: &Layout) {
         }
     }
 
+    // Draw seam teki
+    for door in layout.map_units.iter().flat_map(|unit| unit.doors.iter()) {
+        match door.borrow().seam_spawnpoint {
+            None => continue,
+            Some(SpawnObject::Teki(_)) => {
+                let mut x = (((door.borrow().x) - min_map_x) * 8) as u32;
+                let mut z = (((door.borrow().z) - min_map_z) * 8) as u32;
+                match door.borrow().door_unit.direction {
+                    0 | 2 => x += 4,
+                    1 | 3 => z += 4,
+                    _ => panic!("Invalid door direction in render"),
+                }
+
+                image_buffer.put_pixel(x, z, Pixel::from_channels(255, 0, 255, 255));
+            },
+            _ => panic!("unrecognized seam teki!"),
+        }
+    }
+
     image_buffer.save_with_format("./caveripper_output/layout.png", image::ImageFormat::Png).unwrap();
 }
