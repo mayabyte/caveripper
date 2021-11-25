@@ -1,5 +1,5 @@
 use std::fs::read_to_string;
-use super::PikminRng;
+use super::{PikminRng, sqrt};
 
 const TEST_SEED: u32 = 0x12345678u32;
 
@@ -84,4 +84,22 @@ fn test_rand_swaps() {
 //     .collect();
 
 //     assert_eq!(expected, actual);
+// }
+
+// #[test]
+// fn test_sqrt() {
+//     let expected: Vec<f32> = read_to_string("./reference/sqrt_5k_point3.txt").unwrap()
+//         .lines()
+//         .map(|line| line.parse::<f32>().unwrap())
+//         .collect();
+//     let mut actual: Vec<f32> = Vec::new();
+//     let mut f: f32 = 0.0;
+//     while f < 5000.0 {
+//         actual.push(sqrt(f));
+//         f += 0.2f32;
+//     }
+
+//     for (i, (e, a)) in expected.iter().zip(actual.iter()).enumerate() {
+//         assert_eq!(e, a, "{}", i);
+//     }
 // }

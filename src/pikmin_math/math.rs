@@ -73,7 +73,7 @@ pub fn fast_inverse_sqrt(val: f64) -> f64 {
     }
 
     let odd_exponent: bool = 0 == (exponent & (1u64 << 52));
-    exponent = ((0x3FFu64 << 52) - ((exponent - (0x3FEu64 << 52)) / 2)) & (0x7FFu64 << 52);
+    exponent = ((0x3FFu64 << 52).wrapping_sub((exponent.wrapping_sub(0x3FEu64 << 52)) / 2)) & (0x7FFu64 << 52);
 
     let i: u32 = (mantissa >> 37) as u32;
     vali = sign | exponent;
