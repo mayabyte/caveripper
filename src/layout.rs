@@ -756,7 +756,6 @@ impl LayoutBuilder {
         // Place 'hard enemies', AKA Enemy Group 1
         {
             let layout = self.layout.borrow();
-
             // Valid spawn points are >=300 units away from the ship, and >=200 units away from the hole or geyser.
             let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
@@ -1253,7 +1252,7 @@ fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
     let dx = a.x - b.x;
     let dz = a.z - b.z;
     let dy = a.spawnpoint_unit.pos_y - b.spawnpoint_unit.pos_y;
-    crate::pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
+    (dx*dx + dy*dy + dz*dz).sqrt()
 }
 
 
