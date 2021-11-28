@@ -825,10 +825,15 @@ impl LayoutBuilder {
             let mut num_spawned = 0;
             while num_spawned < self.allocated_enemy_slots_by_group[0] {
                 let spawn_in_room;
+                let mut min_num = 0;
+                let mut max_num = 0;
+                let num_to_spawn;
 
                 // Note: this *should not* hit RNG if spawn_points is empty.
                 let chosen_spot_pair = if spawn_points.len() > 0 {
                     let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
+                    min_num = spawn_points[idx].spawnpoint_unit.min_num;
+                    max_num = spawn_points[idx].spawnpoint_unit.max_num;
                     Some((spawn_points[idx], idx))
                 }
                 else {
@@ -836,7 +841,9 @@ impl LayoutBuilder {
                 };
 
                 // Note: this *still hits RNG* even if the above results in None.
+                //println!("{}", self.rng.num_rng_calls.get());
                 let teki_to_spawn = self.choose_rand_teki(caveinfo, 0, num_spawned);
+                //println!("{}", self.rng.num_rng_calls.get());
 
                 // Randomly choose number of enemies to spawn in this bunch.
                 if num_spawned < self.min_teki_0 {
@@ -853,73 +860,77 @@ impl LayoutBuilder {
                     spawn_in_room = caveinfo.max_main_objects - self.placed_teki;
                 }
 
-                // At this point we can quit out of this process if there are no available spawnpoints
-                // since in the original code, maxNum will never be > minNum at its default of 0.
-                // https://github.com/JHaack4/CaveGen/blob/16c79605d5d9dfcbf27c04e9e682c8e7e12bf40d/CaveGen.java#L1788
-                if chosen_spot_pair.is_none() {
-                    break;
-                }
-
-                let (chosen_spot, chosen_spot_idx) = chosen_spot_pair.unwrap();
-
                 // Determine how many enemies to spawn in this bunch.
-                let max_num = std::cmp::min(chosen_spot.spawnpoint_unit.max_num as u32, spawn_in_room);
-                let num_to_spawn = if max_num <= chosen_spot.spawnpoint_unit.min_num as u32 {
-                    max_num
+                max_num = std::cmp::min(max_num, spawn_in_room as u16);
+                num_to_spawn = if max_num <= min_num {
+                    max_num as u32
                 } else {
-                    chosen_spot.spawnpoint_unit.min_num as u32 + self.rng.rand_int(max_num - chosen_spot.spawnpoint_unit.min_num as u32 + 1)
+                    min_num as u32 + self.rng.rand_int((max_num - min_num + 1) as u32)
                 };
 
-                spawn_points.remove(chosen_spot_idx);
-
-                if teki_to_spawn.is_none() {
+                if num_to_spawn == 0 {
                     break;
                 }
 
-                // Create the teki objects
-                let mut just_spawned: Vec<RefCell<(TekiInfo, (f32, f32, f32))>> = Vec::new();
-                for _ in 0..num_to_spawn {
-                    just_spawned.push(RefCell::new((teki_to_spawn.unwrap().clone(), (0.0, 0.0, 0.0))));
-                    num_spawned += 1;
-                    self.placed_teki += 1;
-                }
+                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
+                    spawn_points.remove(chosen_spot_idx);
 
-                // Push the enemies away from each other
-                for _ in 0..5 {
-                    for (t1, t2) in just_spawned.iter().tuple_combinations() {
-                        let mut t1 = t1.borrow_mut();
-                        let mut t2 = t2.borrow_mut();
+                    // Create the teki objects
+                    let mut just_spawned: Vec<RefCell<(TekiInfo, (f32, f32, f32))>> = Vec::new();
+                    for _ in 0..num_to_spawn {
+                        // Calculate initial random offset
+                        let radius = chosen_spot.spawnpoint_unit.radius * self.rng.rand_f32();
+                        let angle = std::f32::consts::PI * 2.0 * self.rng.rand_f32();
 
-                        let dx = t1.1.0 - t2.1.0;
-                        let dy = t1.1.1 - t2.1.1;
-                        let dz = t1.1.2 - t2.1.2;
+                        // Note that sin and cos are opposite to what they would usually be.
+                        let initial_x_offset = angle.sin() * radius;
+                        let initial_z_offset = angle.cos() * radius;
 
-                        let dist = pikmin_math::sqrt(dx*dx + dy*dy + dz*dz);
-                        if dist > 0.0 && dist < 35.0 {
-                            let multiplier = 0.5 * (35.0 - dist) / dist;
-                            t1.1.0 += dx * multiplier;
-                            t1.1.1 += dy * multiplier;
-                            t1.1.2 += dz * multiplier;
-                            t2.1.0 += dx * multiplier;
-                            t2.1.1 += dy * multiplier;
-                            t2.1.2 += dz * multiplier;
+                        just_spawned.push(RefCell::new((teki_to_spawn.clone(), (initial_x_offset, 0.0, initial_z_offset))));
+                        num_spawned += 1;
+                        self.placed_teki += 1;
+                    }
+
+                    // Push the enemies away from each other
+                    for _ in 0..5 {
+                        for (t1, t2) in just_spawned.iter().tuple_combinations() {
+                            let mut t1 = t1.borrow_mut();
+                            let mut t2 = t2.borrow_mut();
+
+                            let dx = t1.1.0 - t2.1.0;
+                            let dy = t1.1.1 - t2.1.1;
+                            let dz = t1.1.2 - t2.1.2;
+
+                            let dist = pikmin_math::sqrt(dx*dx + dy*dy + dz*dz);
+                            if dist > 0.0 && dist < 35.0 {
+                                let multiplier = 0.5 * (35.0 - dist) / dist;
+                                t1.1.0 += dx * multiplier;
+                                t1.1.1 += dy * multiplier;
+                                t1.1.2 += dz * multiplier;
+                                t2.1.0 += dx * multiplier;
+                                t2.1.1 += dy * multiplier;
+                                t2.1.2 += dz * multiplier;
+                            }
                         }
                     }
-                }
 
-                // Spawn the enemies
-                let just_spawned: Vec<(TekiInfo, (f32, f32, f32))> = just_spawned.into_iter()
-                    .map(|teki| teki.into_inner())
-                    .collect();
-                let num_spawned_final = just_spawned.len();
-                *chosen_spot.contains.borrow_mut() = Some(SpawnObject::TekiBunch(just_spawned));
-                debug!(
-                    "Placed {} Teki \'{}\' in Group 0 around the spawnpoint at ({}, {}).",
-                    num_spawned_final,
-                    teki_to_spawn.unwrap().internal_name,
-                    chosen_spot.x,
-                    chosen_spot.z
-                );
+                    // Spawn the enemies
+                    let just_spawned: Vec<(TekiInfo, (f32, f32, f32))> = just_spawned.into_iter()
+                        .map(|teki| teki.into_inner())
+                        .collect();
+                    let num_spawned_final = just_spawned.len();
+                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::TekiBunch(just_spawned));
+                    debug!(
+                        "Placed {} Teki \'{}\' in Group 0 around the spawnpoint at ({}, {}).",
+                        num_spawned_final,
+                        teki_to_spawn.internal_name,
+                        chosen_spot.x,
+                        chosen_spot.z
+                    );
+                }
+                else {
+                    break;
+                }
             }
         }
 
