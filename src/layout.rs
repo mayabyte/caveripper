@@ -6,7 +6,7 @@ use std::{cell::RefCell, cmp::{max, min}, rc::{Rc, Weak}};
 use itertools::Itertools;
 use log::debug;
 
-use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomType, SpawnPoint, TekiInfo}, pikmin_math::PikminRng};
+use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomType, SpawnPoint, TekiInfo}, pikmin_math::{PikminRng, self}};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -894,7 +894,7 @@ impl LayoutBuilder {
                         let dy = t1.1.1 - t2.1.1;
                         let dz = t1.1.2 - t2.1.2;
 
-                        let dist = (dx*dx + dy*dy + dz*dz).sqrt();
+                        let dist = pikmin_math::sqrt(dx*dx + dy*dy + dz*dz);
                         if dist > 0.0 && dist < 35.0 {
                             let multiplier = 0.5 * (35.0 - dist) / dist;
                             t1.1.0 += dx * multiplier;
@@ -1377,10 +1377,7 @@ fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
     let dz = a.z - b.z;
     let dy = a.spawnpoint_unit.pos_y - b.spawnpoint_unit.pos_y;
 
-    // Currently this uses std's implementation of sqrt rather than the approximate
-    // fast inverse sqrt that's true to the original game. This is because my implementation
-    // of fast_inverse_sqrt is bugged currently, so this is currently giving better results.
-    (dx*dx + dy*dy + dz*dz).sqrt()
+    pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
 }
 
 
