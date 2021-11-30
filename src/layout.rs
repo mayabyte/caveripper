@@ -603,49 +603,7 @@ impl LayoutBuilder {
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
 
-        // Calculate Distance Score.
-        // Distance Score (a.k.a. Door Score) is based on the straight-line distance
-        // between doors. This is NOT dependent on enemies or anything else; it is
-        // added to Teki Score and other score types later on to form the total Unit Score.
-        {
-            // Initialize the starting Distance Scores for each door in the starting room to 1.
-            for door in self.layout.borrow().map_units[0].doors.iter() {
-                door.borrow_mut().door_score = Some(1);
-                self.get_adjacent_door(door.clone()).borrow_mut().door_score = Some(1);
-                debug!("Set Distance Score for starting room door at ({}, {}) to 1.", door.borrow().x, door.borrow().z);
-            }
-
-            // Set door scores in a roughly breadth-first fashion by finding the smallest
-            // new door score that can be set from the doors that have already had their
-            // score calculated.
-            loop {
-                if let Some((end_door, score)) = self.layout.borrow().map_units.iter()
-                    .flat_map(|unit| unit.doors.iter())
-                    .filter(|door| door.borrow().door_score.is_some())
-                    .flat_map(|door| {
-                        door.borrow().door_unit.door_links.iter()
-                            .map(|door_link| {
-                                let map_unit = &self.layout.borrow().map_units[door.borrow().attached_to.unwrap()];
-                                let other_door = map_unit.doors[door_link.door_id].clone();
-                                let potential_score = door.borrow().door_score.unwrap() + (door_link.distance / 10.0) as u32;
-                                (other_door, potential_score)
-                            })
-                            // Only link to doors that haven't had their score set yet.
-                            .filter(|(other_door, _)| other_door.borrow().door_score.is_none())
-                            .collect::<Vec<(Rc<RefCell<PlacedDoor>>, u32)>>()
-                    })
-                    .min_by_key(|(_, potential_score)| *potential_score)
-                {
-                    end_door.borrow_mut().door_score = Some(score);
-                    self.get_adjacent_door(end_door.clone()).borrow_mut().door_score = Some(score);
-                    debug!("Set Distance Score for door at ({}, {}) to {}.", end_door.borrow().x, end_door.borrow().z, score);
-                }
-                else {
-                    // When there are no doors with unset score, we are finished.
-                    break;
-                }
-            }
-        }
+        self.set_score();
 
         // Place the exit hole and/or geyser, as applicable.
         if !caveinfo.is_final_floor {
@@ -934,41 +892,9 @@ impl LayoutBuilder {
             }
         }
 
-        // Calculate Teki Score and Seam Teki Score
-        // Teki Score is calculated per map unit based on how many Type 1 (hard) and
-        // Type 0 (easy) enemies (based on spawn group, not particular Teki types) are
-        // present in that unit. Special teki (any other group) are not considered.
-        // Seam Teki Score (misleadingly referred to as Gate Score in Jhawk's implementation)
-        // is exactly what it sounds like: a component of Teki Score based on where Seam Teki
-        // are located.
-        // Teki Score is primarily used to determine where to place treasures.
-        // https://github.com/JHaack4/CaveGen/blob/16c79605d5d9dfcbf27c04e9e682c8e7e12bf40d/CaveGen.java#L1558
-        {
-            let mut layout = self.layout.borrow_mut();
-            for mut map_unit in layout.map_units.iter_mut() {
-                // Set Teki Score for each map tile
-                for spawnpoint in map_unit.spawnpoints.iter() {
-                    match spawnpoint.contains.borrow().clone() {
-                        Some(SpawnObject::Teki(TekiInfo{group:1, ..})) => map_unit.teki_score += 10,
-                        Some(SpawnObject::TekiBunch(v)) => map_unit.teki_score += 2 * v.len() as u32,
-                        _ => {/* do nothing */}
-                    };
-                }
-                debug!("Set Teki Score for map tile at ({}, {}) to {}.", map_unit.x, map_unit.z, map_unit.teki_score);
-
-                // Set Seam Teki Score for each door with a seam teki
-                for door in map_unit.doors.iter() {
-                    let mut door = door.borrow_mut();
-                    if let Some(SpawnObject::Teki(_)) = door.seam_spawnpoint {
-                        door.seam_teki_score += 5;
-                        door.adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_teki_score += 5;
-                    }
-                    if door.seam_teki_score > 0 {
-                        debug!("Set Seam Teki Score for door at ({}, {}) to {}.", door.x, door.z, door.seam_teki_score);
-                    }
-                }
-            }
-        }
+        // Recalculate score, this time including Teki Score and Seam Teki Score in addition
+        // to Door Score.
+        self.set_score();
 
         //TODO
         // Place plants
@@ -978,6 +904,129 @@ impl LayoutBuilder {
 
         // Done!
         self.layout.into_inner()
+    }
+
+    // Calculate Distance Score.
+    // Distance Score (a.k.a. Door Score) is based on the straight-line distance
+    // between doors. This is NOT dependent on enemies or anything else; it is
+    // added to Teki Score and other score types later on to form the total Unit Score.
+    fn set_score(&mut self) {
+        let mut layout = self.layout.borrow_mut();
+
+        // Reset all scores first
+        for mut map_unit in layout.map_units.iter_mut() {
+            *map_unit.total_score.borrow_mut() = None;
+            map_unit.teki_score = 0;
+            for door in map_unit.doors.iter() {
+                door.borrow_mut().door_score = None;
+                door.borrow_mut().seam_teki_score = 0;
+            }
+        }
+
+        // Calculate Teki Score and Seam Teki Score
+        // Teki Score is calculated per map unit based on how many Type 1 (hard) and
+        // Type 0 (easy) enemies (based on spawn group, not particular Teki types) are
+        // present in that unit. Special teki (any other group) are not considered.
+        // Seam Teki Score (misleadingly referred to as Gate Score in Jhawk's implementation)
+        // is exactly what it sounds like: a component of Teki Score based on where Seam Teki
+        // are located.
+        // Teki Score is primarily used to determine where to place treasures.
+        // https://github.com/JHaack4/CaveGen/blob/16c79605d5d9dfcbf27c04e9e682c8e7e12bf40d/CaveGen.java#L1558
+        for mut map_unit in layout.map_units.iter_mut() {
+            // Set Teki Score for each map tile
+            for spawnpoint in map_unit.spawnpoints.iter() {
+                match spawnpoint.contains.borrow().clone() {
+                    Some(SpawnObject::Teki(TekiInfo{group:1, ..})) => map_unit.teki_score += 10,
+                    Some(SpawnObject::TekiBunch(v)) => map_unit.teki_score += 2 * v.len() as u32,
+                    _ => {/* do nothing */}
+                };
+            }
+            if map_unit.teki_score > 0 {
+                debug!("Set Teki Score for map tile \"{}\" at ({}, {}) to {}.", map_unit.unit.unit_folder_name, map_unit.x, map_unit.z, map_unit.teki_score);
+            }
+
+            // Set Seam Teki Score for each door with a seam teki
+            for door in map_unit.doors.iter() {
+                let mut door = door.borrow_mut();
+                if let Some(SpawnObject::Teki(_)) = door.seam_spawnpoint {
+                    door.seam_teki_score += 5;
+                    door.adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_teki_score += 5;
+                }
+                if door.seam_teki_score > 0 {
+                    debug!("Set Seam Teki Score for door at ({}, {}) to {}.", door.x, door.z, door.seam_teki_score);
+                }
+            }
+        }
+
+        // Initialize the Total Score of the base map unit to just its Teki Score.
+        *layout.map_units[0].total_score.borrow_mut() = Some(layout.map_units[0].teki_score);
+
+        // Initialize the starting scores for each door in the starting room to 1.
+        // Add teki score of each adjacent room to
+        for door in &layout.map_units[0].doors {
+            let door_seam_teki_score = door.borrow().seam_teki_score;
+            door.borrow_mut().door_score = Some(layout.map_units[0].total_score.borrow().unwrap() + 1 + door_seam_teki_score);
+
+            let adj_door = self.get_adjacent_door(door.clone());
+            let adj_unit = &layout.map_units[self.get_adjacent_door(Rc::clone(&door)).borrow().attached_to.unwrap()];
+            let current_adj_unit_score = adj_unit.total_score.borrow().clone();
+
+            adj_door.borrow_mut().door_score = door.borrow().door_score;
+            *adj_unit.total_score.borrow_mut() = Some(std::cmp::min(door.borrow().door_score.unwrap() + adj_unit.teki_score, current_adj_unit_score.unwrap_or(std::u32::MAX)));
+
+            debug!("Set Door Score for starting room door at ({}, {}) to {}.", door.borrow().x, door.borrow().z, door.borrow().door_score.unwrap());
+            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score.borrow().unwrap());
+        }
+
+        // Set scores in a roughly breadth-first fashion by finding the smallest
+        // new door score that can be set from the doors that have already had their
+        // score calculated.
+        loop {
+            let mut selected_door = None;
+            let mut selected_score = None;
+
+            for map_unit in layout.map_units.iter() {
+                for start_door in map_unit.doors.iter() {
+                    if start_door.borrow().door_score.is_none() {
+                        continue;
+                    }
+
+                    for door_link in start_door.borrow().door_unit.door_links.iter() {
+                        let other_door = Rc::clone(&map_unit.doors[door_link.door_id]);
+                        if other_door.borrow().door_score.is_some() {
+                            continue;
+                        }
+
+                        let potential_score =
+                            start_door.borrow().door_score.unwrap()
+                            + (door_link.distance / 10.0) as u32
+                            + map_unit.teki_score
+                            + other_door.borrow().seam_teki_score;
+                        if selected_score.map(|s| potential_score < s).unwrap_or(true) {
+                            selected_score = Some(potential_score);
+                            selected_door = Some(other_door);
+                        }
+                    }
+                }
+            }
+
+            if selected_score.is_none() {
+                break;
+            }
+            let selected_door = selected_door.unwrap();
+
+            selected_door.borrow_mut().door_score = selected_score;
+            self.get_adjacent_door(Rc::clone(&selected_door)).borrow_mut().door_score = selected_score;
+            debug!("Set Door Score for door at ({}, {}) to {}.", selected_door.borrow().x, selected_door.borrow().z, selected_score.unwrap());
+
+            let adj_unit = &layout.map_units[self.get_adjacent_door(Rc::clone(&selected_door)).borrow().attached_to.unwrap()];
+            let current_adj_unit_total_score = adj_unit.total_score.borrow().clone();
+            let candidate_adj_unit_total_score = selected_score.unwrap() + adj_unit.teki_score;
+            if current_adj_unit_total_score.map(|s| candidate_adj_unit_total_score < s).unwrap_or(true) {
+                *adj_unit.total_score.borrow_mut() = Some(candidate_adj_unit_total_score);
+                debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score.borrow().unwrap());
+            }
+        }
     }
 
     /// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
@@ -1324,6 +1373,7 @@ pub struct PlacedMapUnit {
     pub doors: Vec<Rc<RefCell<PlacedDoor>>>,
     pub spawnpoints: Vec<PlacedSpawnPoint>,
     pub teki_score: u32,
+    pub total_score: RefCell<Option<u32>>,
 }
 
 impl PlacedMapUnit {
@@ -1345,7 +1395,7 @@ impl PlacedMapUnit {
                         attached_to: None,
                         marked_as_cap: false,
                         adjacent_door: None,
-                        door_score: None,
+                        door_score: Some(0),
                         seam_teki_score: 0,
                         seam_spawnpoint: None,
                     }
@@ -1382,6 +1432,7 @@ impl PlacedMapUnit {
             doors,
             spawnpoints,
             teki_score: 0,
+            total_score: RefCell::new(Some(0)),
         }
     }
 
