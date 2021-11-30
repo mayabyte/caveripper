@@ -72,7 +72,14 @@ pub fn render_layout(layout: &Layout) {
                         Pixel::from_channels(255, 200, 0, 255)
                     );
                 }
-            }
+            },
+            Some(SpawnObject::PlantTeki(_)) => {
+                image_buffer.put_pixel(
+                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
+                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
+                    Pixel::from_channels(0, 160, 0, 255)
+                );
+            },
             _ => panic!("unrecognized drawable spawn item!"),
         }
     }

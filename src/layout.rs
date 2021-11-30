@@ -896,6 +896,56 @@ impl LayoutBuilder {
         // to Door Score.
         self.set_score();
 
+        // Place Plants, a.k.a. Teki Group 6.
+        // Note that group 6 is the "plant spawn group", but it does not necessarily only
+        // contain plant teki; similarly, plant teki can be spawned in groups other than 6.
+        // See the caveinfo for FC1 for an example of both.
+        // N.B. when people say "plants can contribute to score", they mean when plant teki
+        // are spwaned in groups other than 6. Group 6 does not affect score.
+        {
+            let layout = self.layout.borrow();
+
+            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .filter(|spawn_point| {
+                    spawn_point.spawnpoint_unit.group == 6
+                    && spawn_point.contains.borrow().is_none()
+                })
+                .collect();
+
+            let min_sum: u32 = caveinfo.teki_group(6)
+                .map(|teki| teki.minimum_amount)
+                .sum();
+            for num_spawned in 0..min_sum {
+                let chosen_spot_pair = if spawn_points.len() > 0 {
+                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
+                    Some((spawn_points[idx], idx))
+                }
+                else {
+                    None
+                };
+
+                let teki_to_spawn = self.choose_rand_teki(caveinfo, 6, num_spawned);
+
+                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
+                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::PlantTeki(teki_to_spawn.clone()));
+                    spawn_points.remove(chosen_spot_idx);
+                    self.placed_teki += 1;
+                    debug!(
+                        "Placed Plant-Group Teki \'{}\' at ({}, {}).",
+                        teki_to_spawn.internal_name,
+                        chosen_spot.x,
+                        chosen_spot.z
+                    );
+                }
+                else {
+                    // Exit the loop if there are no valid spots remaining, or if we've reached the
+                    // spawn limit for this teki type.
+                    break;
+                }
+            }
+        }
+
         //TODO
         // Place plants
         // Place items
@@ -1494,6 +1544,7 @@ pub enum SpawnObject {
     Teki(TekiInfo),
     TekiBunch(Vec<(TekiInfo, (f32, f32, f32))>), // For group 0 enemies. Tuple is displacement from parent spawnpoint.
     TekiDuplicate, // For opposing seam spawnpoints
+    PlantTeki(TekiInfo),
     Item(ItemInfo),
     Gate(GateInfo),
     Hole,
