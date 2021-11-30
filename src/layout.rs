@@ -946,9 +946,74 @@ impl LayoutBuilder {
             }
         }
 
+        // Place Items, a.k.a. Treasures.
+        {
+            let layout = self.layout.borrow();
+
+            for num_spawned in 0..caveinfo.max_treasures {
+                let mut spawn_points: Vec<&PlacedSpawnPoint> = Vec::new();
+                let mut spawn_point_weights: Vec<u32> = Vec::new();
+
+                // Find all possible spawn points, plus an 'effective treasure score' for each.
+                for map_unit in layout.map_units.iter() {
+                    if map_unit.unit.room_type == RoomType::Room {
+                        let num_items_in_this_unit: u32 = map_unit.spawnpoints.iter()
+                            .map(|spawnpoint| {
+                                if let Some(SpawnObject::Item(_)) = *spawnpoint.contains.borrow() {
+                                    1
+                                } else {
+                                    0
+                                }
+                            })
+                            .sum();
+                        for spawnpoint in map_unit.spawnpoints.iter() {
+                            if spawnpoint.spawnpoint_unit.group != 2 || spawnpoint.contains.borrow().is_some() {
+                                continue;
+                            }
+
+                            let effective_treasure_score = (map_unit.total_score.borrow().unwrap() as f32 / (1 + num_items_in_this_unit) as f32) as u32;
+                            spawn_points.push(spawnpoint);
+                            spawn_point_weights.push(effective_treasure_score);
+                        }
+                    }
+                    else if map_unit.unit.unit_folder_name.contains("item") {
+                        let spawnpoint = map_unit.spawnpoints.iter()
+                            .find(|spawnpoint| spawnpoint.spawnpoint_unit.group == 9)
+                            .expect("No Cap Spawnpoint (group 9) in item unit!");
+                        if spawnpoint.contains.borrow().is_some() {
+                            continue;
+                        }
+
+                        let effective_treasure_score = 1 + map_unit.total_score.borrow().unwrap();
+                        spawn_points.push(spawnpoint);
+                        spawn_point_weights.push(effective_treasure_score);
+                    }
+                }
+
+                // Choose which spot to spawn the treasure at
+                let mut chosen_spot = None;
+                if spawn_points.len() > 0 {
+                    let max_weight = spawn_point_weights.iter().max().unwrap().clone();
+                    let max_spawn_points: Vec<_> = spawn_points.iter()
+                        .zip(spawn_point_weights)
+                        .filter(|(_, w)| *w == max_weight)
+                        .map(|(sp, _)| sp)
+                        .collect();
+                    chosen_spot = Some(max_spawn_points[self.rng.rand_int(max_spawn_points.len() as u32) as usize]);
+                }
+
+                // Choose which treasure to spawn.
+                // This is similar to choosing Teki to spawn.
+                let chosen_treasure = self.choose_rand_item(caveinfo, num_spawned);
+
+                if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
+                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Item(chosen_treasure.clone()));
+                    debug!("Placed treasure \"{}\" at ({}, {}).", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z);
+                }
+            }
+        }
+
         //TODO
-        // Place plants
-        // Place items
         // Place Cap Teki
         // Place Gates
 
@@ -1099,6 +1164,31 @@ impl LayoutBuilder {
 
         if filler_teki.len() > 0 {
             Some(&filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()])
+        }
+        else {
+            None
+        }
+    }
+
+    fn choose_rand_item<'a>(&self, caveinfo: &'a FloorInfo, num_spawned: u32) -> Option<&'a ItemInfo> {
+        let mut cumulative_mins = 0;
+        let mut filler_items = Vec::new();
+        let mut filler_item_weights = Vec::new();
+
+        for item in caveinfo.item_info.iter() {
+            cumulative_mins += item.min_amount;
+            if num_spawned < cumulative_mins as u32 {
+                return Some(item);
+            }
+
+            if item.filler_distribution_weight > 0 {
+                filler_items.push(item);
+                filler_item_weights.push(item.filler_distribution_weight);
+            }
+        }
+
+        if filler_items.len() > 0 {
+            Some(&filler_items[self.rng.rand_index_weight(filler_item_weights.as_slice()).unwrap()])
         }
         else {
             None

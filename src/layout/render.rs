@@ -13,6 +13,16 @@ pub fn render_layout(layout: &Layout) {
         (max_map_z - min_map_z) as u32 * 8
     );
 
+    macro_rules! draw_pixel {
+        ($x:expr, $z:expr, $r:expr, $g:expr, $b:expr) => {
+            image_buffer.put_pixel(
+                ((($x / 170.0) - min_map_x as f32) * 8.0) as u32,
+                ((($z / 170.0) - min_map_z as f32) * 8.0) as u32,
+                Pixel::from_channels($r, $g, $b, 255)
+            );
+        }
+    }
+
     // Draw map units
     for map_unit in layout.map_units.iter() {
         // Open the radar image for the map unit
@@ -37,49 +47,28 @@ pub fn render_layout(layout: &Layout) {
         match spawn_point.contains.to_owned().into_inner() {
             None => continue,
             Some(SpawnObject::Ship) => {
-                image_buffer.put_pixel(
-                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
-                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
-                    Pixel::from_channels(255, 0, 0, 255)
-                );
+                draw_pixel!(spawn_point.x, spawn_point.z, 255, 0, 0);
             },
             Some(SpawnObject::Hole) => {
-                image_buffer.put_pixel(
-                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
-                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
-                    Pixel::from_channels(0, 255, 0, 255)
-                );
+                draw_pixel!(spawn_point.x, spawn_point.z, 0, 255, 0);
             },
             Some(SpawnObject::Geyser) => {
-                image_buffer.put_pixel(
-                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
-                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
-                    Pixel::from_channels(0, 0, 255, 255)
-                );
+                draw_pixel!(spawn_point.x, spawn_point.z, 0, 0, 255);
             },
             Some(SpawnObject::Teki(_)) => {
-                image_buffer.put_pixel(
-                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
-                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
-                    Pixel::from_channels(255, 255, 0, 255)
-                );
+                draw_pixel!(spawn_point.x, spawn_point.z, 255, 255, 0);
             },
             Some(SpawnObject::TekiBunch(teki_list)) => {
                 for (_, (dx, _, dz)) in teki_list.iter() {
-                    image_buffer.put_pixel(
-                        ((((spawn_point.x + dx) / 170.0) - min_map_x as f32) * 8.0) as u32,
-                        ((((spawn_point.z + dz) / 170.0) - min_map_z as f32) * 8.0) as u32,
-                        Pixel::from_channels(255, 200, 0, 255)
-                    );
+                    draw_pixel!(spawn_point.x + dx, spawn_point.z + dz, 255, 200, 0);
                 }
             },
             Some(SpawnObject::PlantTeki(_)) => {
-                image_buffer.put_pixel(
-                    (((spawn_point.x / 170.0) - min_map_x as f32) * 8.0) as u32,
-                    (((spawn_point.z / 170.0) - min_map_z as f32) * 8.0) as u32,
-                    Pixel::from_channels(0, 160, 0, 255)
-                );
+                draw_pixel!(spawn_point.x, spawn_point.z, 0, 160, 0);
             },
+            Some(SpawnObject::Item(_)) => {
+                draw_pixel!(spawn_point.x, spawn_point.z, 0, 255, 255);
+            }
             _ => panic!("unrecognized drawable spawn item!"),
         }
     }

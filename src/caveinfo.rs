@@ -194,9 +194,9 @@ impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
 /// rather sitting out in the open or buried.
 #[derive(Debug, Clone)]
 pub struct ItemInfo {
-    internal_name: String,
-    min_amount: u8,
-    filler_distribution_weight: u8,
+    pub internal_name: String,
+    pub min_amount: u8,
+    pub filler_distribution_weight: u32,
 }
 
 impl TryFrom<parse::Section<'_>> for Vec<ItemInfo> {
