@@ -14,7 +14,6 @@ use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomTy
 /// These layouts are 100% game-accurate (which can be verified using
 /// the set-seed mod) and specify exact positions for every tile, teki,
 /// and treasure.
-
 #[derive(Debug, Clone)]
 pub struct Layout {
     pub map_units: Vec<PlacedMapUnit>,
@@ -799,9 +798,7 @@ impl LayoutBuilder {
                 };
 
                 // Note: this *still hits RNG* even if the above results in None.
-                //println!("{}", self.rng.num_rng_calls.get());
                 let teki_to_spawn = self.choose_rand_teki(caveinfo, 0, num_spawned);
-                //println!("{}", self.rng.num_rng_calls.get());
 
                 // Randomly choose number of enemies to spawn in this bunch.
                 if num_spawned < self.min_teki_0 {

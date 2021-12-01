@@ -1,3 +1,6 @@
+/// Helper functions for dealing with internal Pikmin 2 game data.
+
+
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use crate::assets::get_file;
