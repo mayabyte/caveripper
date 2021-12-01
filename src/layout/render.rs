@@ -63,7 +63,7 @@ pub fn render_layout(layout: &Layout) {
                     draw_pixel!(spawn_point.x + dx, spawn_point.z + dz, 255, 200, 0);
                 }
             },
-            Some(SpawnObject::PlantTeki(_)) => {
+            Some(SpawnObject::PlantTeki(_) | SpawnObject::CapTeki(_, _)) => {
                 draw_pixel!(spawn_point.x, spawn_point.z, 0, 160, 0);
             },
             Some(SpawnObject::Item(_)) => {

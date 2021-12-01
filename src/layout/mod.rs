@@ -6,7 +6,7 @@ use std::{cell::RefCell, cmp::{max, min}, rc::{Rc, Weak}};
 use itertools::Itertools;
 use log::debug;
 
-use crate::{caveinfo::{CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomType, SpawnPoint, TekiInfo}, pikmin_math::{PikminRng, self}};
+use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInfo, RoomType, SpawnPoint, TekiInfo}, pikmin_math::{PikminRng, self}};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -1010,18 +1010,64 @@ impl LayoutBuilder {
             }
         }
 
+        // Place Cap Teki.
+        {
+            let layout = self.layout.borrow();
+
+            // Place non-falling Cap Teki. This is *not* random, which is why things like Mitites
+            // on Hole of Beasts 4 have a predictable spawn location.
+            let mut num_spawned = 0;
+            for map_unit in layout.map_units.iter() {
+                if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
+                    continue;
+                }
+
+                let spawn_point = map_unit.spawnpoints.iter()
+                    .find(|sp| sp.spawnpoint_unit.group == 9)
+                    .expect("Alcove does not have Alcove Spawn Point!");
+                if spawn_point.contains.borrow().is_some() {
+                    continue;
+                }
+
+                if let Some((teki_to_spawn, num_to_spawn)) = self.choose_rand_cap_teki(caveinfo, num_spawned, false) {
+                    *spawn_point.contains.borrow_mut() = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    num_spawned += num_to_spawn;
+                    debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
+                }
+            }
+
+            // Place falling Cap Teki. These can be placed on top of other Cap Teki except Candypop Buds.
+            num_spawned = 0;
+            for map_unit in layout.map_units.iter() {
+                if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
+                    continue;
+                }
+
+                let spawn_point = map_unit.spawnpoints.iter()
+                    .find(|sp| sp.spawnpoint_unit.group == 9)
+                    .expect("Alcove does not have Alcove Spawn Point!");
+                match spawn_point.contains.borrow().clone() {
+                    Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() => continue,
+                    Some(SpawnObject::Hole | SpawnObject::Geyser) => continue,
+                    _ => {/* otherwise it's fine to spawn. */}
+                }
+
+                if let Some((teki_to_spawn, num_to_spawn)) = self.choose_rand_cap_teki(caveinfo, num_spawned, true) {
+                    *spawn_point.falling_cap_teki.borrow_mut() = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    num_spawned += num_to_spawn;
+                    debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
+                }
+            }
+        }
+
         //TODO
-        // Place Cap Teki
         // Place Gates
 
         // Done!
         self.layout.into_inner()
     }
 
-    // Calculate Distance Score.
-    // Distance Score (a.k.a. Door Score) is based on the straight-line distance
-    // between doors. This is NOT dependent on enemies or anything else; it is
-    // added to Teki Score and other score types later on to form the total Unit Score.
+    // Calculate Score, which is an internal value used to place mose objects on a floor.
     fn set_score(&mut self) {
         let mut layout = self.layout.borrow_mut();
 
@@ -1072,6 +1118,10 @@ impl LayoutBuilder {
 
         // Initialize the Total Score of the base map unit to just its Teki Score.
         *layout.map_units[0].total_score.borrow_mut() = Some(layout.map_units[0].teki_score);
+
+        // Distance Score (a.k.a. Door Score) is based on the straight-line distance
+        // between doors. This is NOT dependent on enemies or anything else; it is
+        // added to Teki Score and other score types later on to form the total Unit Score.
 
         // Initialize the starting scores for each door in the starting room to 1.
         // Add teki score of each adjacent room to
@@ -1161,6 +1211,50 @@ impl LayoutBuilder {
 
         if filler_teki.len() > 0 {
             Some(&filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()])
+        }
+        else {
+            None
+        }
+    }
+
+    fn choose_rand_cap_teki<'a>(&self, caveinfo: &'a FloorInfo, num_spawned: u32, falling: bool) -> Option<(&'a CapInfo, u32)> {
+        let mut cumulative_mins = 0;
+        let mut filler_teki = Vec::new();
+        let mut filler_teki_weights = Vec::new();
+
+        for teki in caveinfo.cap_info.iter() {
+            if falling && (teki.spawn_method.is_none() || teki.is_candypop()) {
+                continue;
+            }
+            else if !falling && teki.spawn_method.is_some() && !teki.is_candypop() {
+                continue;
+            }
+
+
+            cumulative_mins += teki.minimum_amount;
+            if num_spawned < cumulative_mins {
+                if teki.group == 0 && num_spawned + 1 < cumulative_mins {
+                    return Some((teki, 2))
+                }
+                else {
+                    return Some((teki, 1))
+                }
+            }
+
+            if teki.filler_distribution_weight > 0 {
+                filler_teki.push(teki);
+                filler_teki_weights.push(teki.filler_distribution_weight);
+            }
+        }
+
+        if filler_teki.len() > 0 {
+            let teki = &filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()];
+            if teki.group == 0 {
+                Some((teki, 2))
+            }
+            else {
+                Some((teki, 1))
+            }
         }
         else {
             None
@@ -1558,6 +1652,7 @@ impl PlacedMapUnit {
                     angle: actual_angle,
                     spawnpoint_unit: sp.clone(),
                     contains: RefCell::new(None),
+                    falling_cap_teki: RefCell::new(None),
                     hole_score: RefCell::new(None),
                 }
             })
@@ -1614,6 +1709,7 @@ pub struct PlacedSpawnPoint {
     pub z: f32,
     pub angle: f32,
     pub contains: RefCell<Option<SpawnObject>>,
+    pub falling_cap_teki: RefCell<Option<SpawnObject>>,
     pub hole_score: RefCell<Option<u32>>,
 }
 
@@ -1632,6 +1728,7 @@ pub enum SpawnObject {
     TekiBunch(Vec<(TekiInfo, (f32, f32, f32))>), // For group 0 enemies. Tuple is displacement from parent spawnpoint.
     TekiDuplicate, // For opposing seam spawnpoints
     PlantTeki(TekiInfo),
+    CapTeki(CapInfo, u32), // Cap Teki, num_spawned
     Item(ItemInfo),
     Gate(GateInfo),
     Hole,

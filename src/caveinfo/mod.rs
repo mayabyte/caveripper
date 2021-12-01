@@ -113,8 +113,8 @@ pub struct ItemInfo {
 /// Defines gates. Very straightforward.
 #[derive(Debug, Clone)]
 pub struct GateInfo {
-    health: f32,
-    spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    pub health: f32,
+    pub spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
 }
 
 
@@ -137,12 +137,21 @@ pub struct GateInfo {
 /// "alcoves". Nothing can spawn in "caps" as you might expect.
 #[derive(Debug, Clone)]
 pub struct CapInfo {
-    internal_name: String,
-    carrying: Option<String>, // The object held by this Cap Teki, if any.
-    minimum_amount: u8,
-    filler_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    group: u8,                      // Does not control spawn location like it does in TekiInfo.
-    spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    pub internal_name: String,
+    pub carrying: Option<String>, // The object held by this Cap Teki, if any.
+    pub minimum_amount: u32,
+    pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    pub group: u8,                      // Does not control spawn location like it does in TekiInfo.
+    pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+}
+
+impl CapInfo {
+    /// Checks the internal name of this Cap Teki to see if it is a Candypop Bud
+    /// (or "Pom" internally). This is necessary because Candypop Buds receive
+    /// special treatment with regards to falling Cap Teki and Gate spawning.
+    pub fn is_candypop(&self) -> bool {
+        self.internal_name.to_lowercase().contains("pom")
+    }
 }
 
 
