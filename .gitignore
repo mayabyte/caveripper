@@ -1,3 +1,7 @@
 /target
 *.class
 caveripper_output/*
+assets/arc
+assets/caveinfo
+assets/units
+*.iso

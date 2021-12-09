@@ -125,7 +125,7 @@ impl InfoLine<'_> {
 
 fn section(caveinfo_txt: &str) -> IResult<&str, Section> {
     let (caveinfo_txt, _) = line_comment(caveinfo_txt)?;
-    into(delimited(char('{'), many1(info_line), tag("}\n")))(caveinfo_txt)
+    into(delimited(char('{'), many1(info_line), tag("}\r\n")))(caveinfo_txt)
 }
 
 fn info_line(input: &str) -> IResult<&str, InfoLine> {
@@ -185,7 +185,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
             raw_sections;
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let cave_unit_definition_path = format!("assets/gcn/units/{}", &cave_unit_definition_file_name);
+        let cave_unit_definition_path = format!("assets/units/{}", &cave_unit_definition_file_name);
         let cave_unit_definition_text = get_file_JIS(&cave_unit_definition_path)
             .ok_or(CaveInfoError::MissingFileError(cave_unit_definition_path))?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
@@ -385,7 +385,7 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let mut spawn_points = match get_file_JIS(&format!("assets/gcn/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let mut spawn_points = match get_file_JIS(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
             Some(cave_unit_layout_file_txt) => {
                 let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;

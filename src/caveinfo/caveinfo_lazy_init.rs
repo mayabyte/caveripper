@@ -15,7 +15,7 @@ use crate::caveinfo::{
 use crate::assets::get_file_JIS;
 
 fn load_caveinfo(cave: &'static str) -> Result<CaveInfo, CaveInfoError> {
-    let caveinfo_filename = format!("assets/gcn/caveinfo/{}", cave_name_to_caveinfo_filename(&cave));
+    let caveinfo_filename = format!("assets/caveinfo/{}", cave_name_to_caveinfo_filename(&cave));
     let caveinfo_txt = get_file_JIS(&caveinfo_filename)
         .ok_or_else(|| CaveInfoError::MissingFileError(caveinfo_filename.clone()))?;
     let floor_chunks = parse_caveinfo(&caveinfo_txt)
