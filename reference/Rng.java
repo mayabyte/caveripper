@@ -6,7 +6,7 @@ public class Rng {
     public static void main(String args[]) {
         seed = 0x12345678;
         for (int i = 0; i < 2000; i++) {
-            List<Integer> l = new ArrayList();
+            List<Integer> l = new ArrayList<Integer>();
             for (int j = 0; j < i; j++) {
                 l.add(j);
             }
