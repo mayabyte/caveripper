@@ -1060,8 +1060,28 @@ impl LayoutBuilder {
             }
         }
 
-        //TODO
         // Place Gates
+        {
+            for _ in 0..caveinfo.max_gates {
+                let mut gates = Vec::new();
+                let mut gate_weights = Vec::new();
+                for gate in caveinfo.gate_info.iter() {
+                    gates.push(gate);
+                    gate_weights.push(gate.spawn_distribution_weight);
+                }
+
+                let mut gate_to_spawn = None;
+                if gates.len() > 0 {
+                    gate_to_spawn = Some(gates[self.rng.rand_index_weight(gate_weights.as_slice()).unwrap()]);
+                }
+
+                let spawn_spot = self.get_gate_spawn_spot();
+
+                if let (Some(gate_to_spawn), Some(spawn_spot)) = (gate_to_spawn, spawn_spot) {
+                    spawn_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Gate(gate_to_spawn.clone()));
+                }
+            }
+        }
 
         // Done!
         self.layout.into_inner()
@@ -1348,6 +1368,147 @@ impl LayoutBuilder {
             },
             _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
         }
+    }
+
+    /// Chooses the location for a gate to spawn.
+    /// Gates are spawned in one of four ways, checked in order:
+    /// 1. In front of an item cap (A.K.A. alcove) that has an item, hole, geyser, or grounded cap teki.
+    /// 2. Between rooms at the minimum door score. Blocks 'easy' paths.
+    /// 3. Between rooms at low door scores again, with a slightly different weighting.
+    /// 4. Randomly among all remaining open doors.
+    /// Gates do not replace other Seam Teki.
+    fn get_gate_spawn_spot(&self) -> Option<Rc<RefCell<PlacedDoor>>> {
+        let mut spawn_points = Vec::new();
+        let mut spawn_point_weights = Vec::new();
+
+        // Spawn path 1: in front of filled item alcoves.
+        for map_unit in self.layout.borrow().map_units.iter() {
+            if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
+                continue;
+            }
+            if map_unit.spawnpoints[0].contains.borrow().is_none() {
+                continue;
+            }
+            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.borrow().to_owned() {
+                if cap_teki.is_candypop() && cap_teki.is_falling() {
+                    continue;
+                }
+            }
+
+            let door = Rc::clone(&map_unit.doors[0]);
+            if door.borrow().seam_spawnpoint.is_some() {
+                continue;
+            }
+
+            spawn_points.push(door);
+        }
+        if spawn_points.len() > 0 {
+            let spot = spawn_points.get(self.rng.rand_int(spawn_points.len() as u32) as usize).cloned();
+            debug!("Chose gate spawn point at ({}, {}) via spawn path 1.",
+                spot.as_ref().unwrap().borrow().x,
+                spot.as_ref().unwrap().borrow().z
+            );
+            return spot;
+        }
+
+        // Spawn path 2: between rooms at low door score
+        for map_unit in self.layout.borrow().map_units.iter() {
+            if map_unit.unit.room_type != RoomType::Room {
+                continue;
+            }
+            if map_unit.spawnpoints.iter().any(|sp| {
+                if let &Some(SpawnObject::Ship) = &*sp.contains.borrow() {
+                    true
+                }
+                else {
+                    false
+                }
+            }) {
+                continue;
+            }
+
+            let mut min_door_score = u32::MAX;
+            let mut min_door = None;
+            for door in map_unit.doors.iter() {
+                if door.borrow().door_score.unwrap() < min_door_score {
+                    min_door_score = door.borrow().door_score.unwrap();
+                    min_door = Some(door);
+                }
+            }
+
+            if min_door_score < u32::MAX && min_door.unwrap().borrow().seam_spawnpoint.is_none() {
+                debug!("Chose gate spawn point at ({}, {}) via spawn path 2.",
+                    min_door.as_ref().unwrap().borrow().x,
+                    min_door.as_ref().unwrap().borrow().z
+                );
+                return min_door.cloned();
+            }
+        }
+
+        // Spawn path 3: at doors on rooms weighted inversely by door score.
+        if self.rng.rand_f32() < 0.8f32 {
+            let mut max_open_door_score = 0;
+            for map_unit in self.layout.borrow().map_units.iter() {
+                if map_unit.unit.room_type != RoomType::Room {
+                    continue;
+                }
+                for door in map_unit.doors.iter() {
+                    if door.borrow().seam_spawnpoint.is_some() {
+                        continue;
+                    }
+                    max_open_door_score = max(max_open_door_score, door.borrow().door_score.unwrap());
+                }
+            }
+
+            for map_unit in self.layout.borrow().map_units.iter() {
+                if map_unit.unit.room_type != RoomType::Room {
+                    continue;
+                }
+                for door in map_unit.doors.iter() {
+                    if door.borrow().seam_spawnpoint.is_some() {
+                        continue;
+                    }
+                    spawn_points.push(door.clone());
+                    spawn_point_weights.push(max_open_door_score + 1 - door.borrow().door_score.unwrap());
+                }
+            }
+
+            if spawn_points.len() > 0 {
+                let spot = spawn_points.get(self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()).cloned();
+                debug!("Chose gate spawn point at ({}, {}) via spawn path 3.",
+                    spot.as_ref().unwrap().borrow().x,
+                    spot.as_ref().unwrap().borrow().z
+                );
+                return spot;
+            }
+        }
+
+        // Spawn path 4: randomly among remaining doors.
+        for map_unit in self.layout.borrow().map_units.iter() {
+            for door in map_unit.doors.iter() {
+                if door.borrow().seam_spawnpoint.is_some() {
+                    continue;
+                }
+                spawn_points.push(Rc::clone(door));
+                let weight = if map_unit.unit.room_type == RoomType::Hallway {
+                    10 / map_unit.doors.len()
+                }
+                else {
+                    map_unit.doors.len()
+                };
+                spawn_point_weights.push(weight as u32);
+            }
+        }
+        if spawn_points.len() > 0 {
+            let spot = spawn_points.get(self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()).cloned();
+            debug!("Chose gate spawn point at ({}, {}) via spawn path 4.",
+                spot.as_ref().unwrap().borrow().x,
+                spot.as_ref().unwrap().borrow().z
+            );
+            return spot;
+        }
+
+        None
     }
 
     fn get_adjacent_door(&self, door: Rc<RefCell<PlacedDoor>>) -> Rc<RefCell<PlacedDoor>> {

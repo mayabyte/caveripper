@@ -114,7 +114,7 @@ pub struct ItemInfo {
 #[derive(Debug, Clone)]
 pub struct GateInfo {
     pub health: f32,
-    pub spawn_distribution_weight: u8, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
+    pub spawn_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
 }
 
 
@@ -151,6 +151,13 @@ impl CapInfo {
     /// special treatment with regards to falling Cap Teki and Gate spawning.
     pub fn is_candypop(&self) -> bool {
         self.internal_name.to_lowercase().contains("pom")
+    }
+
+    /// Returns whether this cap teki will fall, or if it's grounded.
+    /// This is just a convenience method to make code intent more clear, since
+    /// all spawn methods besides the 'nothing' spawn method are falling.
+    pub fn is_falling(&self) -> bool {
+        self.spawn_method.is_some()
     }
 }
 

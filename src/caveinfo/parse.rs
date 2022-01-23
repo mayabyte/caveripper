@@ -307,7 +307,7 @@ impl TryFrom<parse::Section<'_>> for Vec<GateInfo> {
                             .ok_or(CaveInfoError::MalformedLine)?
                             .to_digit(10)
                             .ok_or(CaveInfoError::ParseValueError)?
-                            as u8,
+                            as u32,
                     })
                 },
             )
