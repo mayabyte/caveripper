@@ -30,6 +30,5 @@ General guide to the most important parts of the source tree:
 - `src/layout/` contains the Cave Generation algorithm.
 - `src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
 - `reference/` contains reference implementations in Java of certain important functions for comparison against my own implementations. These are largely copied from JHawk's implementation of Cavegen.
-- `assets/caveinfo/` contains the primary game data for how layouts are generated. The file format is described here: https://pikmintkb.com/wiki/Cave_generation_parameters
 
 In case you're not familiar with Rust, `mod.rs` inside a folder is the main source file for code in that module and you should probably start there when reading.
