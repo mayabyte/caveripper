@@ -1047,7 +1047,7 @@ impl LayoutBuilder {
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
                 match spawn_point.contains.borrow().clone() {
-                    Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() => continue,
+                    Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() || teki.is_falling() => continue,
                     Some(SpawnObject::Hole | SpawnObject::Geyser) => continue,
                     _ => {/* otherwise it's fine to spawn. */}
                 }
@@ -1242,15 +1242,16 @@ impl LayoutBuilder {
         let mut filler_teki = Vec::new();
         let mut filler_teki_weights = Vec::new();
 
-        for teki in caveinfo.cap_info.iter() {
-            if falling && (teki.spawn_method.is_none() || teki.is_candypop()) {
-                continue;
-            }
-            else if !falling && teki.spawn_method.is_some() && !teki.is_candypop() {
-                continue;
-            }
-
-
+        for teki in caveinfo.cap_info.iter()
+            .filter(|teki| {
+                if falling {
+                    teki.is_falling() && !teki.is_candypop()
+                }
+                else {
+                    !teki.is_falling() || teki.is_candypop()
+                }
+            })
+        {
             cumulative_mins += teki.minimum_amount;
             if num_spawned < cumulative_mins {
                 if teki.group == 0 && num_spawned + 1 < cumulative_mins {
@@ -1277,6 +1278,9 @@ impl LayoutBuilder {
             }
         }
         else {
+            // Rand still gets called in this case. Possible programming bug in the original game,
+            // but required to match generation exactly.
+            self.rng.rand_raw();
             None
         }
     }
