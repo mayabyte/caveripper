@@ -1,6 +1,24 @@
 # Caveripper
 
-Caveripper is an implementation of the Pikmin 2 cave generation algorithm to be used for seed finding.
+Caveripper is an implementation of the Pikmin 2 cave generation algorithm intended for seed finding. Uses for this include, but are not limited to:
+- Speedrunning - find the fastest single seed for an RTA run. (Or find the *slowest* seed for fun.)
+- Challenge Mode Score Attack - floors with the maximum number of eggs have the highest possible scores.
+- Tool Assisted Speedruns - find fastest overall seeds per floor to improve final TAS times.
+- Finding "rare" seeds - some floors have possible but extremely rare phenomena that are simply fun to know about, e.g. Bloysterless SR7, Clackerless GK3, longest possible 'meme hallways', etc.
+- Finding "interesting" seeds (high number of available bonus treasures, rare layout configurations, difficult score reads, etc.) for community races and practice.
+
+## Project Status
+
+This is a **work in progress** project. It cannot yet be used for seed finding and its cave generation implementation is not known to be 100% correct.
+
+**Current task:** finishing the cave generation algorithm reference implementation. Very close to completion.
+
+**TODO:**
+- Programmatic comparison with JHawk's implementation to ensure correctness.
+- Design and implement basic layout judging algorithm ('speed' of layout only).
+- (If needed) Implement more optimized cave generation algorithm.
+- Design and implement more advanced layout feature search.
+- (Optional) Improve layout renderer.
 
 ## Building
 
