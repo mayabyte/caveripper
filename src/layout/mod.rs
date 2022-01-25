@@ -16,6 +16,8 @@ use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, FloorInfo, GateInfo, ItemInf
 /// and treasure.
 #[derive(Debug, Clone)]
 pub struct Layout {
+    pub starting_seed: u32,
+    pub cave_name: String,
     pub map_units: Vec<PlacedMapUnit>,
 }
 
@@ -23,6 +25,8 @@ impl Layout {
     pub fn generate(seed: u32, caveinfo: &FloorInfo) -> Layout {
         let layoutbuilder = LayoutBuilder {
             layout: RefCell::new(Layout {
+                starting_seed: seed,
+                cave_name: caveinfo.name(),
                 map_units: Vec::new(),
             }),
             rng: PikminRng::new(seed),
@@ -47,6 +51,139 @@ impl Layout {
             placed_exit_geyser: None,
         };
         layoutbuilder.generate(seed, caveinfo)
+    }
+
+    /// A unique structured string describing this layout.
+    /// The general structure is as follows:
+    /// <sublevel name>;<0xAAAAAAAA>;<map units list>;<all spawn object list>
+    /// This is only used for testing and comparison, so there's no need for this
+    /// format to be especially readable.
+    pub fn slug(&self) -> String {
+        let mut slug = String::new();
+
+        slug.push_str(&format!("{};", self.cave_name));
+        slug.push_str(&format!("{:#08X};", self.starting_seed));
+
+        slug.push_str("[");
+        for map_unit in self.map_units.iter() {
+            slug.push_str(&format!("{},x{}z{}r{};",
+                map_unit.unit.unit_folder_name,
+                map_unit.x,
+                map_unit.z,
+                map_unit.unit.rotation
+            ));
+        }
+        slug.push_str("];");
+
+        let mut spawn_object_slugs = Vec::new();
+        for map_unit in self.map_units.iter() {
+            for spawn_point in map_unit.spawnpoints.iter() {
+                if let Some(spawn_object) = &*spawn_point.contains.borrow() {
+                    match &spawn_object {
+                        SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => {
+                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                                tekiinfo.internal_name,
+                                tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                                tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle
+                            ));
+                        },
+                        SpawnObject::TekiBunch(tekiinfo_list) => {
+                            for (tekiinfo, (dx, _, dz)) in tekiinfo_list.iter() {
+                                spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                                    tekiinfo.internal_name,
+                                    tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                                    tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
+                                    spawn_point.x + dx,
+                                    spawn_point.z + dz,
+                                    spawn_point.angle
+                                ));
+                            }
+                        },
+                        SpawnObject::CapTeki(capinfo, num) => {
+                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{}n{};",
+                                capinfo.internal_name,
+                                capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                                capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle,
+                                num
+                            ));
+                        },
+                        SpawnObject::Item(iteminfo) => {
+                            spawn_object_slugs.push(format!("{},x{}z{}r{};",
+                                iteminfo.internal_name,
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle,
+                            ));
+                        },
+                        SpawnObject::Hole => {
+                            spawn_object_slugs.push(format!("hole,x{}z{}r{};",
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle,
+                            ));
+                        },
+                        SpawnObject::Geyser => {
+                            spawn_object_slugs.push(format!("geyser,x{}z{}r{};",
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle,
+                            ));
+                        },
+                        SpawnObject::Ship => {
+                            spawn_object_slugs.push(format!("ship,x{}z{}r{};",
+                                spawn_point.x,
+                                spawn_point.z,
+                                spawn_point.angle,
+                            ));
+                        },
+                        SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
+                        SpawnObject::TekiDuplicate => {}, // Does not get placed in this vec.
+                    }
+                }
+            }
+
+            for door in map_unit.doors.iter() {
+                let mut x = (door.borrow().x * 170) as f32;
+                let mut z = (door.borrow().z * 170) as f32;
+                match door.borrow().door_unit.direction {
+                    0 | 2 => x += 85.0,
+                    1 | 3 => z += 85.0,
+                    _ => panic!("Invalid door direction in slug"),
+                }
+                match &door.borrow().seam_spawnpoint {
+                    Some(SpawnObject::Teki(tekiinfo)) => {
+                        spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                            tekiinfo.internal_name,
+                            tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                            tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
+                            x, z,
+                            door.borrow().door_unit.direction
+                        ));
+                    },
+                    Some(SpawnObject::Gate(gateinfo)) => {
+                        spawn_object_slugs.push(format!("GATE,hp{},x{}z{}r{};",
+                            gateinfo.health, x, z,
+                            door.borrow().door_unit.direction
+                        ));
+                    },
+                    _ => {}, // Nothing else can spawn in seams.
+                }
+            }
+        }
+
+        slug.push_str("[");
+        for so_slug in spawn_object_slugs {
+            slug.push_str(&so_slug);
+        }
+        slug.push_str("];");
+
+        slug
     }
 }
 
