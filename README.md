@@ -23,13 +23,13 @@ This is a **work in progress** project. It cannot yet be used for seed finding a
 ## Building
 
 ### Extracting Pikmin 2 Game Assets
-Game assets are not distributed in this repo, and as such you need to extract them from a game ISO you provide. This is made simple by the `extract_iso.sh` script provided. Just run the following:
+Game assets are not distributed in this repo, and as such you need to extract them from a game ISO you provide. This is made simple by the `extract_iso.sh` script provided. You will need [Wiimms ISO Tools](https://wit.wiimm.de/) and [Wiimms SZS Toolset](https://szs.wiimm.de/) (specifically `wit`, `wimgt`, and `wszst`) on your PATH, so make sure you download those first. Then just run the following:
 ```bash
 ./extract_iso.sh PATH_TO_PIKMIN_2_ISO.iso
 ```
 This will extract the filesystem of the ISO, copy the necessary files into `assets/`, and decode the relevant SZS and BTI files into folders and PNG images, respectively. You should only need to do this once after cloning the repo, so make sure to have a Pikmin 2 ISO handy if you intend to build from source.
 
-For those who are curious, `tools/` contains specific executables from Wiimms ISO Tools (https://wit.wiimm.de/) and Wiimms SZS Toolset (https://szs.wiimm.de/) required to extract the game data. You shouldn't need to download any dependencies for this script.
+If this process fails for some reason and you want to clean up and start from scratch, just run `clean_assets.sh`. 
 
 ### Building and Running Tests
 Caveripper is a Rust project, and as such building is very simple. Make sure you have Rust installed (I recommend using Rustup: https://rustup.rs/), then use the following commands:
