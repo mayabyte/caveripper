@@ -6,8 +6,8 @@ use std::sync::Mutex;
 use crate::assets::get_file;
 
 pub static TREASURES: Lazy<Mutex<Vec<String>>> = Lazy::new(|| {
-    let treasure_file = get_file("assets/gamedata/treasures.txt").unwrap();
-    let exploration_kit_file = get_file("assets/gamedata/treasures_exploration_kit.txt").unwrap();
+    let treasure_file = get_file("resources/treasures.txt").unwrap();
+    let exploration_kit_file = get_file("resources/treasures_exploration_kit.txt").unwrap();
 
     let mut treasure_names: Vec<String> = treasure_file
         .lines()

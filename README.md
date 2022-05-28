@@ -29,7 +29,9 @@ Game assets are not distributed in this repo, and as such you need to extract th
 ```
 This will extract the filesystem of the ISO, copy the necessary files into `assets/`, and decode the relevant SZS and BTI files into folders and PNG images, respectively. You should only need to do this once after cloning the repo, so make sure to have a Pikmin 2 ISO handy if you intend to build from source.
 
-If this process fails for some reason and you want to clean up and start from scratch, just run `clean_assets.sh`. 
+If this process fails for some reason and you want to clean up and start from scratch, just delete the `assets/` folder.
+
+NOTE: This script is only set up to work with an NTSC-U (US) Pikmin 2 ISO currently. If you want to try this with another version, you may have to edit the script a bit to get it to play nice.
 
 ### Building and Running Tests
 Caveripper is a Rust project, and as such building is very simple. Make sure you have Rust installed (I recommend using Rustup: https://rustup.rs/), then use the following commands:
