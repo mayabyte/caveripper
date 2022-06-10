@@ -24,14 +24,10 @@ pub struct Layout {
 impl Layout {
     pub fn generate(seed: u32, caveinfo: &FloorInfo) -> Layout {
         let layoutbuilder = LayoutBuilder {
-            layout: RefCell::new(Layout {
-                starting_seed: seed,
-                cave_name: caveinfo.name(),
-                map_units: Vec::new(),
-            }),
             rng: PikminRng::new(seed),
             starting_seed: seed,
             cave_name: caveinfo.name(),
+            map_units: Vec::new(),
             cap_queue: Vec::new(),
             room_queue: Vec::new(),
             corridor_queue: Vec::new(),
@@ -78,7 +74,7 @@ impl Layout {
         let mut spawn_object_slugs = Vec::new();
         for map_unit in self.map_units.iter() {
             for spawn_point in map_unit.spawnpoints.iter() {
-                if let Some(spawn_object) = &*spawn_point.contains.borrow() {
+                if let Some(spawn_object) = spawn_point.contains.as_ref() {
                     match &spawn_object {
                         SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
@@ -121,7 +117,7 @@ impl Layout {
                                 spawn_point.angle,
                             ));
                         },
-                        SpawnObject::Hole => {
+                        SpawnObject::Hole(_) => {
                             spawn_object_slugs.push(format!("hole,x{}z{}r{};",
                                 spawn_point.x,
                                 spawn_point.z,
@@ -191,7 +187,7 @@ struct LayoutBuilder {
     rng: PikminRng,
     starting_seed: u32,
     cave_name: String,
-    layout: RefCell<Layout>,
+    map_units: Vec<Box<PlacedMapUnit>>,
     cap_queue: Vec<CaveUnit>,
     room_queue: Vec<CaveUnit>,
     corridor_queue: Vec<CaveUnit>,
@@ -282,7 +278,7 @@ impl LayoutBuilder {
                 let mut unit_to_place = None;
 
                 // Check if the number of placed rooms has reached the max, and place one if not
-                if self.layout.borrow().map_units.iter()
+                if self.map_units.iter()
                     .filter(|unit| unit.unit.room_type == RoomType::Room)
                     .count() < caveinfo.num_rooms as usize
                 {
@@ -293,7 +289,7 @@ impl LayoutBuilder {
                     // Calculate the corridor probability for this generation step
                     let mut corridor_probability = caveinfo.corridor_probability;
                     if self.map_has_diameter_36 { corridor_probability = 0f32; }
-                    if self.layout.borrow().map_units[destination_door.borrow().attached_to.unwrap()].unit.room_type == RoomType::Room { corridor_probability *= 2f32; }
+                    if self.map_units[destination_door.borrow().parent_idx.unwrap()].unit.room_type == RoomType::Room { corridor_probability *= 2f32; }
 
                     let room_type_priority = if self.rng.rand_f32() < corridor_probability {
                         [RoomType::Hallway, RoomType::Room, RoomType::DeadEnd]
@@ -353,7 +349,7 @@ impl LayoutBuilder {
                         let mut link_door = None;
                         let mut link_door_dist = isize::MAX;
                         for candidate in open_doors.iter() {
-                            if open_door.borrow().attached_to == candidate.borrow().attached_to {
+                            if open_door.borrow().parent_idx == candidate.borrow().parent_idx {
                                 continue;
                             }
 
@@ -476,7 +472,6 @@ impl LayoutBuilder {
                                 RoomType::Room => &self.room_queue,
                                 RoomType::DeadEnd => &self.cap_queue,
                                 RoomType::Hallway => {
-                                    self.shuffle_corridor_priority(&caveinfo);
                                     &self.corridor_queue
                                 }
                             };
@@ -517,73 +512,79 @@ impl LayoutBuilder {
                     .collect();
 
                 if hallway_unit_names.len() > 0 {
-                    'change_cap_to_hallway: for i in 0..self.layout.borrow().map_units.len() {
-                        let placed_unit = &self.layout.borrow().map_units[i];
-                        if placed_unit.unit.room_type != RoomType::DeadEnd { continue; }
-
-                        // Compute space behind alcove
-                        let (space_x, space_z) = match placed_unit.doors[0].borrow().door_unit.direction {
-                            0 => (placed_unit.x, placed_unit.z + 1),
-                            1 => (placed_unit.x - 1, placed_unit.z),
-                            2 => (placed_unit.x, placed_unit.z - 1),
-                            3 => (placed_unit.x + 1, placed_unit.z),
-                            _ => panic!("Invalid door direction in changeCapToHallMapUnit")
-                        };
-
-                        // Check for a corridor in the space behind this alcove
-                        let corridor_behind_idx = self.layout.borrow().map_units.iter()
-                            .filter(|unit| unit.unit.room_type == RoomType::Hallway)
-                            .filter(|unit| unit.x != placed_unit.x && unit.z != placed_unit.z) // Don't check self
-                            .enumerate()
-                            .find_map(|(idx, unit)| {
-                                if unit.x == space_x && unit.z == space_z {
-                                    Some(idx)
-                                }
-                                else {
-                                    None
-                                }
-                            });
-
-                        if let Some(corridor_behind_idx) = corridor_behind_idx {
-                            // Set reflexive adjacent_door pointers to None before deletion
-                            if let Some(adjacent_door) = &placed_unit.doors[0].borrow().adjacent_door {
-                                adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
-                            }
-                            let corridor_behind = &self.layout.borrow().map_units[corridor_behind_idx];
-                            for door in corridor_behind.doors.iter() {
-                                if let Some(adjacent_door) = &door.borrow().adjacent_door {
+                    { // subscope to avoid conflicting borrows again
+                        'change_cap_to_hallway: for i in 0..self.map_units.len() {
+                            
+                            let placed_unit = &self.map_units[i];
+                            if placed_unit.unit.room_type != RoomType::DeadEnd { continue; }
+    
+                            // Compute space behind alcove
+                            let (space_x, space_z) = match placed_unit.doors[0].borrow().door_unit.direction {
+                                0 => (placed_unit.x, placed_unit.z + 1),
+                                1 => (placed_unit.x - 1, placed_unit.z),
+                                2 => (placed_unit.x, placed_unit.z - 1),
+                                3 => (placed_unit.x + 1, placed_unit.z),
+                                _ => panic!("Invalid door direction in changeCapToHallMapUnit")
+                            };
+    
+                            // Check for a corridor in the space behind this alcove
+                            let corridor_behind_idx = self.map_units.iter()
+                                .enumerate()
+                                .filter(|(_, unit)| unit.unit.room_type == RoomType::Hallway)
+                                .find_map(|(idx, unit)| {
+                                    if unit.x == space_x && unit.z == space_z {
+                                        Some(idx)
+                                    }
+                                    else {
+                                        None
+                                    }
+                                });
+    
+                            if let Some(corridor_behind_idx) = corridor_behind_idx {
+                                // Set reflexive adjacent_door pointers to None before deletion
+                                if let Some(adjacent_door) = &placed_unit.doors[0].borrow().adjacent_door {
                                     adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
                                 }
-                            }
-
-                            // Store this for later
-                            let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction.clone();
-                            let attach_to = placed_unit.doors[0].borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap();
-
-                            // Remove the one with the greater index first so we don't have to re-find
-                            // the other one after shifting.
-                            if i > corridor_behind_idx {
-                                self.layout.borrow_mut().map_units.remove(i);
-                                self.layout.borrow_mut().map_units.remove(corridor_behind_idx);
-                            }
-                            else {
-                                self.layout.borrow_mut().map_units.remove(corridor_behind_idx);
-                                self.layout.borrow_mut().map_units.remove(i);
-                            }
-
-                            // Add a hallway unit in the cap's place. Note that another hallway unit
-                            // isn't added in place of the deleted hallway behind the cap; it will be
-                            // added in a normal hallway pass after this.
-                            let chosen_hallway = hallway_unit_names[self.rng.rand_int(hallway_unit_names.len() as u32) as usize];
-                            for unit in self.corridor_queue.iter() {
-                                if unit.unit_folder_name == chosen_hallway && unit.doors[0].direction == cap_door_dir {
-                                    if let Some(approved_unit) = self.try_place_unit_at(attach_to.clone(), unit, 0) {
-                                        cap_to_replace = Some(approved_unit);
-                                        break 'change_cap_to_hallway;
+    
+                                // Remove door connections for the hallway unit we will be deleting
+                                {
+                                    let corridor_behind = &self.map_units[corridor_behind_idx];
+                                    for door in corridor_behind.doors.iter() {
+                                        if let Some(adjacent_door) = &door.borrow().adjacent_door {
+                                            adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
+                                        }
                                     }
                                 }
+    
+                                // Store this for later
+                                let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction.clone();
+                                let attach_to = placed_unit.doors[0].borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap();
+    
+                                // Remove the one with the greater index first so we don't have to re-find
+                                // the other one after shifting.
+                                if i > corridor_behind_idx {
+                                    self.map_units.remove(i);
+                                    self.map_units.remove(corridor_behind_idx);
+                                }
+                                else {
+                                    self.map_units.remove(corridor_behind_idx);
+                                    self.map_units.remove(i);
+                                }
+                                
+                                // Add a hallway unit in the cap's place. Note that another hallway unit
+                                // isn't added in place of the deleted hallway behind the cap; it will be
+                                // added in a normal hallway pass after this.
+                                let chosen_hallway = hallway_unit_names[self.rng.rand_int(hallway_unit_names.len() as u32) as usize];
+                                for unit in self.corridor_queue.iter() {
+                                    if unit.unit_folder_name == chosen_hallway && unit.doors[0].direction == cap_door_dir {
+                                        if let Some(approved_unit) = self.try_place_unit_at(attach_to.clone(), unit, 0) {
+                                            cap_to_replace = Some(approved_unit);
+                                            break 'change_cap_to_hallway;
+                                        }
+                                    }
+                                }
+                                panic!("Deleted cap in cap-to-hallway replacement step but couldn't replace it with a hallway!");
                             }
-                            panic!("Deleted cap in cap-to-hallway replacement step but couldn't replace it with a hallway!");
                         }
                     }
                     if let Some(cap_to_replace) = cap_to_replace {
@@ -592,7 +593,6 @@ impl LayoutBuilder {
                         self.place_map_unit(cap_to_replace, true);
                     }
                 }
-
                 if self.open_doors().len() > 0 { continue; }
 
                 // Look for instances of two 1x1 hallway units in a row and change them to
@@ -601,11 +601,13 @@ impl LayoutBuilder {
 
                 // Create list of 1x1 and 2x1 hallway unit names
                 let hallway_unit_names_1x1: Vec<String> = self.corridor_queue.iter()
+                    .filter(|unit| unit.room_type == RoomType::Hallway)
                     .filter(|unit| unit.width == 1 && unit.height == 1 && unit.num_doors == 2)
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
                     .map(|unit| unit.unit_folder_name.clone())
                     .collect();
                 let hallway_unit_names_2x1: Vec<String> = self.corridor_queue.iter()
+                    .filter(|unit| unit.room_type == RoomType::Hallway)
                     .filter(|unit| unit.width == 1 && unit.height == 2 && unit.num_doors == 2)
                     // Filter out east-to-west hallways. Not sure why this is done.
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
@@ -617,22 +619,24 @@ impl LayoutBuilder {
                 }
 
                 // Required to avoid panics with RefCell
-                let mut num_placed_units = self.layout.borrow().map_units.len();
+                let mut num_placed_units = self.map_units.len();
                 let mut unit_1_idx = 0;
                 while unit_1_idx < num_placed_units {
                     unit_1_idx += 1;
-                    if !hallway_unit_names_1x1.contains(&self.layout.borrow().map_units[unit_1_idx-1].unit.unit_folder_name) {
+                    if !hallway_unit_names_1x1.contains(&self.map_units[unit_1_idx-1].unit.unit_folder_name) {
                         continue;
                     }
+
+                    // BROKEN TRY  fc3 0x3B197B95
 
                     // Check for another 1x1 hallway next to this one
                     let mut md: Option<Rc<RefCell<PlacedDoor>>> = None;
                     let mut od: Option<Rc<RefCell<PlacedDoor>>> = None;
                     let mut unit_2_idx = 99999999;
                     for j in 0..2 {
-                        md = Some(self.layout.borrow().map_units[unit_1_idx-1].doors[j].clone());
-                        unit_2_idx = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().attached_to.unwrap();
-                        if hallway_unit_names_1x1.contains(&self.layout.borrow().map_units[unit_2_idx].unit.unit_folder_name) {
+                        md = Some(self.map_units[unit_1_idx-1].doors[j].clone());
+                        unit_2_idx = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().parent_idx.unwrap();
+                        if hallway_unit_names_1x1.contains(&self.map_units[unit_2_idx].unit.unit_folder_name) {
                             od = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade();
                             break;
                         }
@@ -645,8 +649,8 @@ impl LayoutBuilder {
                     let desired_direction;
                     // Create a sub-scope to avoid conflicting borrows of self.layout
                     {
-                        let unit_1 = &self.layout.borrow().map_units[unit_1_idx-1];
-                        let unit_2 = &self.layout.borrow().map_units[unit_2_idx];
+                        let unit_1 = &self.map_units[unit_1_idx-1];
+                        let unit_2 = &self.map_units[unit_2_idx];
 
                         // Find which door to expand from
                         expand_from = if unit_1.x > unit_2.x || unit_1.z < unit_2.z {
@@ -680,16 +684,18 @@ impl LayoutBuilder {
                         desired_direction = if unit_1.x == unit_2.x { 0 } else { 1 };
                     };
 
+                    
+
                     // Delete the 1x1 hallway units
                     if unit_1_idx-1 > unit_2_idx {
-                        self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
-                        self.layout.borrow_mut().map_units.remove(unit_2_idx);
+                        self.map_units.remove(unit_1_idx-1);
+                        self.map_units.remove(unit_2_idx);
                     }
                     else {
-                        self.layout.borrow_mut().map_units.remove(unit_2_idx);
-                        self.layout.borrow_mut().map_units.remove(unit_1_idx-1);
+                        self.map_units.remove(unit_2_idx);
+                        self.map_units.remove(unit_1_idx-1);
                     }
-                    self.recalculate_door_attachments();
+                    self.recalculate_door_parents();
                     num_placed_units -= 2;
 
                     // Choose a 2x1 hallway unit to add in their place
@@ -728,13 +734,12 @@ impl LayoutBuilder {
 
         // Set the start point, a.k.a. the Research Pod
         {
-            let mut layout_mut = self.layout.borrow_mut();
-            let mut candidates: Vec<&mut PlacedSpawnPoint> = layout_mut.map_units[0]
+            let mut candidates: Vec<&mut PlacedSpawnPoint> = self.map_units[0]
                 .spawnpoints.iter_mut()
                 .filter(|sp| sp.spawnpoint_unit.group == 7)
                 .collect();
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
-            candidates[chosen].contains = RefCell::new(Some(SpawnObject::Ship));
+            candidates[chosen].contains = Some(SpawnObject::Ship);
             self.placed_start_point = Some(candidates[chosen].clone());
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
@@ -743,7 +748,7 @@ impl LayoutBuilder {
 
         // Place the exit hole and/or geyser, as applicable.
         if !caveinfo.is_final_floor {
-            self.place_hole(SpawnObject::Hole);
+            self.place_hole(SpawnObject::Hole(caveinfo.exit_plugged));
         }
         if caveinfo.is_final_floor || caveinfo.has_geyser {
             self.place_hole(SpawnObject::Geyser);
@@ -757,7 +762,7 @@ impl LayoutBuilder {
                 let mut spawn_points: Vec<Rc<RefCell<PlacedDoor>>> = Vec::new();
                 let mut spawn_point_weights: Vec<u32> = Vec::new();
 
-                for map_unit in self.layout.borrow_mut().map_units.iter_mut() {
+                for map_unit in self.map_units.iter_mut() {
                     if map_unit.unit.room_type == RoomType::DeadEnd {
                         continue;
                     }
@@ -785,7 +790,7 @@ impl LayoutBuilder {
 
                 // Choose an enemy to spawn
                 // NOTE: This will still hit RNG, even if the chosen spot check above fails!
-                let teki_to_spawn = self.choose_rand_teki(caveinfo, 5, num_spawned);
+                let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 5, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
                     chosen_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Teki(teki_to_spawn.clone()));
@@ -808,15 +813,13 @@ impl LayoutBuilder {
 
         // Place 'special enemies', AKA Enemy Group 8
         {
-            let layout = self.layout.borrow();
-
             // Valid spawn points are >=300 units away from the ship, and >=150 units away from the hole or geyser.
-            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
-                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawn_point| {
                     spawn_point.spawnpoint_unit.group == 8
-                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point.contains.is_none()
                     && spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point) >= 300.0
                     && self.placed_exit_hole.as_ref().map(|hole| spawn_point_dist(hole, spawn_point) >= 150.0).unwrap_or(true)
                     && self.placed_exit_geyser.as_ref().map(|geyser| spawn_point_dist(geyser, spawn_point) >= 150.0).unwrap_or(true)
@@ -825,21 +828,19 @@ impl LayoutBuilder {
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[8] {
                 // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot_pair = if spawn_points.len() > 0 {
+                let chosen_spot = if spawn_points.len() > 0 {
                     let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some((spawn_points[idx], idx))
+                    Some(spawn_points.remove(idx))
                 }
                 else {
                     None
                 };
 
                 // Note: this *still hits RNG* even if the above results in None.
-                let teki_to_spawn = self.choose_rand_teki(caveinfo, 8, num_spawned);
+                let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 8, num_spawned);
 
-                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
-                    spawn_points.remove(chosen_spot_idx);
-
-                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
+                    chosen_spot.contains = Some(SpawnObject::Teki(teki_to_spawn.clone()));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 8 at ({}, {}).",
@@ -856,14 +857,13 @@ impl LayoutBuilder {
 
         // Place 'hard enemies', AKA Enemy Group 1
         {
-            let layout = self.layout.borrow();
             // Valid spawn points are >=300 units away from the ship, and >=200 units away from the hole or geyser.
-            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
-                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawn_point| {
                     spawn_point.spawnpoint_unit.group == 1
-                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point.contains.is_none()
                     && spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point) >= 300.0
                     && self.placed_exit_hole.as_ref().map(|hole| spawn_point_dist(hole, spawn_point) >= 200.0).unwrap_or(true)
                     && self.placed_exit_geyser.as_ref().map(|geyser| spawn_point_dist(geyser, spawn_point) >= 200.0).unwrap_or(true)
@@ -872,21 +872,19 @@ impl LayoutBuilder {
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[1] {
                 // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot_pair = if spawn_points.len() > 0 {
+                let chosen_spot = if spawn_points.len() > 0 {
                     let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some((spawn_points[idx], idx))
+                    Some(spawn_points.remove(idx))
                 }
                 else {
                     None
                 };
 
                 // Note: this *still hits RNG* even if the above results in None.
-                let teki_to_spawn = self.choose_rand_teki(caveinfo, 1, num_spawned);
+                let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 1, num_spawned);
 
-                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
-                    spawn_points.remove(chosen_spot_idx);
-
-                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
+                    chosen_spot.contains = Some(SpawnObject::Teki(teki_to_spawn.clone()));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 1 at ({}, {}).",
@@ -903,15 +901,13 @@ impl LayoutBuilder {
 
         // Place 'easy enemies', AKA Enemy Group 0
         {
-            let layout = self.layout.borrow();
-
             // Valid spawn points are >=300 units away from the ship.
-            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
+            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
-                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+                .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawn_point| {
                     spawn_point.spawnpoint_unit.group == 0
-                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point.contains.is_none()
                     && spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point) >= 300.0
                 })
                 .collect();
@@ -924,18 +920,18 @@ impl LayoutBuilder {
                 let num_to_spawn;
 
                 // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot_pair = if spawn_points.len() > 0 {
+                let chosen_spot = if spawn_points.len() > 0 {
                     let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
                     min_num = spawn_points[idx].spawnpoint_unit.min_num;
                     max_num = spawn_points[idx].spawnpoint_unit.max_num;
-                    Some((spawn_points[idx], idx))
+                    Some(spawn_points.remove(idx))
                 }
                 else {
                     None
                 };
 
                 // Note: this *still hits RNG* even if the above results in None.
-                let teki_to_spawn = self.choose_rand_teki(caveinfo, 0, num_spawned);
+                let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 0, num_spawned);
 
                 // Randomly choose number of enemies to spawn in this bunch.
                 if num_spawned < self.min_teki_0 {
@@ -964,9 +960,7 @@ impl LayoutBuilder {
                     break;
                 }
 
-                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
-                    spawn_points.remove(chosen_spot_idx);
-
+                if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
                     // Create the teki objects
                     let mut just_spawned: Vec<RefCell<(TekiInfo, (f32, f32, f32))>> = Vec::new();
                     for _ in 0..num_to_spawn {
@@ -1011,7 +1005,7 @@ impl LayoutBuilder {
                         .map(|teki| teki.into_inner())
                         .collect();
                     let num_spawned_final = just_spawned.len();
-                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::TekiBunch(just_spawned));
+                    chosen_spot.contains = Some(SpawnObject::TekiBunch(just_spawned));
                     debug!(
                         "Placed {} Teki \'{}\' in Group 0 around the spawnpoint at ({}, {}).",
                         num_spawned_final,
@@ -1037,13 +1031,11 @@ impl LayoutBuilder {
         // N.B. when people say "plants can contribute to score", they mean when plant teki
         // are spwaned in groups other than 6. Group 6 does not affect score.
         {
-            let layout = self.layout.borrow();
-
-            let mut spawn_points: Vec<&PlacedSpawnPoint> = layout.map_units.iter()
-                .flat_map(|map_unit| map_unit.spawnpoints.iter())
+            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+                .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawn_point| {
                     spawn_point.spawnpoint_unit.group == 6
-                    && spawn_point.contains.borrow().is_none()
+                    && spawn_point.contains.is_none()
                 })
                 .collect();
 
@@ -1051,19 +1043,18 @@ impl LayoutBuilder {
                 .map(|teki| teki.minimum_amount)
                 .sum();
             for num_spawned in 0..min_sum {
-                let chosen_spot_pair = if spawn_points.len() > 0 {
+                let chosen_spot = if spawn_points.len() > 0 {
                     let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some((spawn_points[idx], idx))
+                    Some(spawn_points.remove(idx))
                 }
                 else {
                     None
                 };
 
-                let teki_to_spawn = self.choose_rand_teki(caveinfo, 6, num_spawned);
+                let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 6, num_spawned);
 
-                if let (Some((chosen_spot, chosen_spot_idx)), Some(teki_to_spawn)) = (chosen_spot_pair, teki_to_spawn) {
-                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::PlantTeki(teki_to_spawn.clone()));
-                    spawn_points.remove(chosen_spot_idx);
+                if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
+                    chosen_spot.contains = Some(SpawnObject::PlantTeki(teki_to_spawn.clone()));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Plant-Group Teki \'{}\' at ({}, {}).",
@@ -1082,43 +1073,41 @@ impl LayoutBuilder {
 
         // Place Items, a.k.a. Treasures.
         {
-            let layout = self.layout.borrow();
-
             for num_spawned in 0..caveinfo.max_treasures {
-                let mut spawn_points: Vec<&PlacedSpawnPoint> = Vec::new();
+                let mut spawn_points: Vec<&mut PlacedSpawnPoint> = Vec::new();
                 let mut spawn_point_weights: Vec<u32> = Vec::new();
 
                 // Find all possible spawn points, plus an 'effective treasure score' for each.
-                for map_unit in layout.map_units.iter() {
+                for map_unit in self.map_units.iter_mut() {
                     if map_unit.unit.room_type == RoomType::Room {
                         let num_items_in_this_unit: u32 = map_unit.spawnpoints.iter()
                             .map(|spawnpoint| {
-                                if let Some(SpawnObject::Item(_)) = *spawnpoint.contains.borrow() {
+                                if let Some(SpawnObject::Item(_)) = spawnpoint.contains {
                                     1
                                 } else {
                                     0
                                 }
                             })
                             .sum();
-                        for spawnpoint in map_unit.spawnpoints.iter() {
-                            if spawnpoint.spawnpoint_unit.group != 2 || spawnpoint.contains.borrow().is_some() {
+                        for spawnpoint in map_unit.spawnpoints.iter_mut() {
+                            if spawnpoint.spawnpoint_unit.group != 2 || spawnpoint.contains.is_some() {
                                 continue;
                             }
 
-                            let effective_treasure_score = (map_unit.total_score.borrow().unwrap() as f32 / (1 + num_items_in_this_unit) as f32) as u32;
+                            let effective_treasure_score = (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32;
                             spawn_points.push(spawnpoint);
                             spawn_point_weights.push(effective_treasure_score);
                         }
                     }
                     else if map_unit.unit.unit_folder_name.contains("item") {
-                        let spawnpoint = map_unit.spawnpoints.iter()
+                        let spawnpoint = map_unit.spawnpoints.iter_mut()
                             .find(|spawnpoint| spawnpoint.spawnpoint_unit.group == 9)
                             .expect("No Cap Spawnpoint (group 9) in item unit!");
-                        if spawnpoint.contains.borrow().is_some() {
+                        if spawnpoint.contains.is_some() {
                             continue;
                         }
 
-                        let effective_treasure_score = 1 + map_unit.total_score.borrow().unwrap();
+                        let effective_treasure_score = 1 + map_unit.total_score;
                         spawn_points.push(spawnpoint);
                         spawn_point_weights.push(effective_treasure_score);
                     }
@@ -1128,20 +1117,20 @@ impl LayoutBuilder {
                 let mut chosen_spot = None;
                 if spawn_points.len() > 0 {
                     let max_weight = spawn_point_weights.iter().max().unwrap().clone();
-                    let max_spawn_points: Vec<_> = spawn_points.iter()
+                    let mut max_spawn_points: Vec<_> = spawn_points.iter_mut()
                         .zip(spawn_point_weights)
                         .filter(|(_, w)| *w == max_weight)
                         .map(|(sp, _)| sp)
                         .collect();
-                    chosen_spot = Some(max_spawn_points[self.rng.rand_int(max_spawn_points.len() as u32) as usize]);
+                    chosen_spot = Some(max_spawn_points.remove(self.rng.rand_int(max_spawn_points.len() as u32) as usize));
                 }
 
                 // Choose which treasure to spawn.
                 // This is similar to choosing Teki to spawn.
-                let chosen_treasure = self.choose_rand_item(caveinfo, num_spawned);
+                let chosen_treasure = choose_rand_item(&self.rng as *const _, caveinfo, num_spawned);
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
-                    *chosen_spot.contains.borrow_mut() = Some(SpawnObject::Item(chosen_treasure.clone()));
+                    chosen_spot.contains = Some(SpawnObject::Item(chosen_treasure.clone()));
                     debug!("Placed treasure \"{}\" at ({}, {}).", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z);
                 }
             }
@@ -1149,25 +1138,23 @@ impl LayoutBuilder {
 
         // Place Cap Teki.
         {
-            let layout = self.layout.borrow();
-
             // Place non-falling Cap Teki. This is *not* random, which is why things like Mitites
             // on Hole of Beasts 4 have a predictable spawn location.
             let mut num_spawned = 0;
-            for map_unit in layout.map_units.iter() {
+            for map_unit in self.map_units.iter_mut() {
                 if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
                     continue;
                 }
 
-                let spawn_point = map_unit.spawnpoints.iter()
+                let mut spawn_point = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                if spawn_point.contains.borrow().is_some() {
+                if spawn_point.contains.is_some() {
                     continue;
                 }
 
-                if let Some((teki_to_spawn, num_to_spawn)) = self.choose_rand_cap_teki(caveinfo, num_spawned, false) {
-                    *spawn_point.contains.borrow_mut() = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, false) {
+                    spawn_point.contains = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
                 }
@@ -1175,22 +1162,22 @@ impl LayoutBuilder {
 
             // Place falling Cap Teki. These can be placed on top of other Cap Teki except Candypop Buds.
             num_spawned = 0;
-            for map_unit in layout.map_units.iter() {
+            for map_unit in self.map_units.iter_mut() {
                 if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
                     continue;
                 }
 
-                let spawn_point = map_unit.spawnpoints.iter()
+                let mut spawn_point = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                match spawn_point.contains.borrow().clone() {
+                match spawn_point.contains.clone() {
                     Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() || teki.is_falling() => continue,
-                    Some(SpawnObject::Hole | SpawnObject::Geyser) => continue,
+                    Some(SpawnObject::Hole(_) | SpawnObject::Geyser) => continue,
                     _ => {/* otherwise it's fine to spawn. */}
                 }
 
-                if let Some((teki_to_spawn, num_to_spawn)) = self.choose_rand_cap_teki(caveinfo, num_spawned, true) {
-                    *spawn_point.falling_cap_teki.borrow_mut() = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
+                    spawn_point.falling_cap_teki = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
                 }
@@ -1221,16 +1208,18 @@ impl LayoutBuilder {
         }
 
         // Done!
-        self.layout.into_inner()
+        Layout {
+            starting_seed: self.starting_seed,
+            cave_name: self.cave_name,
+            map_units: self.map_units.into_iter().map(|b| *b).collect(),
+        }
     }
 
-    // Calculate Score, which is an internal value used to place mose objects on a floor.
+    // Calculate Score, which is an internal value used to place the exits and treasures in 'hard' locations.
     fn set_score(&mut self) {
-        let mut layout = self.layout.borrow_mut();
-
         // Reset all scores first
-        for mut map_unit in layout.map_units.iter_mut() {
-            *map_unit.total_score.borrow_mut() = None;
+        for mut map_unit in self.map_units.iter_mut() {
+            map_unit.total_score = std::u32::MAX;
             map_unit.teki_score = 0;
             for door in map_unit.doors.iter() {
                 door.borrow_mut().door_score = None;
@@ -1247,10 +1236,10 @@ impl LayoutBuilder {
         // are located.
         // Teki Score is primarily used to determine where to place treasures.
         // https://github.com/JHaack4/CaveGen/blob/16c79605d5d9dfcbf27c04e9e682c8e7e12bf40d/CaveGen.java#L1558
-        for mut map_unit in layout.map_units.iter_mut() {
+        for mut map_unit in self.map_units.iter_mut() {
             // Set Teki Score for each map tile
             for spawnpoint in map_unit.spawnpoints.iter() {
-                match spawnpoint.contains.borrow().clone() {
+                match spawnpoint.contains.clone() {
                     Some(SpawnObject::Teki(TekiInfo{group:1, ..})) => map_unit.teki_score += 10,
                     Some(SpawnObject::TekiBunch(v)) => map_unit.teki_score += 2 * v.len() as u32,
                     _ => {/* do nothing */}
@@ -1274,7 +1263,7 @@ impl LayoutBuilder {
         }
 
         // Initialize the Total Score of the base map unit to just its Teki Score.
-        *layout.map_units[0].total_score.borrow_mut() = Some(layout.map_units[0].teki_score);
+        self.map_units[0].total_score = self.map_units[0].teki_score;
 
         // Distance Score (a.k.a. Door Score) is based on the straight-line distance
         // between doors. This is NOT dependent on enemies or anything else; it is
@@ -1282,19 +1271,26 @@ impl LayoutBuilder {
 
         // Initialize the starting scores for each door in the starting room to 1.
         // Add teki score of each adjacent room to
-        for door in &layout.map_units[0].doors {
+        for door in &self.map_units[0].doors {
             let door_seam_teki_score = door.borrow().seam_teki_score;
-            door.borrow_mut().door_score = Some(layout.map_units[0].total_score.borrow().unwrap() + 1 + door_seam_teki_score);
+            door.borrow_mut().door_score = Some(self.map_units[0].total_score + 1 + door_seam_teki_score);
 
-            let adj_door = self.get_adjacent_door(door.clone());
-            let adj_unit = &layout.map_units[self.get_adjacent_door(Rc::clone(&door)).borrow().attached_to.unwrap()];
-            let current_adj_unit_score = adj_unit.total_score.borrow().clone();
+            let adj_door = self.get_adjacent_door(Rc::clone(door));
+
+            // Hack to get a mutable reference to the adjacent unit. This is mostly done for
+            // convenience so this code doesn't have to be restructured in an ugly way.
+            // SAFETY: the adjacent unit will never also be the current unit, therefore it
+            // cannot be concurrently modified. Doors are handled inside RefCells and are
+            // thus safe from this hack.
+            let adj_unit: &mut PlacedMapUnit = unsafe {
+                (self.map_units[adj_door.borrow().parent_idx.unwrap()].as_ref() as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
+            };
 
             adj_door.borrow_mut().door_score = door.borrow().door_score;
-            *adj_unit.total_score.borrow_mut() = Some(std::cmp::min(door.borrow().door_score.unwrap() + adj_unit.teki_score, current_adj_unit_score.unwrap_or(std::u32::MAX)));
+            adj_unit.total_score = min(door.borrow().door_score.unwrap() + adj_unit.teki_score, adj_unit.total_score);
 
             debug!("Set Door Score for starting room door at ({}, {}) to {}.", door.borrow().x, door.borrow().z, door.borrow().door_score.unwrap());
-            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score.borrow().unwrap());
+            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
         }
 
         // Set scores in a roughly breadth-first fashion by finding the smallest
@@ -1304,7 +1300,7 @@ impl LayoutBuilder {
             let mut selected_door = None;
             let mut selected_score = None;
 
-            for map_unit in layout.map_units.iter() {
+            for map_unit in self.map_units.iter() {
                 for start_door in map_unit.doors.iter() {
                     if start_door.borrow().door_score.is_none() {
                         continue;
@@ -1335,148 +1331,63 @@ impl LayoutBuilder {
             let selected_door = selected_door.unwrap();
 
             selected_door.borrow_mut().door_score = selected_score;
-            self.get_adjacent_door(Rc::clone(&selected_door)).borrow_mut().door_score = selected_score;
+            let adj_door = self.get_adjacent_door(Rc::clone(&selected_door));
+            adj_door.borrow_mut().door_score = selected_score;
             debug!("Set Door Score for door at ({}, {}) to {}.", selected_door.borrow().x, selected_door.borrow().z, selected_score.unwrap());
 
-            let adj_unit = &layout.map_units[self.get_adjacent_door(Rc::clone(&selected_door)).borrow().attached_to.unwrap()];
-            let current_adj_unit_total_score = adj_unit.total_score.borrow().clone();
+            // SAFETY: the adjacent unit will never also be the current unit, therefore it
+            // cannot be concurrently modified. Doors are handled inside RefCells and are
+            // thus safe from this hack.
+            let adj_unit: &mut PlacedMapUnit = unsafe {
+                (self.map_units[adj_door.borrow().parent_idx.unwrap()].as_ref() as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
+            };
+
+            let current_adj_unit_total_score = adj_unit.total_score;
             let candidate_adj_unit_total_score = selected_score.unwrap() + adj_unit.teki_score;
-            if current_adj_unit_total_score.map(|s| candidate_adj_unit_total_score < s).unwrap_or(true) {
-                *adj_unit.total_score.borrow_mut() = Some(candidate_adj_unit_total_score);
-                debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score.borrow().unwrap());
+            if candidate_adj_unit_total_score < current_adj_unit_total_score {
+                adj_unit.total_score = min(candidate_adj_unit_total_score + adj_unit.teki_score, adj_unit.total_score);
+                debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
             }
-        }
-    }
-
-    /// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
-    fn choose_rand_teki<'a>(&self, caveinfo: &'a FloorInfo, group: u32, num_spawned: u32) -> Option<&'a TekiInfo> {
-        let mut cumulative_mins = 0;
-        let mut filler_teki = Vec::new();
-        let mut filler_teki_weights = Vec::new();
-
-        for teki in caveinfo.teki_group(group) {
-            cumulative_mins += teki.minimum_amount;
-            if num_spawned < cumulative_mins {
-                return Some(teki);
-            }
-
-            if teki.filler_distribution_weight > 0 {
-                filler_teki.push(teki);
-                filler_teki_weights.push(teki.filler_distribution_weight);
-            }
-        }
-
-        if filler_teki.len() > 0 {
-            Some(&filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()])
-        }
-        else {
-            None
-        }
-    }
-
-    fn choose_rand_cap_teki<'a>(&self, caveinfo: &'a FloorInfo, num_spawned: u32, falling: bool) -> Option<(&'a CapInfo, u32)> {
-        let mut cumulative_mins = 0;
-        let mut filler_teki = Vec::new();
-        let mut filler_teki_weights = Vec::new();
-
-        for teki in caveinfo.cap_info.iter()
-            .filter(|teki| {
-                if falling {
-                    teki.is_falling() && !teki.is_candypop()
-                }
-                else {
-                    !teki.is_falling() || teki.is_candypop()
-                }
-            })
-        {
-            cumulative_mins += teki.minimum_amount;
-            if num_spawned < cumulative_mins {
-                if teki.group == 0 && num_spawned + 1 < cumulative_mins {
-                    return Some((teki, 2))
-                }
-                else {
-                    return Some((teki, 1))
-                }
-            }
-
-            if teki.filler_distribution_weight > 0 {
-                filler_teki.push(teki);
-                filler_teki_weights.push(teki.filler_distribution_weight);
-            }
-        }
-
-        if filler_teki.len() > 0 {
-            let teki = &filler_teki[self.rng.rand_index_weight(filler_teki_weights.as_slice()).unwrap()];
-            if teki.group == 0 {
-                Some((teki, 2))
-            }
-            else {
-                Some((teki, 1))
-            }
-        }
-        else {
-            // Rand still gets called in this case. Possible programming bug in the original game,
-            // but required to match generation exactly.
-            self.rng.rand_raw();
-            None
-        }
-    }
-
-    fn choose_rand_item<'a>(&self, caveinfo: &'a FloorInfo, num_spawned: u32) -> Option<&'a ItemInfo> {
-        let mut cumulative_mins = 0;
-        let mut filler_items = Vec::new();
-        let mut filler_item_weights = Vec::new();
-
-        for item in caveinfo.item_info.iter() {
-            cumulative_mins += item.min_amount;
-            if num_spawned < cumulative_mins as u32 {
-                return Some(item);
-            }
-
-            if item.filler_distribution_weight > 0 {
-                filler_items.push(item);
-                filler_item_weights.push(item.filler_distribution_weight);
-            }
-        }
-
-        if filler_items.len() > 0 {
-            Some(&filler_items[self.rng.rand_index_weight(filler_item_weights.as_slice()).unwrap()])
-        }
-        else {
-            None
         }
     }
 
     fn place_hole(&mut self, to_place: SpawnObject) {
-        let layout = self.layout.borrow();
-
         // Get a list of applicable spawn points (group 4 or 9)
-        let mut hole_spawn_points = Vec::new();
-        for unit_type in [RoomType::Room, RoomType::DeadEnd, RoomType::Hallway] {
+        let mut hole_spawn_points: Vec<&mut PlacedSpawnPoint> = Vec::new();
+        
+        // We need to do this because the compiler cannot figure out that the borrows from 
+        // self.map_units are never overlapping.
+        let (mut rooms, rest): (Vec<&mut Box<PlacedMapUnit>>, Vec<&mut Box<PlacedMapUnit>>) = self.map_units.iter_mut()
+            .partition(|unit| unit.unit.room_type == RoomType::Room);
+        let (mut caps, mut hallways): (Vec<&mut Box<PlacedMapUnit>>, Vec<&mut Box<PlacedMapUnit>>) = rest.into_iter()
+            .partition(|unit| unit.unit.room_type == RoomType::DeadEnd);
+
+        for (unit_type, unit_type_iter) in [(RoomType::Room, &mut rooms), (RoomType::DeadEnd, &mut caps), (RoomType::Hallway, &mut hallways)] {
             // Only use hallway spawn points if there are zero other available locations.
             if unit_type == RoomType::Hallway && hole_spawn_points.len() > 0 {
                 continue;
             }
 
-            for unit in layout.map_units.iter() {
+            for unit in unit_type_iter.iter_mut() {
                 if unit.unit.room_type != unit_type {
                     continue;
                 }
                 // Hole Score of this unit is the smallest of its Door Scores.
-                let score = unit.doors.iter()
-                    .map(|door| door.borrow().door_score.unwrap())
-                    .min()
-                    // Some units have zero doors, so we default to 0 if that's the case.
-                    .unwrap_or_default();
+                // let score = unit.doors.iter()
+                //     .map(|door| door.borrow().door_score.unwrap())
+                //     .min()
+                //     // Some units have zero doors, so we default to 0 if that's the case.
+                //     .unwrap_or_default();
+                let score = unit.total_score;
 
-                for spawn_point in unit.spawnpoints.iter() {
-                    if spawn_point.contains.borrow().is_some() {
+                for mut spawn_point in unit.spawnpoints.iter_mut() {
+                    if spawn_point.contains.is_some() {
                         continue;
                     }
 
                     let dist_to_start = spawn_point_dist(&self.placed_start_point.as_ref().unwrap(), spawn_point);
                     if (spawn_point.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawn_point.spawnpoint_unit.group == 9) {
-                        *spawn_point.hole_score.borrow_mut() = Some(score);
+                        spawn_point.hole_score = score;
                         hole_spawn_points.push(spawn_point);
                     }
                 }
@@ -1485,26 +1396,26 @@ impl LayoutBuilder {
 
         // Only consider the spots with the highest score
         let max_hole_score = hole_spawn_points.iter()
-            .filter(|sp| sp.contains.borrow().is_none())
-            .map(|sp| sp.hole_score.borrow().unwrap())
+            .filter(|sp| sp.contains.is_none())
+            .map(|sp| sp.hole_score)
             .max()
             .expect(&format!("{} {:#X}", self.cave_name, self.starting_seed));
 
-        let candidate_spawnpoints = hole_spawn_points.iter()
-            .filter(|sp| sp.hole_score.borrow().unwrap() == max_hole_score)
-            .filter(|sp| sp.contains.borrow().is_none())
+        let mut candidate_spawnpoints = hole_spawn_points.into_iter()
+            .filter(|sp| sp.hole_score == max_hole_score)
+            .filter(|sp| sp.contains.is_none())
             .collect::<Vec<_>>();
 
-        let hole_location = candidate_spawnpoints[self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize];
-        *hole_location.contains.borrow_mut() = Some(to_place.clone());
+        let mut hole_location = candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize);
+        hole_location.contains = Some(to_place.clone());
 
         match to_place {
-            SpawnObject::Hole => {
-                self.placed_exit_hole = Some(hole_location.clone().clone());
+            SpawnObject::Hole(_) => {
+                self.placed_exit_hole = Some(hole_location.to_owned());
                 debug!("Placed Exit Hole at ({}, {}).", hole_location.x, hole_location.z);
             },
             SpawnObject::Geyser => {
-                self.placed_exit_geyser = Some(hole_location.clone().clone());
+                self.placed_exit_geyser = Some(hole_location.to_owned());
                 debug!("Placed Exit Geyser at ({}, {}).", hole_location.x, hole_location.z);
             },
             _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
@@ -1523,14 +1434,14 @@ impl LayoutBuilder {
         let mut spawn_point_weights = Vec::new();
 
         // Spawn path 1: in front of filled item alcoves.
-        for map_unit in self.layout.borrow().map_units.iter() {
+        for map_unit in self.map_units.iter() {
             if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
                 continue;
             }
-            if map_unit.spawnpoints[0].contains.borrow().is_none() {
+            if map_unit.spawnpoints[0].contains.is_none() {
                 continue;
             }
-            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.borrow().to_owned() {
+            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.to_owned() {
                 if cap_teki.is_candypop() && cap_teki.is_falling() {
                     continue;
                 }
@@ -1553,12 +1464,12 @@ impl LayoutBuilder {
         }
 
         // Spawn path 2: between rooms at low door score
-        for map_unit in self.layout.borrow().map_units.iter() {
+        for map_unit in self.map_units.iter() {
             if map_unit.unit.room_type != RoomType::Room {
                 continue;
             }
             if map_unit.spawnpoints.iter().any(|sp| {
-                if let &Some(SpawnObject::Ship) = &*sp.contains.borrow() {
+                if let Some(SpawnObject::Ship) = sp.contains {
                     true
                 }
                 else {
@@ -1589,7 +1500,7 @@ impl LayoutBuilder {
         // Spawn path 3: at doors on rooms weighted inversely by door score.
         if self.rng.rand_f32() < 0.8f32 {
             let mut max_open_door_score = 0;
-            for map_unit in self.layout.borrow().map_units.iter() {
+            for map_unit in self.map_units.iter() {
                 if map_unit.unit.room_type != RoomType::Room {
                     continue;
                 }
@@ -1601,7 +1512,7 @@ impl LayoutBuilder {
                 }
             }
 
-            for map_unit in self.layout.borrow().map_units.iter() {
+            for map_unit in self.map_units.iter() {
                 if map_unit.unit.room_type != RoomType::Room {
                     continue;
                 }
@@ -1625,7 +1536,7 @@ impl LayoutBuilder {
         }
 
         // Spawn path 4: randomly among remaining doors.
-        for map_unit in self.layout.borrow().map_units.iter() {
+        for map_unit in self.map_units.iter() {
             for door in map_unit.doors.iter() {
                 if door.borrow().seam_spawnpoint.is_some() {
                     continue;
@@ -1656,19 +1567,17 @@ impl LayoutBuilder {
         door.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap()
     }
 
-    fn recalculate_door_attachments(&mut self) {
-        for (i, unit) in self.layout.borrow().map_units.iter().enumerate() {
+    fn recalculate_door_parents(&mut self) {
+        for (i, unit) in self.map_units.iter().enumerate() {
             for door in unit.doors.iter() {
-                door.borrow_mut().attached_to = Some(i);
+                door.borrow_mut().parent_idx = Some(i);
             }
         }
     }
 
     fn place_map_unit(&mut self, unit: PlacedMapUnit, checks: bool) {
-        for door in unit.doors.iter() {
-            door.borrow_mut().attached_to = Some(self.layout.borrow().map_units.len());
-        }
-        self.layout.borrow_mut().map_units.push(unit);
+        self.map_units.push(Box::new(unit));
+        self.recalculate_door_parents();
 
         if checks {
             self.attach_close_doors();
@@ -1678,8 +1587,7 @@ impl LayoutBuilder {
     }
 
     fn recompute_map_size(&mut self) {
-        let placed_units = self.layout.borrow();
-        let last_placed_unit = placed_units.map_units.last().unwrap();
+        let last_placed_unit = self.map_units.last().unwrap();
         self.map_min_x = min(self.map_min_x, last_placed_unit.x);
         self.map_min_z = min(self.map_min_z, last_placed_unit.z);
         self.map_max_x = max(self.map_max_x, last_placed_unit.x + last_placed_unit.unit.width as isize);
@@ -1690,15 +1598,14 @@ impl LayoutBuilder {
     /// After placing a map unit, a targeted shuffle is performed to increase the chances of
     /// generating other map units that have been seen less often.
     fn shuffle_unit_priority(&mut self) {
-        let placed_units = self.layout.borrow();
-        let last_placed_unit = placed_units.map_units.last().unwrap();
+        let last_placed_unit = self.map_units.last().unwrap();
         match last_placed_unit.unit.room_type {
             RoomType::DeadEnd => self.rng.rand_backs(&mut self.cap_queue),
             RoomType::Hallway => self.rng.rand_backs(&mut self.corridor_queue),
             RoomType::Room => {
                 // Count each type of placed room so far
                 let mut room_type_counter: Vec<(&str, usize)> = Vec::new();
-                for unit in placed_units.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room) {
+                for unit in self.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room) {
                     if let Some(entry) = room_type_counter.iter_mut().find(|(name, _)| name == &unit.unit.unit_folder_name) {
                         entry.1 += 1;
                     }
@@ -1746,8 +1653,7 @@ impl LayoutBuilder {
     /// Looks for 'close' doors that are directly facing each other and attaches
     /// them together.
     fn attach_close_doors(&self) {
-        let placed_units = self.layout.borrow();
-        let last_placed_unit = placed_units.map_units.last().unwrap();
+        let last_placed_unit = self.map_units.last().unwrap();
         for new_door in last_placed_unit.doors.iter() {
             for open_door in self.open_doors() {
                 if new_door.borrow().lines_up_with(&open_door.borrow()) {
@@ -1759,7 +1665,7 @@ impl LayoutBuilder {
     }
 
     fn open_doors(&self) -> Vec<Rc<RefCell<PlacedDoor>>> {
-        self.layout.borrow().map_units.iter()
+        self.map_units.iter()
             .flat_map(|unit| unit.doors.iter().map(move |door| door.clone()))
             .filter(|door| door.borrow().adjacent_door.is_none())
             .collect()
@@ -1823,7 +1729,7 @@ impl LayoutBuilder {
         let candidate_unit = PlacedMapUnit::new(new_unit, candidate_unit_x, candidate_unit_z);
 
         // Make sure the new unit wouldn't overlap any already placed units
-        for placed_unit in self.layout.borrow().map_units.iter() {
+        for placed_unit in self.map_units.iter() {
             if placed_unit.overlaps(&candidate_unit) {
                 return None;
             }
@@ -1841,7 +1747,7 @@ impl LayoutBuilder {
             // However if there are any that don't line up, we need to check the space in front.
             let open_space_x = new_door.borrow().x - (if new_door.borrow().door_unit.direction == 3 { 1 } else { 0 });
             let open_space_z = new_door.borrow().z - (if new_door.borrow().door_unit.direction == 0 { 1 } else { 0 });
-            if self.layout.borrow().map_units.iter()
+            if self.map_units.iter()
                 .any(|placed_unit| {
                     boxes_overlap(
                         open_space_x, open_space_z, 1, 1,
@@ -1898,6 +1804,107 @@ impl LayoutBuilder {
 }
 
 
+/// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
+/// RNG is a raw pointer to avoid issues with borrowing self (LayoutBuilder).
+fn choose_rand_teki<'a>(rng: *const PikminRng, caveinfo: &'a FloorInfo, group: u32, num_spawned: u32) -> Option<&'a TekiInfo> {
+    let mut cumulative_mins = 0;
+    let mut filler_teki = Vec::new();
+    let mut filler_teki_weights = Vec::new();
+
+    for teki in caveinfo.teki_group(group) {
+        cumulative_mins += teki.minimum_amount;
+        if num_spawned < cumulative_mins {
+            return Some(teki);
+        }
+
+        if teki.filler_distribution_weight > 0 {
+            filler_teki.push(teki);
+            filler_teki_weights.push(teki.filler_distribution_weight);
+        }
+    }
+
+    if filler_teki.len() > 0 {
+        Some(unsafe{&filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]})
+    }
+    else {
+        None
+    }
+}
+
+fn choose_rand_item<'a>(rng: *const PikminRng, caveinfo: &'a FloorInfo, num_spawned: u32) -> Option<&'a ItemInfo> {
+    let mut cumulative_mins = 0;
+    let mut filler_items = Vec::new();
+    let mut filler_item_weights = Vec::new();
+
+    for item in caveinfo.item_info.iter() {
+        cumulative_mins += item.min_amount;
+        if num_spawned < cumulative_mins as u32 {
+            return Some(item);
+        }
+
+        if item.filler_distribution_weight > 0 {
+            filler_items.push(item);
+            filler_item_weights.push(item.filler_distribution_weight);
+        }
+    }
+
+    if filler_items.len() > 0 {
+        Some(unsafe{&filler_items[rng.as_ref().unwrap().rand_index_weight(filler_item_weights.as_slice()).unwrap()]})
+    }
+    else {
+        None
+    }
+}
+
+fn choose_rand_cap_teki<'a>(rng: *const PikminRng, caveinfo: &'a FloorInfo, num_spawned: u32, falling: bool) -> Option<(&'a CapInfo, u32)> {
+    let mut cumulative_mins = 0;
+    let mut filler_teki = Vec::new();
+    let mut filler_teki_weights = Vec::new();
+
+    for teki in caveinfo.cap_info.iter()
+        .filter(|teki| {
+            if falling {
+                teki.is_falling() && !teki.is_candypop()
+            }
+            else {
+                !teki.is_falling() || teki.is_candypop()
+            }
+        })
+    {
+        cumulative_mins += teki.minimum_amount;
+        if num_spawned < cumulative_mins {
+            if teki.group == 0 && num_spawned + 1 < cumulative_mins {
+                return Some((teki, 2))
+            }
+            else {
+                return Some((teki, 1))
+            }
+        }
+
+        if teki.filler_distribution_weight > 0 {
+            filler_teki.push(teki);
+            filler_teki_weights.push(teki.filler_distribution_weight);
+        }
+    }
+
+    if filler_teki.len() > 0 {
+        let teki = unsafe{&filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]};
+        if teki.group == 0 {
+            Some((teki, 2))
+        }
+        else {
+            Some((teki, 1))
+        }
+    }
+    else {
+        // Rand still gets called in this case. Possible programming bug in the original game,
+        // but required to match generation exactly.
+        unsafe{rng.as_ref().unwrap().rand_raw()};
+        None
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct PlacedMapUnit {
     pub unit: CaveUnit,
@@ -1906,7 +1913,7 @@ pub struct PlacedMapUnit {
     pub doors: Vec<Rc<RefCell<PlacedDoor>>>,
     pub spawnpoints: Vec<PlacedSpawnPoint>,
     pub teki_score: u32,
-    pub total_score: RefCell<Option<u32>>,
+    pub total_score: u32,
 }
 
 impl PlacedMapUnit {
@@ -1925,7 +1932,7 @@ impl PlacedMapUnit {
                         x: door_x,
                         z: door_z,
                         door_unit: door.clone(),
-                        attached_to: None,
+                        parent_idx: None,
                         marked_as_cap: false,
                         adjacent_door: None,
                         door_score: Some(0),
@@ -1953,9 +1960,9 @@ impl PlacedMapUnit {
                     z: actual_z,
                     angle: actual_angle,
                     spawnpoint_unit: sp.clone(),
-                    contains: RefCell::new(None),
-                    falling_cap_teki: RefCell::new(None),
-                    hole_score: RefCell::new(None),
+                    contains: None,
+                    falling_cap_teki: None,
+                    hole_score: 0,
                 }
             })
             .collect();
@@ -1966,7 +1973,7 @@ impl PlacedMapUnit {
             doors,
             spawnpoints,
             teki_score: 0,
-            total_score: RefCell::new(Some(0)),
+            total_score: 0,
         }
     }
 
@@ -1981,7 +1988,7 @@ pub struct PlacedDoor {
     pub x: isize,
     pub z: isize,
     pub door_unit: DoorUnit,
-    pub attached_to: Option<usize>,
+    pub parent_idx: Option<usize>,
     pub marked_as_cap: bool,
     pub adjacent_door: Option<Weak<RefCell<PlacedDoor>>>,
     pub door_score: Option<u32>,
@@ -2010,9 +2017,9 @@ pub struct PlacedSpawnPoint {
     pub x: f32,
     pub z: f32,
     pub angle: f32,
-    pub contains: RefCell<Option<SpawnObject>>,
-    pub falling_cap_teki: RefCell<Option<SpawnObject>>,
-    pub hole_score: RefCell<Option<u32>>,
+    pub contains: Option<SpawnObject>,
+    pub falling_cap_teki: Option<SpawnObject>,
+    pub hole_score: u32,
 }
 
 fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
@@ -2033,7 +2040,7 @@ pub enum SpawnObject {
     CapTeki(CapInfo, u32), // Cap Teki, num_spawned
     Item(ItemInfo),
     Gate(GateInfo),
-    Hole,
+    Hole(bool), // Plugged or not
     Geyser,
     Ship
 }

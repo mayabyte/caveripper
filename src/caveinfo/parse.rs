@@ -490,7 +490,7 @@ impl TryFrom<parse::Section<'_>> for SpawnPoint {
 static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
     // Captures an optional Spawn Method and the Internal Name with the
     // Carrying item still attached.
-    Regex::new(r"(\$\d?)?([A-Za-z_-]+)").unwrap()
+    Regex::new(r"(\$\d?)?F?([A-Za-z_-]+)").unwrap()
 });
 fn extract_internal_identifier(
     internal_combined_name: &str,
@@ -504,13 +504,15 @@ fn extract_internal_identifier(
     let spawn_method = captures.get(1).map(|s| s.as_str().to_string());
     let internal_combined_name = captures.get(2).unwrap().as_str().to_string();
 
-    // Check if the captured Carried Item candidate is actually a carried item
-    let (internal_name, carrying) = match internal_combined_name.rsplit_once('_') {
-        Some((name, carrying)) if is_item_name(carrying) => {
-            (name.to_string(), Some(carrying.to_string()))
+    for treasure_name in TREASURES.lock().unwrap().iter() {
+        if internal_combined_name.ends_with(&format!("_{}", treasure_name)) {
+            return (
+                spawn_method,
+                internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string(),
+                Some(treasure_name.clone())
+            );
         }
-        _ => (internal_combined_name, None),
-    };
+    }
 
-    (spawn_method, internal_name, carrying)
+    (spawn_method, internal_combined_name, None)
 }

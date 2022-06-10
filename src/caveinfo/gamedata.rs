@@ -2,12 +2,27 @@
 
 
 use once_cell::sync::Lazy;
-use std::sync::Mutex;
-use crate::assets::get_file;
+use std::{borrow::Cow, sync::Mutex};
+use rust_embed::RustEmbed;
+
+#[derive(RustEmbed)]
+#[folder="$CARGO_MANIFEST_DIR/resources"]
+#[prefix="resources/"]
+struct Resources;
+
+pub fn get_resource_file(path: &str) -> Option<String> {
+    let file = Resources::get(path)?;
+    String::from_utf8(file.data.as_ref().to_vec()).ok()
+}
+
+pub fn get_resource_file_bytes(path: &str) -> Option<Cow<'static, [u8]>> {
+    let file = Resources::get(path)?;
+    Some(file.data)
+}
 
 pub static TREASURES: Lazy<Mutex<Vec<String>>> = Lazy::new(|| {
-    let treasure_file = get_file("resources/treasures.txt").unwrap();
-    let exploration_kit_file = get_file("resources/treasures_exploration_kit.txt").unwrap();
+    let treasure_file = get_resource_file("resources/treasures.txt").unwrap();
+    let exploration_kit_file = get_resource_file("resources/treasures_exploration_kit.txt").unwrap();
 
     let mut treasure_names: Vec<String> = treasure_file
         .lines()
@@ -39,10 +54,16 @@ pub(super) fn cave_name_to_caveinfo_filename(cave_name: &str) -> &'static str {
     }
 }
 
-pub(super) fn is_item_name(name: &str) -> bool {
-    TREASURES
-        .lock()
-        .unwrap()
-        .binary_search(&name.trim_start_matches('_').to_owned())
-        .is_ok()
+pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
+    match internal_name.to_ascii_lowercase().as_ref() {
+        "gashiba" => Some("Gas_pipe_icon.png"),
+        "daiodogreen" => Some("daiodogreen.png"),
+        "ooinu_s" => Some("ooinu_s.png"),
+        "kareooinu_s" => Some("kareooinu_s.png"),
+        "elechiba" => Some("Electrical_wire_icon.png"),
+        "hiba" => Some("Fire_geyser_icon.png"),
+        "bomb" => Some("Bingo_Battle_Bomb_icon.png"),
+        "egg" => Some("36px-Egg_icon.png"),
+        _ => None
+    }
 }
