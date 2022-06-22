@@ -16,6 +16,7 @@ log = "0.4"
 paste = "1.0"
 structopt = "0.3"
 maplit = "1.0"
+rayon = "1.5"
 
 [dependencies.simple_logger]
 version = "1.13"
@@ -29,6 +30,7 @@ features = ["interpolate-folder-path", "compression"]
 [dev-dependencies]
 criterion = "0.3"
 rand = {version="0.8", features=["small_rng"]}
+lazy_static = "*"
 
 [lib]
 name = "cavegen"

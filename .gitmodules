@@ -1,0 +1,3 @@
+[submodule "CaveGen"]
+	path = CaveGen
+	url = git@github.com:mayabyte/CaveGen.git

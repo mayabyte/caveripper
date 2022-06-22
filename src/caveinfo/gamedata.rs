@@ -60,6 +60,7 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
         "daiodogreen" => Some("daiodogreen.png"),
         "ooinu_s" => Some("ooinu_s.png"),
         "kareooinu_s" => Some("kareooinu_s.png"),
+        "kareooinu_l" => Some("kareooinu.png"),
         "elechiba" => Some("Electrical_wire_icon.png"),
         "hiba" => Some("Fire_geyser_icon.png"),
         "bomb" => Some("Bingo_Battle_Bomb_icon.png"),

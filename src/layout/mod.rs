@@ -58,7 +58,7 @@ impl Layout {
         let mut slug = String::new();
 
         slug.push_str(&format!("{};", self.cave_name));
-        slug.push_str(&format!("{:#08X};", self.starting_seed));
+        slug.push_str(&format!("{:#010X};", self.starting_seed));
 
         slug.push_str("[");
         for map_unit in self.map_units.iter() {
@@ -77,65 +77,57 @@ impl Layout {
                 if let Some(spawn_object) = spawn_point.contains.as_ref() {
                     match &spawn_object {
                         SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => {
-                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 tekiinfo.internal_name,
                                 tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                 tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::TekiBunch(tekiinfo_list) => {
                             for (tekiinfo, (dx, _, dz)) in tekiinfo_list.iter() {
-                                spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                                spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                     tekiinfo.internal_name,
                                     tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                     tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                    spawn_point.x + dx,
-                                    spawn_point.z + dz,
-                                    spawn_point.angle
+                                    (spawn_point.x + dx) as i32,
+                                    (spawn_point.z + dz) as i32,
                                 ));
                             }
                         },
-                        SpawnObject::CapTeki(capinfo, num) => {
-                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{}n{};",
+                        SpawnObject::CapTeki(capinfo, _) => {
+                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 capinfo.internal_name,
                                 capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                 capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle,
-                                num
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::Item(iteminfo) => {
-                            spawn_object_slugs.push(format!("{},x{}z{}r{};",
+                            spawn_object_slugs.push(format!("{},x{}z{};",
                                 iteminfo.internal_name,
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle,
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::Hole(_) => {
-                            spawn_object_slugs.push(format!("hole,x{}z{}r{};",
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle,
+                            spawn_object_slugs.push(format!("hole,x{}z{};",
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::Geyser => {
-                            spawn_object_slugs.push(format!("geyser,x{}z{}r{};",
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle,
+                            spawn_object_slugs.push(format!("geyser,x{}z{};",
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::Ship => {
-                            spawn_object_slugs.push(format!("ship,x{}z{}r{};",
-                                spawn_point.x,
-                                spawn_point.z,
-                                spawn_point.angle,
+                            spawn_object_slugs.push(format!("ship,x{}z{};",
+                                spawn_point.x as i32,
+                                spawn_point.z as i32,
                             ));
                         },
                         SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
@@ -154,18 +146,16 @@ impl Layout {
                 }
                 match &door.borrow().seam_spawnpoint {
                     Some(SpawnObject::Teki(tekiinfo)) => {
-                        spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{}r{};",
+                        spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                             tekiinfo.internal_name,
                             tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                             tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                            x, z,
-                            door.borrow().door_unit.direction
+                            x as i32, z as i32,
                         ));
                     },
                     Some(SpawnObject::Gate(gateinfo)) => {
-                        spawn_object_slugs.push(format!("GATE,hp{},x{}z{}r{};",
-                            gateinfo.health, x, z,
-                            door.borrow().door_unit.direction
+                        spawn_object_slugs.push(format!("GATE,hp{},x{}z{};",
+                            gateinfo.health, x as i32, z as i32,
                         ));
                     },
                     _ => {}, // Nothing else can spawn in seams.
@@ -174,6 +164,7 @@ impl Layout {
         }
 
         slug.push_str("[");
+        spawn_object_slugs.sort();
         for so_slug in spawn_object_slugs {
             slug.push_str(&so_slug);
         }
@@ -722,15 +713,22 @@ impl LayoutBuilder {
         }
 
         // Recenter the map such that all positions are >= 0
-        // {
-        //     let min_x = self.layout.borrow().map_units.iter().map(|unit| unit.x).min().unwrap();
-        //     let min_z = self.layout.borrow().map_units.iter().map(|unit| unit.z).min().unwrap();
-        //     for map_unit in self.layout.borrow_mut().map_units.iter_mut() {
-        //         map_unit.x = map_unit.x - min_x;
-        //         map_unit.z = map_unit.z - min_z;
-        //     }
-        //     debug!("Recentered map.");
-        // }
+        let min_x = self.map_units.iter().map(|unit| unit.x).min().unwrap();
+        let min_z = self.map_units.iter().map(|unit| unit.z).min().unwrap();
+        for map_unit in self.map_units.iter_mut() {
+            map_unit.x = map_unit.x - min_x;
+            map_unit.z = map_unit.z - min_z;
+            for spawn_point in map_unit.spawnpoints.iter_mut() {
+                spawn_point.x -= (min_x as f32) * 170.0;
+                spawn_point.z -= (min_z as f32) * 170.0;
+            }
+            for door in map_unit.doors.iter_mut() {
+                let mut door = door.borrow_mut();
+                door.x -= min_x;
+                door.z -= min_z;
+            }
+        }
+        debug!("Recentered map.");
 
         // Set the start point, a.k.a. the Research Pod
         {

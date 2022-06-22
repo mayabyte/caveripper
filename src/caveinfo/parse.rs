@@ -501,7 +501,10 @@ fn extract_internal_identifier(
             "Not able to capture info from combined internal identifier {}!",
             internal_combined_name
         ));
-    let spawn_method = captures.get(1).map(|s| s.as_str().to_string());
+    let spawn_method = captures.get(1)
+        .map(|s| s.as_str())
+        .and_then(|sm| sm.strip_prefix('$'))
+        .map(|s| s.to_string());
     let internal_combined_name = captures.get(2).unwrap().as_str().to_string();
 
     for treasure_name in TREASURES.lock().unwrap().iter() {
