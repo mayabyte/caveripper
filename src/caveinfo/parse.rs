@@ -1,3 +1,5 @@
+use crate::assets::get_enemy_list;
+
 /// Parsing for CaveInfo files
 use super::*;
 use nom::{
@@ -490,7 +492,7 @@ impl TryFrom<parse::Section<'_>> for SpawnPoint {
 static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
     // Captures an optional Spawn Method and the Internal Name with the
     // Carrying item still attached.
-    Regex::new(r"(\$\d?)?F?([A-Za-z_-]+)").unwrap()
+    Regex::new(r"(\$\d?)?([A-Za-z_-]+)").unwrap()
 });
 fn extract_internal_identifier(
     internal_combined_name: &str,
@@ -505,17 +507,20 @@ fn extract_internal_identifier(
         .map(|s| s.as_str())
         .and_then(|sm| sm.strip_prefix('$'))
         .map(|s| s.to_string());
-    let internal_combined_name = captures.get(2).unwrap().as_str().to_string();
+    let mut internal_combined_name = captures.get(2).unwrap().as_str().to_string();
+    let mut carrying = None;
 
     for treasure_name in TREASURES.lock().unwrap().iter() {
         if internal_combined_name.ends_with(&format!("_{}", treasure_name)) {
-            return (
-                spawn_method,
-                internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string(),
-                Some(treasure_name.clone())
-            );
+            internal_combined_name = internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string();
+            carrying = Some(treasure_name.to_owned());
+            break;
         }
     }
 
-    (spawn_method, internal_combined_name, None)
+    if internal_combined_name.starts_with("F") && !get_enemy_list().contains(&internal_combined_name) {
+        internal_combined_name = internal_combined_name.strip_prefix("F").unwrap().to_string();
+    }
+
+    (spawn_method, internal_combined_name, carrying)
 }

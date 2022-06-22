@@ -21,8 +21,6 @@ pub fn render_layout(layout: &Layout) {
     let min_map_z = layout.map_units.iter().map(|unit| unit.z).min().unwrap();
     let max_map_z = layout.map_units.iter().map(|unit| unit.z + unit.unit.height as isize).max().unwrap();
 
-    println!("min: {} {}", min_map_x, min_map_z);
-
     // Each map tile is 8x8 pixels on the radar.
     // We scale this up further so teki and treasure textures can be rendered at a decent
     // resolution on top of the generated layout images.

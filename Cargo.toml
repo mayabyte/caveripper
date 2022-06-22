@@ -17,6 +17,7 @@ paste = "1.0"
 structopt = "0.3"
 maplit = "1.0"
 rayon = "1.5"
+cached = "0.34"
 
 [dependencies.simple_logger]
 version = "1.13"

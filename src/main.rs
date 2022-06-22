@@ -17,7 +17,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let seed: u32 = from_hex_str(&args.seed)?;
 
     let layout = Layout::generate(seed, caveinfo);
-    println!("{}", layout.slug());
     render_layout(&layout);
     Ok(())
 }

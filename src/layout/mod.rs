@@ -134,6 +134,15 @@ impl Layout {
                         SpawnObject::TekiDuplicate => {}, // Does not get placed in this vec.
                     }
                 }
+                if let Some(SpawnObject::CapTeki(capinfo, _)) = &spawn_point.falling_cap_teki {
+                    spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
+                        capinfo.internal_name,
+                        capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                        capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
+                        spawn_point.x as i32,
+                        spawn_point.z as i32,
+                    ));
+                }
             }
 
             for door in map_unit.doors.iter() {
@@ -1093,6 +1102,7 @@ impl LayoutBuilder {
                             }
 
                             let effective_treasure_score = (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32;
+                            spawnpoint.treasure_score = effective_treasure_score;
                             spawn_points.push(spawnpoint);
                             spawn_point_weights.push(effective_treasure_score);
                         }
@@ -1106,6 +1116,7 @@ impl LayoutBuilder {
                         }
 
                         let effective_treasure_score = 1 + map_unit.total_score;
+                        spawnpoint.treasure_score = effective_treasure_score;
                         spawn_points.push(spawnpoint);
                         spawn_point_weights.push(effective_treasure_score);
                     }
@@ -1129,7 +1140,7 @@ impl LayoutBuilder {
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
                     chosen_spot.contains = Some(SpawnObject::Item(chosen_treasure.clone()));
-                    debug!("Placed treasure \"{}\" at ({}, {}).", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z);
+                    debug!("Placed treasure \"{}\" at ({}, {}) - score {}.", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z, chosen_spot.treasure_score);
                 }
             }
         }
@@ -1961,6 +1972,7 @@ impl PlacedMapUnit {
                     contains: None,
                     falling_cap_teki: None,
                     hole_score: 0,
+                    treasure_score: 0,
                 }
             })
             .collect();
@@ -2018,6 +2030,7 @@ pub struct PlacedSpawnPoint {
     pub contains: Option<SpawnObject>,
     pub falling_cap_teki: Option<SpawnObject>,
     pub hole_score: u32,
+    pub treasure_score: u32,
 }
 
 fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
