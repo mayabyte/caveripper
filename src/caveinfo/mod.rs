@@ -9,23 +9,14 @@
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
 
 mod caveinfoerror;
-pub mod gamedata;
-mod parse;
-mod caveinfo_lazy_init;
-
-#[cfg(test)]
-mod test;
+pub mod parse;
 
 pub use caveinfoerror::CaveInfoError;
-pub use gamedata::*;
-pub use caveinfo_lazy_init::*;
 
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{cmp::Ordering, convert::{TryFrom, TryInto}};
-
-use crate::assets::get_file_JIS;
 
 
 /// Contains FloorInfo for each sublevel in an entire cave.
@@ -77,7 +68,7 @@ impl FloorInfo {
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        format!("{}{}", self.cave_name.as_ref().expect("No cave name found!"), self.sublevel+1)
+        format!("{}", self.cave_name.as_ref().expect("No cave name found!"))
     }
 }
 

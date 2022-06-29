@@ -131,7 +131,6 @@ impl Layout {
                             ));
                         },
                         SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
-                        SpawnObject::TekiDuplicate => {}, // Does not get placed in this vec.
                     }
                 }
                 if let Some(SpawnObject::CapTeki(capinfo, _)) = &spawn_point.falling_cap_teki {
@@ -153,7 +152,7 @@ impl Layout {
                     1 | 3 => z += 85.0,
                     _ => panic!("Invalid door direction in slug"),
                 }
-                match &door.borrow().seam_spawnpoint {
+                match &*door.borrow().seam_spawnpoint {
                     Some(SpawnObject::Teki(tekiinfo)) => {
                         spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                             tekiinfo.internal_name,
@@ -721,6 +720,12 @@ impl LayoutBuilder {
             }
         }
 
+        // return Layout {
+        //     starting_seed: self.starting_seed,
+        //     cave_name: self.cave_name,
+        //     map_units: self.map_units.into_iter().map(|b| *b).collect(),
+        // };
+
         // Recenter the map such that all positions are >= 0
         let min_x = self.map_units.iter().map(|unit| unit.x).min().unwrap();
         let min_z = self.map_units.iter().map(|unit| unit.z).min().unwrap();
@@ -800,8 +805,8 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 5, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Teki(teki_to_spawn.clone()));
-                    chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Some(SpawnObject::TekiDuplicate);
+                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn.clone())));
+                    chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' on door seam at ({}, {}).",
@@ -1211,7 +1216,7 @@ impl LayoutBuilder {
                 let spawn_spot = self.get_gate_spawn_spot();
 
                 if let (Some(gate_to_spawn), Some(spawn_spot)) = (gate_to_spawn, spawn_spot) {
-                    spawn_spot.borrow_mut().seam_spawnpoint = Some(SpawnObject::Gate(gate_to_spawn.clone()));
+                    spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn.clone())));
                 }
             }
         }
@@ -1261,7 +1266,7 @@ impl LayoutBuilder {
             // Set Seam Teki Score for each door with a seam teki
             for door in map_unit.doors.iter() {
                 let mut door = door.borrow_mut();
-                if let Some(SpawnObject::Teki(_)) = door.seam_spawnpoint {
+                if let Some(SpawnObject::Teki(_)) = *door.seam_spawnpoint {
                     door.seam_teki_score += 5;
                     door.adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_teki_score += 5;
                 }
@@ -1946,7 +1951,7 @@ impl PlacedMapUnit {
                         adjacent_door: None,
                         door_score: Some(0),
                         seam_teki_score: 0,
-                        seam_spawnpoint: None,
+                        seam_spawnpoint: Rc::new(None),
                     }
                 ))
             })
@@ -2003,7 +2008,7 @@ pub struct PlacedDoor {
     pub adjacent_door: Option<Weak<RefCell<PlacedDoor>>>,
     pub door_score: Option<u32>,
     pub seam_teki_score: u32,
-    pub seam_spawnpoint: Option<SpawnObject>,
+    pub seam_spawnpoint: Rc<Option<SpawnObject>>,
 }
 
 impl PlacedDoor {
@@ -2046,7 +2051,6 @@ fn spawn_point_dist(a: &PlacedSpawnPoint, b: &PlacedSpawnPoint) -> f32 {
 pub enum SpawnObject {
     Teki(TekiInfo),
     TekiBunch(Vec<(TekiInfo, (f32, f32, f32))>), // For group 0 enemies. Tuple is displacement from parent spawnpoint.
-    TekiDuplicate, // For opposing seam spawnpoints
     PlantTeki(TekiInfo),
     CapTeki(CapInfo, u32), // Cap Teki, num_spawned
     Item(ItemInfo),

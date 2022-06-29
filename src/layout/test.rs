@@ -1,13 +1,12 @@
 use itertools::Itertools;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
-use regex::Regex;
-use lazy_static::lazy_static;
 use rayon::prelude::*;
 use std::process::Command;
 
-use crate::{caveinfo::force_load_all, layout::boxes_overlap};
-use crate::caveinfo::ALL_SUBLEVELS_MAP;
+use crate::assets::ASSETS;
+use crate::layout::boxes_overlap;
 use crate::layout::Layout;
+use crate::sublevel::Sublevel;
 
 #[test]
 fn test_collision() {
@@ -18,29 +17,32 @@ fn test_collision() {
 fn test_slugs() {
     let num_layouts = 100;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    force_load_all();
+    ASSETS.preload_vanilla_caveinfo()
+        .expect("Failed to load caveinfo!");
+    let all_sublevels = ASSETS.all_sublevels();
 
-    let tests: Vec<(u32, String)> = (0..num_layouts).into_iter()
+    let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
         .map(|_| {
             let seed = rng.gen();
-            let sublevel = ALL_SUBLEVELS_MAP.keys()
+            let sublevel = all_sublevels.iter()
+                .map(|e| e.key().clone())
                 .sorted()
-                .nth(rng.gen_range(0..ALL_SUBLEVELS_MAP.len()))
+                .nth(rng.gen_range(0..all_sublevels.len()))
                 .unwrap()
                 .to_owned();
             (seed, sublevel)
         })
         .collect();
 
-    let results: Vec<(u32, String, bool, String, String)> = tests.into_par_iter()
+    let results: Vec<(u32, Sublevel, bool, String, String)> = tests.into_par_iter()
         .map(|(seed, sublevel)| {
-            let caveripper_slug: String = Layout::generate(seed, ALL_SUBLEVELS_MAP[&sublevel]).slug();
+            let caveripper_slug: String = Layout::generate(seed, all_sublevels.get(&sublevel).unwrap().value()).slug();
 
             let jhawk_cavegen_slug: String = Command::new("java")
                 .arg("-jar")
                 .arg("CaveGen.jar")
                 .arg("cave")
-                .arg(normalize_sublevel(sublevel.as_str()).unwrap_or_else(|| sublevel.to_string()))
+                .arg(sublevel.normalized_name())
                 .arg("-seed")
                 .arg(format!("{:#010X}", seed))
                 .arg("-noImages")
@@ -62,39 +64,10 @@ fn test_slugs() {
             .filter(|(_, _, accurate, _, _)| !*accurate)
             .take(num_samples);
         for (seed, sublevel, _, caveripper_slug, jhawk_cavegen_slug) in inaccurate_samples {
-            println!("Broken sublevel: {} {:#010X}.\nCaveripper: {}\nJhawk's Cavegen: {}.", sublevel, seed, caveripper_slug, jhawk_cavegen_slug);
+            println!("Broken sublevel: {} {:#010X}.\nCaveripper: {}\nJhawk's Cavegen: {}.", sublevel.short_name(), seed, caveripper_slug, jhawk_cavegen_slug);
         }
     }
     println!("Caveripper Accuracy: {:.03}%", accuracy * 100.0);
 
     assert!(accuracy == 1.0, "Accuracy: {:.03}.", accuracy * 100.0);
-}
-
-lazy_static! {
-    static ref SUBLEVEL_ID_RE: Regex = Regex::new(r"([[:alpha:]]{2,5})[_-]?(\d+)").unwrap();
-    static ref CAVES: [&'static str; 42] = [
-        "EC", "SCx", "FC", "HoB", "WFG", "SH", "BK", "CoS", "GK", "SC", "SmC", "SR", "CoC", "DD", "HoH",
-        "AT", "IM", "AD", "GD", "FT", "WF", "GdD", "AS", "SS", "CK", "PoW", "PoM", "EA", "DD",
-        "PP", "BG", "SK", "CwNN", "SnD", "CH", "RH", "SA", "AA", "TC", "ER", "CG", "SD"
-    ];
-}
-
-/// Transforms a non-strict sublevel specifier (e.g. scx1) into the format Cavegen
-/// expects (SCx-1).
-fn normalize_sublevel(raw: &str) -> Option<String> {
-    let captures = SUBLEVEL_ID_RE.captures(raw)?;
-    let cave_name = captures.get(1)?.as_str();
-    let sublevel = captures.get(2)?.as_str();
-
-    let cave_name_normalized = *CAVES
-        .iter()
-        .find(|cave| cave_name.eq_ignore_ascii_case(cave))?;
-
-    // Handle alts
-    let cave_name_normalized = match cave_name_normalized {
-        "SmC" => "SC",
-        _ => cave_name_normalized,
-    };
-
-    Some(format!("{}-{}", cave_name_normalized, sublevel))
 }

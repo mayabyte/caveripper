@@ -5,4 +5,6 @@
 pub mod caveinfo;
 pub mod layout;
 pub mod pikmin_math;
-pub(crate) mod assets;
+pub mod assets;
+pub mod sublevel;
+pub mod errors;

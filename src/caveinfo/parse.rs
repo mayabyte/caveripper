@@ -1,7 +1,6 @@
-use crate::assets::get_enemy_list;
-
 /// Parsing for CaveInfo files
 use super::*;
+use crate::assets::ASSETS;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -17,7 +16,7 @@ use std::str::FromStr;
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
 /// CaveInfo struct, ready for passing to the generator.
-pub(super) fn parse_caveinfo(caveinfo_txt: &str) -> IResult<&str, Vec<[Section; 5]>> {
+pub(crate) fn parse_caveinfo(caveinfo_txt: &str) -> IResult<&str, Vec<[Section; 5]>> {
     // Header section
     let (rest, header_section) = section(caveinfo_txt)?;
     let num_floors: u8 = header_section
@@ -68,8 +67,8 @@ pub(super) fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IR
 
 /// One 'section' enclosed by curly brackets in a CaveInfo file.
 #[derive(Clone, Debug)]
-pub(super) struct Section<'a> {
-    pub lines: Vec<InfoLine<'a>>,
+pub(crate) struct Section<'a> {
+    pub(self) lines: Vec<InfoLine<'a>>,
 }
 
 impl<'a> From<Vec<InfoLine<'a>>> for Section<'a> {
@@ -188,7 +187,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
         let cave_unit_definition_path = format!("assets/units/{}", &cave_unit_definition_file_name);
-        let cave_unit_definition_text = get_file_JIS(&cave_unit_definition_path)
+        let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)
             .ok_or(CaveInfoError::MissingFileError(cave_unit_definition_path))?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
@@ -387,7 +386,7 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let mut spawn_points = match get_file_JIS(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let mut spawn_points = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
             Some(cave_unit_layout_file_txt) => {
                 let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
@@ -510,7 +509,7 @@ fn extract_internal_identifier(
     let mut internal_combined_name = captures.get(2).unwrap().as_str().to_string();
     let mut carrying = None;
 
-    for treasure_name in TREASURES.lock().unwrap().iter() {
+    for treasure_name in ASSETS.enemies.iter() {
         if internal_combined_name.ends_with(&format!("_{}", treasure_name)) {
             internal_combined_name = internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string();
             carrying = Some(treasure_name.to_owned());
@@ -518,7 +517,7 @@ fn extract_internal_identifier(
         }
     }
 
-    if internal_combined_name.starts_with("F") && !get_enemy_list().contains(&internal_combined_name) {
+    if internal_combined_name.starts_with("F") && !ASSETS.enemies.contains(&internal_combined_name.to_ascii_lowercase()) {
         internal_combined_name = internal_combined_name.strip_prefix("F").unwrap().to_string();
     }
 
