@@ -720,12 +720,6 @@ impl LayoutBuilder {
             }
         }
 
-        // return Layout {
-        //     starting_seed: self.starting_seed,
-        //     cave_name: self.cave_name,
-        //     map_units: self.map_units.into_iter().map(|b| *b).collect(),
-        // };
-
         // Recenter the map such that all positions are >= 0
         let min_x = self.map_units.iter().map(|unit| unit.x).min().unwrap();
         let min_z = self.map_units.iter().map(|unit| unit.z).min().unwrap();

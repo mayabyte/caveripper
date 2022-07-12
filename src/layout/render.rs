@@ -110,6 +110,7 @@ pub fn render_layout(layout: &Layout) {
     }
 
     image_buffer.save_with_format("./caveripper_output/layout.png", image::ImageFormat::Png).unwrap();
+    debug!("Done generating layout image.");
 }
 
 // x and z are world coordinates, not image or map unit coordinates
@@ -189,7 +190,7 @@ impl Textured for TekiInfo {
                 ASSETS.get_img(&filename).unwrap()
             },
             None => {
-                let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", &self.internal_name);
+                let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", &self.internal_name.to_ascii_lowercase());
                 ASSETS.get_img(&filename)
                     .expect(&format!("Couldn't find image for {}", self.internal_name))
             }

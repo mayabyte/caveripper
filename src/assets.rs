@@ -1,6 +1,4 @@
 use encoding_rs::SHIFT_JIS;
-use fuzzy_matcher::FuzzyMatcher;
-use fuzzy_matcher::skim::SkimMatcherV2;
 use image::DynamicImage;
 use log::debug;
 use once_cell::sync::Lazy;
@@ -8,7 +6,7 @@ use rust_embed::RustEmbed;
 use dashmap::{DashMap, mapref::one::Ref};
 
 use crate::caveinfo::{CaveInfo, CaveInfoError, FloorInfo, parse::parse_caveinfo};
-use crate::errors::AssetError;
+use crate::errors::{AssetError, SublevelError};
 use crate::sublevel::Sublevel;
 
 #[derive(RustEmbed)]
@@ -94,12 +92,15 @@ impl AssetManager {
         Some(self.txt_cache.get(path)?.clone())
     }
 
-    pub fn get_caveinfo(&self, cave: &str) -> Result<FloorInfo, AssetError> {
-        let sublevel: Sublevel = cave.try_into()?;
+    pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<FloorInfo, AssetError> {
         if !self.caveinfo_cache.contains_key(&sublevel) {
             self.load_caveinfo(&sublevel.cfg)?;
         }
-        Ok(self.caveinfo_cache.get(&sublevel).expect("Caveinfo cache possibly corrupted!").clone())
+        Ok(
+            self.caveinfo_cache.get(&sublevel)
+            .ok_or(SublevelError::UnrecognizedSublevel(sublevel.short_name()))?
+            .clone()
+        )
     }
 
     pub fn get_img(&self, path: &str) -> Option<Ref<String, DynamicImage>> {
@@ -141,19 +142,11 @@ impl AssetManager {
     }
 
     pub(crate) fn find_cave_cfg(&self, name: &str) -> Option<&CaveConfig> {
-        // Check short specifiers first since they're the most common use case.
-        // This is done in its own loop to avoid doing the more expensive matching
-        // if it's not needed.
-        for cfg in self.cave_cfg.iter() {
-            if let Some(_) = cfg.shortened_names.iter().find(|e| name.eq_ignore_ascii_case(e)) {
-                return Some(cfg);
-            }
-        }
-
-        // Attempt to fuzzy match against the full cave name as a backup
-        let matcher = SkimMatcherV2::default().ignore_case();
         self.cave_cfg.iter()
-            .max_by_key(|cfg| matcher.fuzzy_match(&cfg.full_name, name))
+            .find(|cfg| {
+                cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n))
+                || cfg.full_name.eq_ignore_ascii_case(name)
+            })
     }
 
     /// Loads and parses a caveinfo file, then stores the
@@ -182,7 +175,7 @@ impl AssetManager {
 
 /// Metadata about a cave, including its full name, possible shortened names,
 /// and caveinfo filename.
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct CaveConfig {
     pub full_name: String,
     pub shortened_names: Vec<String>,
