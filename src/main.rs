@@ -64,8 +64,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             println!(
-                "Searched {} layouts and found {} ({:.05}%) that match the condition.", 
-                num_to_search, num_matched, num_matched as f32 / num_to_search as f32
+                "Searched {} layouts and found {} ({:.03}%) that match the condition.", 
+                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0
             );
         }
     }

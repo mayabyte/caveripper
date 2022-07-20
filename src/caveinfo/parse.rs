@@ -509,7 +509,7 @@ fn extract_internal_identifier(
     let mut internal_combined_name = captures.get(2).unwrap().as_str().to_string();
     let mut carrying = None;
 
-    for treasure_name in ASSETS.enemies.iter() {
+    for treasure_name in ASSETS.treasures.iter() {
         if internal_combined_name.ends_with(&format!("_{}", treasure_name)) {
             internal_combined_name = internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string();
             carrying = Some(treasure_name.to_owned());

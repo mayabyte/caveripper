@@ -2058,7 +2058,14 @@ impl SpawnObject {
     pub fn name(&self) -> &str {
         match self {
             SpawnObject::Teki(info) => &info.internal_name,
-            _ => "",
+            SpawnObject::TekiBunch(tekis) => &tekis.first().unwrap().0.internal_name,
+            SpawnObject::PlantTeki(info) => &info.internal_name,
+            SpawnObject::CapTeki(info, _) => &info.internal_name,
+            SpawnObject::Item(info) => &info.internal_name,
+            SpawnObject::Gate(_) => "gate",
+            SpawnObject::Hole(_) => "hole",
+            SpawnObject::Geyser => "geyser",
+            SpawnObject::Ship => "ship",
         }
     }
 }

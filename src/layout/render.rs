@@ -320,6 +320,6 @@ impl<'a> Textured for &'a DynamicImage {
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
-        todo!()
+        Vec::new() // TODO
     }
 }
