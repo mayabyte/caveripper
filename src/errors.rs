@@ -63,3 +63,18 @@ impl Display for SeedError {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum SearchConditionError {
+    ParseError,
+}
+
+impl Error for SearchConditionError {}
+
+impl Display for SearchConditionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SearchConditionError::ParseError => write!(f, "Error parsing search condition!"),
+        }
+    }
+}

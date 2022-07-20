@@ -2053,3 +2053,12 @@ pub enum SpawnObject {
     Geyser,
     Ship
 }
+
+impl SpawnObject {
+    pub fn name(&self) -> &str {
+        match self {
+            SpawnObject::Teki(info) => &info.internal_name,
+            _ => "",
+        }
+    }
+}
