@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display};
 use nom::{
     sequence::tuple, 
     character::{
@@ -35,6 +35,21 @@ impl TryFrom<&str> for SearchCondition {
                 })
             },
             _ => panic!("Unrecognized search condition '{}'", kind),
+        }
+    }
+}
+
+impl Display for SearchCondition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self { 
+            SearchCondition::CountEntity { name, relationship, amount } => {
+                let order_char = match relationship {
+                    Ordering::Less => '<',
+                    Ordering::Equal => '=',
+                    Ordering::Greater => '>'
+                };
+                write!(f, "count {} {} {}", name, order_char, amount)
+            }
         }
     }
 }

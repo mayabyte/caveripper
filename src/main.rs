@@ -3,7 +3,9 @@ mod cli;
 use cavegen::search::SearchCondition;
 use cli::{Cli, Commands};
 use clap::Parser;
+use indicatif::ParallelProgressIterator;
 use rand::prelude::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::error::Error;
 use cavegen::assets::ASSETS;
 use cavegen::layout::Layout;
@@ -47,25 +49,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         Commands::Stats { sublevel, condition, num_to_search } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-            let mut num_matched = 0;
-            for _ in 0..num_to_search {
-                let seed: u32 = random();
-                let layout = Layout::generate(seed, &caveinfo);
-                match &condition { 
-                    SearchCondition::CountEntity{ name, relationship, amount } => {
-                        let entity_count = layout.map_units.iter()
-                            .flat_map(|unit| unit.spawnpoints.iter().filter_map(|sp| sp.contains.as_ref()))
-                            .filter(|entity| entity.name() == name)
-                            .count();
-                        if &entity_count.cmp(&amount) == relationship {
-                            num_matched += 1;
+            let num_matched = (0..num_to_search).into_par_iter()
+                .progress()
+                .filter(|_| {
+                    let seed: u32 = random();
+                    let layout = Layout::generate(seed, &caveinfo);
+                    match &condition { 
+                        SearchCondition::CountEntity{ name, relationship, amount } => {
+                            let entity_count = layout.map_units.iter()
+                                .flat_map(|unit| unit.spawnpoints.iter().filter_map(|sp| sp.contains.as_ref()))
+                                .filter(|entity| entity.name() == name)
+                                .count();
+                            &entity_count.cmp(&amount) == relationship
                         }
                     }
-                }
-            }
+                })
+                .count();
             println!(
-                "Searched {} layouts and found {} ({:.03}%) that match the condition.", 
-                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0
+                "Searched {} layouts and found {} ({:.03}%) that match the condition '{}'.", 
+                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &condition
             );
         }
     }
