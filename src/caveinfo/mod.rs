@@ -8,24 +8,14 @@
 /// For info on the CaveInfo file format, see
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
 
-mod caveinfoerror;
-pub mod parse;
+mod util;
+mod parse;
 
-pub use caveinfoerror::CaveInfoError;
+use std::cmp::Ordering;
+use nom::Finish;
+use parse::parse_caveinfo;
 
-use itertools::Itertools;
-use once_cell::sync::Lazy;
-use regex::Regex;
-use std::{cmp::Ordering, convert::{TryFrom, TryInto}};
-
-
-/// Contains FloorInfo for each sublevel in an entire cave.
-/// This struct isn't used much; see FloorInfo for all the interesting parts.
-#[derive(Debug, Clone)]
-pub struct CaveInfo {
-    pub num_floors: u32,
-    pub floors: Vec<FloorInfo>,
-}
+use crate::errors::CaveInfoError;
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -34,7 +24,7 @@ pub struct CaveInfo {
 /// Essentially, this is the entire collection of information required to
 /// generate one sublevel.
 #[derive(Debug, Clone)]
-pub struct FloorInfo {
+pub struct CaveInfo {
     pub cave_name: Option<String>,  // Not part of the CaveInfo file, just for debugging and logging purposes.
     pub sublevel: u32, // 0-indexed
     pub max_main_objects: u32,
@@ -53,7 +43,7 @@ pub struct FloorInfo {
     pub is_final_floor: bool,
 }
 
-impl FloorInfo {
+impl CaveInfo {
     /// Return all teki in a particular spawn group.
     pub fn teki_group(&self, group: u32) -> impl Iterator<Item=&TekiInfo> {
         self.teki_info.iter().filter(move |teki| teki.group == group)
@@ -69,6 +59,19 @@ impl FloorInfo {
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
         format!("{}", self.cave_name.as_ref().expect("No cave name found!"))
+    }
+
+    pub fn parse_from(caveinfo_txt: &str) -> Result<Vec<CaveInfo>, CaveInfoError> {
+        let floor_chunks = parse_caveinfo(&caveinfo_txt)
+            .finish()
+            .map_err(|e| CaveInfoError::ParseFileError(e.to_string()))?
+            .1;
+        let mut floors = floor_chunks
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<CaveInfo>, _>>()?;
+        floors.last_mut().unwrap().is_final_floor = true;
+        Ok(floors)
     }
 }
 
@@ -226,37 +229,6 @@ impl CaveUnit {
     pub fn has_start_spawnpoint(&self) -> bool {
         self.spawn_points.iter().any(|spawn_point| spawn_point.group == 7)
     }
-}
-
-/// The sorting algorithm required by the generation algorithm for cave units.
-/// This sort is unstable! Despite being essentially a bubble sort, I've
-/// implemented it manually here to ensure it exactly matches the one in Pikmin 2.
-fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
-    // This is kinda like Bubble Sort, except it compares the entire
-    // remaining list to the current element rather than just the next elem.
-    let mut i = 0;
-    while i < unsorted.len() {
-        let mut j = i+1;
-        while j < unsorted.len() {
-            if unsorted[i] > unsorted[j] {
-                let current = unsorted.remove(i);
-                unsorted.push(current);
-                i -= 1;
-                break;
-            }
-            j += 1;
-        }
-        i += 1;
-    }
-    unsorted
-}
-
-/// Takes a Vec of CaveUnits and returns a vec with the same cave units, but
-/// duplicated for each possible rotation.
-fn expand_rotations(input: Vec<CaveUnit>) -> Vec<CaveUnit> {
-    input.into_iter()
-        .flat_map(|unit| [unit.copy_and_rotate_to(0), unit.copy_and_rotate_to(1), unit.copy_and_rotate_to(2), unit.copy_and_rotate_to(3)])
-        .collect()
 }
 
 

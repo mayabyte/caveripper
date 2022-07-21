@@ -5,8 +5,8 @@ use once_cell::sync::Lazy;
 use rust_embed::RustEmbed;
 use dashmap::{DashMap, mapref::one::Ref};
 
-use crate::caveinfo::{CaveInfo, CaveInfoError, FloorInfo, parse::parse_caveinfo};
-use crate::errors::{AssetError, SublevelError};
+use crate::caveinfo::CaveInfo;
+use crate::errors::{AssetError, SublevelError, CaveInfoError};
 use crate::sublevel::Sublevel;
 
 #[derive(RustEmbed)]
@@ -23,7 +23,7 @@ pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new());
 
 pub struct AssetManager {
     txt_cache: DashMap<String, String>,
-    caveinfo_cache: DashMap<Sublevel, FloorInfo>,
+    caveinfo_cache: DashMap<Sublevel, CaveInfo>,
     img_cache: DashMap<String, DynamicImage>,
     custom_img_cache: DashMap<String, DynamicImage>,
     pub treasures: Vec<String>,
@@ -92,7 +92,7 @@ impl AssetManager {
         Some(self.txt_cache.get(path)?.clone())
     }
 
-    pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<FloorInfo, AssetError> {
+    pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<CaveInfo, AssetError> {
         if !self.caveinfo_cache.contains_key(&sublevel) {
             self.load_caveinfo(&sublevel.cfg)?;
         }
@@ -137,7 +137,7 @@ impl AssetManager {
 
     /// Clones the sublevel cache and returns it.
     /// Most useful for testing.
-    pub fn all_sublevels(&self) -> DashMap<Sublevel, FloorInfo> {
+    pub fn all_sublevels(&self) -> DashMap<Sublevel, CaveInfo> {
         self.caveinfo_cache.clone()
     }
 
@@ -156,16 +156,12 @@ impl AssetManager {
         let caveinfo_filename = format!("assets/caveinfo/{}", cave.caveinfo_filename);
         let caveinfo_txt = self.get_txt_file(&caveinfo_filename)
             .ok_or_else(|| CaveInfoError::MissingFileError(caveinfo_filename.clone()))?;
-        let floor_chunks = parse_caveinfo(&caveinfo_txt)
-            .map_err(|_| CaveInfoError::ParseFileError(caveinfo_filename.clone()))?
-            .1;
-    
-        let result = CaveInfo::try_from(floor_chunks)?;
-        for mut floorinfo in result.floors.into_iter() {
-            let sublevel = Sublevel::from_cfg(cave, (floorinfo.sublevel+1) as usize);
-            floorinfo.cave_name = Some(sublevel.normalized_name());
+        let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
+        for mut caveinfo in caveinfos.into_iter() {
+            let sublevel = Sublevel::from_cfg(cave, (caveinfo.sublevel+1) as usize);
+            caveinfo.cave_name = Some(sublevel.normalized_name());
             if !self.caveinfo_cache.contains_key(&sublevel) {
-                self.caveinfo_cache.insert(sublevel, floorinfo);
+                self.caveinfo_cache.insert(sublevel, caveinfo);
             }
         }
 

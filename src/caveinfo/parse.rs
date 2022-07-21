@@ -1,6 +1,13 @@
 /// Parsing for CaveInfo files
-use super::*;
-use crate::assets::ASSETS;
+use crate::{
+    caveinfo::{
+        util::{expand_rotations, sort_cave_units},
+        CaveInfo, TekiInfo, ItemInfo, CapInfo, GateInfo,
+        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
+    },
+    errors::CaveInfoError,
+    assets::ASSETS,
+};
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -12,6 +19,9 @@ use nom::{
     sequence::{delimited, preceded, tuple},
     IResult,
 };
+use itertools::Itertools;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::str::FromStr;
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
@@ -165,23 +175,9 @@ fn skip_lines(input: &str, skip: usize) -> IResult<&str, ()> {
 //    Parsing Sections into main CaveInfo structs
 // **************************************************
 
-impl TryFrom<Vec<[Section<'_>; 5]>> for CaveInfo {
+impl TryFrom<[Section<'_>; 5]> for CaveInfo {
     type Error = CaveInfoError;
-    fn try_from(raw_sections: Vec<[parse::Section<'_>; 5]>) -> Result<CaveInfo, CaveInfoError> {
-        let num_floors = raw_sections.len() as u32;
-        let mut floors = raw_sections
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<Vec<FloorInfo>, _>>()?;
-        floors.last_mut().unwrap().is_final_floor = true;
-
-        Ok(CaveInfo{ num_floors, floors })
-    }
-}
-
-impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
-    type Error = CaveInfoError;
-    fn try_from(raw_sections: [parse::Section<'_>; 5]) -> Result<FloorInfo, CaveInfoError> {
+    fn try_from(raw_sections: [Section<'_>; 5]) -> Result<CaveInfo, CaveInfoError> {
         let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
             raw_sections;
 
@@ -192,7 +188,7 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
 
-        Ok(FloorInfo {
+        Ok(CaveInfo {
             cave_name: None,
             sublevel: floorinfo_section.get_tag("000")?,
             max_main_objects: floorinfo_section.get_tag("002")?,
@@ -220,9 +216,9 @@ impl TryFrom<[parse::Section<'_>; 5]> for FloorInfo {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
+impl TryFrom<Section<'_>> for Vec<TekiInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<Vec<TekiInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<TekiInfo>, CaveInfoError> {
         section
             .lines
             .iter()
@@ -268,9 +264,9 @@ impl TryFrom<parse::Section<'_>> for Vec<TekiInfo> {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for Vec<ItemInfo> {
+impl TryFrom<Section<'_>> for Vec<ItemInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<Vec<ItemInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<ItemInfo>, CaveInfoError> {
         section
             .lines
             .iter()
@@ -289,9 +285,9 @@ impl TryFrom<parse::Section<'_>> for Vec<ItemInfo> {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for Vec<GateInfo> {
+impl TryFrom<Section<'_>> for Vec<GateInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<Vec<GateInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<GateInfo>, CaveInfoError> {
         section
             .lines
             .iter()
@@ -316,11 +312,11 @@ impl TryFrom<parse::Section<'_>> for Vec<GateInfo> {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
+impl TryFrom<Section<'_>> for Vec<CapInfo> {
     /// Almost an exact duplicate of the code for TekiInfo, which is unfortunately
     /// necessary with how the code is currently structured. May refactor in the future.
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<Vec<CapInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<CapInfo>, CaveInfoError> {
         section
             .lines
             .iter()
@@ -357,9 +353,9 @@ impl TryFrom<parse::Section<'_>> for Vec<CapInfo> {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for CaveUnit {
+impl TryFrom<Section<'_>> for CaveUnit {
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<CaveUnit, CaveInfoError> {
+    fn try_from(section: Section) -> Result<CaveUnit, CaveInfoError> {
         let unit_folder_name = section.get_line(1)?.get_line_item(0)?.to_string();
         let width = section.get_line(2)?.get_line_item(0)?.parse()?;
         let height = section.get_line(2)?.get_line_item(1)?.parse()?;
@@ -376,7 +372,7 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
             section.lines[6..]
                 .chunks(num_lines_per_door_unit)
                 .map(
-                    |doorunit_lines: &[parse::InfoLine]| -> Result<DoorUnit, CaveInfoError> {
+                    |doorunit_lines: &[InfoLine]| -> Result<DoorUnit, CaveInfoError> {
                         doorunit_lines.try_into()
                     },
                 )
@@ -428,9 +424,9 @@ impl TryFrom<parse::Section<'_>> for CaveUnit {
     }
 }
 
-impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
+impl TryFrom<&[InfoLine<'_>]> for DoorUnit {
     type Error = CaveInfoError;
-    fn try_from(lines: &[parse::InfoLine]) -> Result<DoorUnit, CaveInfoError> {
+    fn try_from(lines: &[InfoLine]) -> Result<DoorUnit, CaveInfoError> {
         let direction = lines[1].get_line_item(0)?.parse()?;
         let side_lateral_offset = lines[1].get_line_item(1)?.parse()?;
         let waypoint_index = lines[1].get_line_item(2)?.parse()?;
@@ -449,9 +445,9 @@ impl TryFrom<&[parse::InfoLine<'_>]> for DoorUnit {
     }
 }
 
-impl TryFrom<&parse::InfoLine<'_>> for DoorLink {
+impl TryFrom<&InfoLine<'_>> for DoorLink {
     type Error = CaveInfoError;
-    fn try_from(line: &parse::InfoLine) -> Result<DoorLink, CaveInfoError> {
+    fn try_from(line: &InfoLine) -> Result<DoorLink, CaveInfoError> {
         let distance = line.get_line_item(0)?.parse()?;
         let door_id = line.get_line_item(1)?.parse()?;
         let tekiflag = line.get_line_item(2)?.parse::<u8>()? > 0;
@@ -463,9 +459,9 @@ impl TryFrom<&parse::InfoLine<'_>> for DoorLink {
     }
 }
 
-impl TryFrom<parse::Section<'_>> for SpawnPoint {
+impl TryFrom<Section<'_>> for SpawnPoint {
     type Error = CaveInfoError;
-    fn try_from(section: parse::Section) -> Result<SpawnPoint, Self::Error> {
+    fn try_from(section: Section) -> Result<SpawnPoint, Self::Error> {
         Ok(
             SpawnPoint {
                 group: section.get_line(0)?.get_line_item(0)?.parse()?,

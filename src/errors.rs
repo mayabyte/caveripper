@@ -1,5 +1,4 @@
-use std::{error::Error, fmt::Display};
-use crate::caveinfo::CaveInfoError;
+use std::{error::Error, fmt::{Display, Formatter, Debug}, num::{ParseIntError, ParseFloatError}};
 
 #[derive(Debug)]
 pub enum SublevelError {
@@ -76,5 +75,38 @@ impl Display for SearchConditionError {
         match self {
             SearchConditionError::ParseError => write!(f, "Error parsing search condition!"),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum CaveInfoError {
+    InvalidSublevel(String),
+    MalformedLine,
+    ParseValueError,
+    NoSuchTag(String),
+    MalformedTagLine(String),
+    FileReadError(String),
+    MissingFileError(String),
+    ParseFileError(String),
+}
+
+impl Error for CaveInfoError {}
+
+impl Display for CaveInfoError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Doesn't need to be pretty
+        Debug::fmt(self, f)
+    }
+}
+
+impl From<ParseIntError> for CaveInfoError {
+    fn from(_: ParseIntError) -> CaveInfoError {
+        CaveInfoError::ParseValueError
+    }
+}
+
+impl From<ParseFloatError> for CaveInfoError {
+    fn from(_: ParseFloatError) -> CaveInfoError {
+        CaveInfoError::ParseValueError
     }
 }
