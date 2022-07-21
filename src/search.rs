@@ -7,12 +7,26 @@ use nom::{
     branch::alt, bytes::complete::tag, multi::many1, combinator::recognize, IResult
 };
 
-use crate::errors::SearchConditionError;
+use crate::{errors::SearchConditionError, layout::Layout};
 
 /// Programmatically defined conditions to search for in a sublevel
 #[derive(Clone, Debug)]
 pub enum SearchCondition {
     CountEntity{ name: String, relationship: Ordering, amount: usize },
+}
+
+impl SearchCondition {
+    pub fn matches(&self, layout: &Layout) -> bool {
+        match self { 
+            SearchCondition::CountEntity{ name, relationship, amount } => {
+                let entity_count = layout.map_units.iter()
+                    .flat_map(|unit| unit.spawnpoints.iter().filter_map(|sp| sp.contains.as_ref()))
+                    .filter(|entity| entity.name().eq_ignore_ascii_case(name))
+                    .count();
+                &entity_count.cmp(&amount) == relationship
+            }
+        }
+    }
 }
 
 impl TryFrom<&str> for SearchCondition {

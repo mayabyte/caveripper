@@ -1,6 +1,6 @@
 target/
 *.class
-caveripper_output/*
+output/*
 assets/
 *.iso
 .vscode

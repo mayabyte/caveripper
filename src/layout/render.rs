@@ -109,8 +109,10 @@ pub fn render_layout(layout: &Layout) {
         }
     }
 
-    image_buffer.save_with_format("./caveripper_output/layout.png", image::ImageFormat::Png).unwrap();
-    debug!("Done generating layout image.");
+    let _ = std::fs::create_dir("./output");
+    let filename = format!("./output/{}_{:#10X}.png", layout.cave_name, layout.starting_seed);
+    image_buffer.save_with_format(&filename, image::ImageFormat::Png).unwrap();
+    println!("🍞 Saved layout image as \"{}\"", filename);
 }
 
 // x and z are world coordinates, not image or map unit coordinates
