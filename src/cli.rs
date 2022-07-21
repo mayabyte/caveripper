@@ -35,6 +35,17 @@ pub enum Commands {
         seed: u32,
     },
 
+    #[clap(
+        arg_required_else_help = true,
+    )]
+    Caveinfo {
+        #[clap(
+            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
+            help = SUBLEVEL_HELP,
+        )]
+        sublevel: Sublevel,
+    },
+
     /// Search for a seed matching a specified condition.
     #[clap(
         arg_required_else_help = true,

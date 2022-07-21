@@ -11,7 +11,7 @@
 mod util;
 mod parse;
 
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::{Display, Formatter}};
 use nom::Finish;
 use parse::parse_caveinfo;
 
@@ -72,6 +72,62 @@ impl CaveInfo {
             .collect::<Result<Vec<CaveInfo>, _>>()?;
         floors.last_mut().unwrap().is_final_floor = true;
         Ok(floors)
+    }
+}
+
+impl Display for CaveInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f, "NumRooms: {}\tNumGates: {}\tCorridorBetweenRoomsProb: {}%\tCapVsHallProb: {}%", 
+            self.num_rooms, self.max_gates, self.corridor_probability * 100.0, self.cap_probability * 100.0
+        )?;
+
+        if !self.is_final_floor {
+            if self.exit_plugged {
+                write!(f, "Exit plugged. ")?;
+            }
+            if self.has_geyser {
+                write!(f, "Has geyser. ")?;
+            }
+            if self.exit_plugged || self.has_geyser {
+                writeln!(f)?;
+            }
+        }
+
+        writeln!(f, "Teki (max {}):", self.max_main_objects)?;
+        for tekiinfo in self.teki_info.iter() {
+            write!(f, "\t{} (group: {}, num: {}", tekiinfo.internal_name, tekiinfo.group, tekiinfo.minimum_amount)?;
+            if tekiinfo.filler_distribution_weight > 0 {
+                write!(f, ", weight: {}", tekiinfo.filler_distribution_weight)?;
+            }
+            if let Some(spawn_method) = &tekiinfo.spawn_method {
+                write!(f, ", spawn method: {}", spawn_method)?;
+            }
+            write!(f, ")")?;
+            if let Some(carrying) = &tekiinfo.carrying {
+                write!(f, " Carrying: {}", carrying)?;
+            }
+            writeln!(f)?;
+        }
+
+        writeln!(f, "Treasures:")?;
+        for (i, iteminfo) in self.item_info.iter().enumerate() {
+            writeln!(f, "\t{}: {}", i+1, iteminfo.internal_name)?;
+        }
+
+        writeln!(f, "Cap Teki:")?;
+        for (i, capinfo) in self.cap_info.iter().enumerate() {
+            write!(f, "\t{}: {} (num: {}", i+1, capinfo.internal_name, capinfo.minimum_amount)?;
+            if capinfo.filler_distribution_weight > 0 {
+                write!(f, ", weight: {}", capinfo.filler_distribution_weight)?;
+            }
+            if let Some(spawn_method) = &capinfo.spawn_method {
+                write!(f, ", spawn method: {}", spawn_method)?;
+            }
+            writeln!(f, ")")?;
+        }
+
+        Ok(())
     }
 }
 

@@ -40,6 +40,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             let layout = Layout::generate(seed, &caveinfo);
             render_layout(&layout);
         },
+        Commands::Caveinfo { sublevel } => {
+            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
+            println!("Caveinfo for {}:\n{}", sublevel.short_name(), caveinfo);
+        },
         Commands::Search{ sublevel, condition, timeout } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
 
