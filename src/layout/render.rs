@@ -61,6 +61,9 @@ pub fn render_layout(layout: &Layout) {
                 SpawnObject::Item(iteminfo) => {
                     draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE);
                 },
+                SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
+                    draw_object_at(&mut image_buffer, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, 0.9);
+                }
                 _ => {
                     draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0);
                 },
