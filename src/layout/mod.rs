@@ -26,6 +26,12 @@ impl Layout {
         LayoutBuilder::generate(seed, caveinfo)
     }
 
+    pub fn get_spawn_objects(&self) -> impl Iterator<Item=&SpawnObject> {
+        self.map_units.iter()
+            .flat_map(|unit| unit.spawnpoints.iter())
+            .filter_map(|spawnpoint| spawnpoint.contains.as_ref())
+    }
+
     /// A unique structured string describing this layout.
     /// The general structure is as follows:
     /// <sublevel name>;<0xAAAAAAAA>;<map units list>;<all spawn object list>
@@ -50,16 +56,16 @@ impl Layout {
 
         let mut spawn_object_slugs = Vec::new();
         for map_unit in self.map_units.iter() {
-            for spawn_point in map_unit.spawnpoints.iter() {
-                if let Some(spawn_object) = spawn_point.contains.as_ref() {
+            for spawnpoint in map_unit.spawnpoints.iter() {
+                if let Some(spawn_object) = spawnpoint.contains.as_ref() {
                     match &spawn_object {
                         SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 tekiinfo.internal_name,
                                 tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                 tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::TekiBunch(tekiinfo_list) => {
@@ -68,8 +74,8 @@ impl Layout {
                                     tekiinfo.internal_name,
                                     tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                     tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                    (spawn_point.x + dx) as i32,
-                                    (spawn_point.z + dz) as i32,
+                                    (spawnpoint.x + dx) as i32,
+                                    (spawnpoint.z + dz) as i32,
                                 ));
                             }
                         },
@@ -78,45 +84,45 @@ impl Layout {
                                 capinfo.internal_name,
                                 capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                 capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::Item(iteminfo) => {
                             spawn_object_slugs.push(format!("{},x{}z{};",
                                 iteminfo.internal_name,
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::Hole(_) => {
                             spawn_object_slugs.push(format!("hole,x{}z{};",
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::Geyser => {
                             spawn_object_slugs.push(format!("geyser,x{}z{};",
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::Ship => {
                             spawn_object_slugs.push(format!("ship,x{}z{};",
-                                spawn_point.x as i32,
-                                spawn_point.z as i32,
+                                spawnpoint.x as i32,
+                                spawnpoint.z as i32,
                             ));
                         },
                         SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
                     }
                 }
-                if let Some(SpawnObject::CapTeki(capinfo, _)) = &spawn_point.falling_cap_teki {
+                if let Some(SpawnObject::CapTeki(capinfo, _)) = &spawnpoint.falling_cap_teki {
                     spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                         capinfo.internal_name,
                         capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                         capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                        spawn_point.x as i32,
-                        spawn_point.z as i32,
+                        spawnpoint.x as i32,
+                        spawnpoint.z as i32,
                     ));
                 }
             }
@@ -199,7 +205,7 @@ impl PlacedMapUnit {
             })
             .collect();
 
-        let spawnpoints = unit.spawn_points.iter()
+        let spawnpoints = unit.spawnpoints.iter()
             .map(|sp| {
                 // Make spawn point coordinates global rather than relative to their parent room
                 let base_x = (x as f32 + (unit.width as f32 / 2.0)) * 170.0;

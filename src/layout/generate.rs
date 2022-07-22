@@ -575,9 +575,9 @@ impl LayoutBuilder {
         for map_unit in self.map_units.iter_mut() {
             map_unit.x = map_unit.x - min_x;
             map_unit.z = map_unit.z - min_z;
-            for spawn_point in map_unit.spawnpoints.iter_mut() {
-                spawn_point.x -= (min_x as f32) * 170.0;
-                spawn_point.z -= (min_z as f32) * 170.0;
+            for spawnpoint in map_unit.spawnpoints.iter_mut() {
+                spawnpoint.x -= (min_x as f32) * 170.0;
+                spawnpoint.z -= (min_z as f32) * 170.0;
             }
             for door in map_unit.doors.iter_mut() {
                 let mut door = door.borrow_mut();
@@ -614,8 +614,8 @@ impl LayoutBuilder {
             for num_spawned in 0..self.allocated_enemy_slots_by_group[5] {
                 // Choose a random empty door.
                 // Excludes Cap doors; the corresponding room/hallway door is used instead.
-                let mut spawn_points: Vec<Rc<RefCell<PlacedDoor>>> = Vec::new();
-                let mut spawn_point_weights: Vec<u32> = Vec::new();
+                let mut spawnpoints: Vec<Rc<RefCell<PlacedDoor>>> = Vec::new();
+                let mut spawnpoint_weights: Vec<u32> = Vec::new();
 
                 for map_unit in self.map_units.iter_mut() {
                     if map_unit.unit.room_type == RoomType::DeadEnd {
@@ -625,19 +625,19 @@ impl LayoutBuilder {
                         if door.borrow().seam_spawnpoint.is_some() {
                             continue;
                         }
-                        spawn_points.push(door.clone());
+                        spawnpoints.push(door.clone());
                         match map_unit.unit.room_type {
-                            RoomType::Room => spawn_point_weights.push(100),
-                            RoomType::Hallway => spawn_point_weights.push(1),
+                            RoomType::Room => spawnpoint_weights.push(100),
+                            RoomType::Hallway => spawnpoint_weights.push(1),
                             _ => unreachable!(),
                         }
                     }
                 }
 
                 // Choose a spot from the available ones to spawn at.
-                // Note: this *should not* hit RNG if spawn_points has zero elements.
-                let chosen_spot = if spawn_points.len() > 0 {
-                    Some(&spawn_points[self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()])
+                // Note: this *should not* hit RNG if spawnpoints has zero elements.
+                let chosen_spot = if spawnpoints.len() > 0 {
+                    Some(&spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()])
                 }
                 else {
                     None
@@ -669,23 +669,23 @@ impl LayoutBuilder {
         // Place 'special enemies', AKA Enemy Group 8
         {
             // Valid spawn points are >=300 units away from the ship, and >=150 units away from the hole or geyser.
-            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
-                .filter(|spawn_point| {
-                    spawn_point.spawnpoint_unit.group == 8
-                    && spawn_point.contains.is_none()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawn_point) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawn_point) >= 150.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawn_point) >= 150.0).unwrap_or(true)
+                .filter(|spawnpoint| {
+                    spawnpoint.spawnpoint_unit.group == 8
+                    && spawnpoint.contains.is_none()
+                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 150.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 150.0).unwrap_or(true)
                 })
                 .collect();
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[8] {
-                // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot = if spawn_points.len() > 0 {
-                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some(spawn_points.remove(idx))
+                // Note: this *should not* hit RNG if spawnpoints is empty.
+                let chosen_spot = if spawnpoints.len() > 0 {
+                    let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
+                    Some(spawnpoints.remove(idx))
                 }
                 else {
                     None
@@ -713,23 +713,23 @@ impl LayoutBuilder {
         // Place 'hard enemies', AKA Enemy Group 1
         {
             // Valid spawn points are >=300 units away from the ship, and >=200 units away from the hole or geyser.
-            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
-                .filter(|spawn_point| {
-                    spawn_point.spawnpoint_unit.group == 1
-                    && spawn_point.contains.is_none()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawn_point) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawn_point) >= 200.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawn_point) >= 200.0).unwrap_or(true)
+                .filter(|spawnpoint| {
+                    spawnpoint.spawnpoint_unit.group == 1
+                    && spawnpoint.contains.is_none()
+                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 200.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 200.0).unwrap_or(true)
                 })
                 .collect();
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[1] {
-                // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot = if spawn_points.len() > 0 {
-                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some(spawn_points.remove(idx))
+                // Note: this *should not* hit RNG if spawnpoints is empty.
+                let chosen_spot = if spawnpoints.len() > 0 {
+                    let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
+                    Some(spawnpoints.remove(idx))
                 }
                 else {
                     None
@@ -757,13 +757,13 @@ impl LayoutBuilder {
         // Place 'easy enemies', AKA Enemy Group 0
         {
             // Valid spawn points are >=300 units away from the ship.
-            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
-                .filter(|spawn_point| {
-                    spawn_point.spawnpoint_unit.group == 0
-                    && spawn_point.contains.is_none()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawn_point) >= 300.0
+                .filter(|spawnpoint| {
+                    spawnpoint.spawnpoint_unit.group == 0
+                    && spawnpoint.contains.is_none()
+                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
                 })
                 .collect();
 
@@ -774,12 +774,12 @@ impl LayoutBuilder {
                 let mut max_num = 0;
                 let num_to_spawn;
 
-                // Note: this *should not* hit RNG if spawn_points is empty.
-                let chosen_spot = if spawn_points.len() > 0 {
-                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    min_num = spawn_points[idx].spawnpoint_unit.min_num;
-                    max_num = spawn_points[idx].spawnpoint_unit.max_num;
-                    Some(spawn_points.remove(idx))
+                // Note: this *should not* hit RNG if spawnpoints is empty.
+                let chosen_spot = if spawnpoints.len() > 0 {
+                    let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
+                    min_num = spawnpoints[idx].spawnpoint_unit.min_num;
+                    max_num = spawnpoints[idx].spawnpoint_unit.max_num;
+                    Some(spawnpoints.remove(idx))
                 }
                 else {
                     None
@@ -886,11 +886,11 @@ impl LayoutBuilder {
         // N.B. when people say "plants can contribute to score", they mean when plant teki
         // are spwaned in groups other than 6. Group 6 does not affect score.
         {
-            let mut spawn_points: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
-                .filter(|spawn_point| {
-                    spawn_point.spawnpoint_unit.group == 6
-                    && spawn_point.contains.is_none()
+                .filter(|spawnpoint| {
+                    spawnpoint.spawnpoint_unit.group == 6
+                    && spawnpoint.contains.is_none()
                 })
                 .collect();
 
@@ -898,9 +898,9 @@ impl LayoutBuilder {
                 .map(|teki| teki.minimum_amount)
                 .sum();
             for num_spawned in 0..min_sum {
-                let chosen_spot = if spawn_points.len() > 0 {
-                    let idx = self.rng.rand_int(spawn_points.len() as u32) as usize;
-                    Some(spawn_points.remove(idx))
+                let chosen_spot = if spawnpoints.len() > 0 {
+                    let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
+                    Some(spawnpoints.remove(idx))
                 }
                 else {
                     None
@@ -929,8 +929,8 @@ impl LayoutBuilder {
         // Place Items, a.k.a. Treasures.
         {
             for num_spawned in 0..caveinfo.max_treasures {
-                let mut spawn_points: Vec<&mut PlacedSpawnPoint> = Vec::new();
-                let mut spawn_point_weights: Vec<u32> = Vec::new();
+                let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
+                let mut spawnpoint_weights: Vec<u32> = Vec::new();
 
                 // Find all possible spawn points, plus an 'effective treasure score' for each.
                 for map_unit in self.map_units.iter_mut() {
@@ -951,8 +951,8 @@ impl LayoutBuilder {
 
                             let effective_treasure_score = (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32;
                             spawnpoint.treasure_score = effective_treasure_score;
-                            spawn_points.push(spawnpoint);
-                            spawn_point_weights.push(effective_treasure_score);
+                            spawnpoints.push(spawnpoint);
+                            spawnpoint_weights.push(effective_treasure_score);
                         }
                     }
                     else if map_unit.unit.unit_folder_name.contains("item") {
@@ -965,21 +965,21 @@ impl LayoutBuilder {
 
                         let effective_treasure_score = 1 + map_unit.total_score;
                         spawnpoint.treasure_score = effective_treasure_score;
-                        spawn_points.push(spawnpoint);
-                        spawn_point_weights.push(effective_treasure_score);
+                        spawnpoints.push(spawnpoint);
+                        spawnpoint_weights.push(effective_treasure_score);
                     }
                 }
 
                 // Choose which spot to spawn the treasure at
                 let mut chosen_spot = None;
-                if spawn_points.len() > 0 {
-                    let max_weight = spawn_point_weights.iter().max().unwrap().clone();
-                    let mut max_spawn_points: Vec<_> = spawn_points.iter_mut()
-                        .zip(spawn_point_weights)
+                if spawnpoints.len() > 0 {
+                    let max_weight = spawnpoint_weights.iter().max().unwrap().clone();
+                    let mut max_spawnpoints: Vec<_> = spawnpoints.iter_mut()
+                        .zip(spawnpoint_weights)
                         .filter(|(_, w)| *w == max_weight)
                         .map(|(sp, _)| sp)
                         .collect();
-                    chosen_spot = Some(max_spawn_points.remove(self.rng.rand_int(max_spawn_points.len() as u32) as usize));
+                    chosen_spot = Some(max_spawnpoints.remove(self.rng.rand_int(max_spawnpoints.len() as u32) as usize));
                 }
 
                 // Choose which treasure to spawn.
@@ -1003,17 +1003,17 @@ impl LayoutBuilder {
                     continue;
                 }
 
-                let mut spawn_point = map_unit.spawnpoints.iter_mut()
+                let mut spawnpoint = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                if spawn_point.contains.is_some() {
+                if spawnpoint.contains.is_some() {
                     continue;
                 }
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, false) {
-                    spawn_point.contains = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.contains = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
-                    debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
+                    debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
             }
 
@@ -1024,19 +1024,19 @@ impl LayoutBuilder {
                     continue;
                 }
 
-                let mut spawn_point = map_unit.spawnpoints.iter_mut()
+                let mut spawnpoint = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                match spawn_point.contains.clone() {
+                match spawnpoint.contains.clone() {
                     Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() || teki.is_falling() => continue,
                     Some(SpawnObject::Hole(_) | SpawnObject::Geyser) => continue,
                     _ => {/* otherwise it's fine to spawn. */}
                 }
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
-                    spawn_point.falling_cap_teki = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.falling_cap_teki = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
-                    debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawn_point.x, spawn_point.z);
+                    debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
             }
         }
@@ -1210,7 +1210,7 @@ impl LayoutBuilder {
 
     fn place_hole(&mut self, to_place: SpawnObject) {
         // Get a list of applicable spawn points (group 4 or 9)
-        let mut hole_spawn_points: Vec<&mut PlacedSpawnPoint> = Vec::new();
+        let mut hole_spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
         
         // We need to do this because the compiler cannot figure out that the borrows from 
         // self.map_units are never overlapping.
@@ -1221,7 +1221,7 @@ impl LayoutBuilder {
 
         for (unit_type, unit_type_iter) in [(RoomType::Room, &mut rooms), (RoomType::DeadEnd, &mut caps), (RoomType::Hallway, &mut hallways)] {
             // Only use hallway spawn points if there are zero other available locations.
-            if unit_type == RoomType::Hallway && hole_spawn_points.len() > 0 {
+            if unit_type == RoomType::Hallway && hole_spawnpoints.len() > 0 {
                 continue;
             }
 
@@ -1237,28 +1237,28 @@ impl LayoutBuilder {
                 //     .unwrap_or_default();
                 let score = unit.total_score;
 
-                for mut spawn_point in unit.spawnpoints.iter_mut() {
-                    if spawn_point.contains.is_some() {
+                for mut spawnpoint in unit.spawnpoints.iter_mut() {
+                    if spawnpoint.contains.is_some() {
                         continue;
                     }
 
-                    let dist_to_start = self.placed_start_point.as_ref().unwrap().dist(spawn_point);
-                    if (spawn_point.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawn_point.spawnpoint_unit.group == 9) {
-                        spawn_point.hole_score = score;
-                        hole_spawn_points.push(spawn_point);
+                    let dist_to_start = self.placed_start_point.as_ref().unwrap().dist(spawnpoint);
+                    if (spawnpoint.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawnpoint.spawnpoint_unit.group == 9) {
+                        spawnpoint.hole_score = score;
+                        hole_spawnpoints.push(spawnpoint);
                     }
                 }
             }
         }
 
         // Only consider the spots with the highest score
-        let max_hole_score = hole_spawn_points.iter()
+        let max_hole_score = hole_spawnpoints.iter()
             .filter(|sp| sp.contains.is_none())
             .map(|sp| sp.hole_score)
             .max()
             .expect(&format!("{} {:#X}", self.cave_name, self.starting_seed));
 
-        let mut candidate_spawnpoints = hole_spawn_points.into_iter()
+        let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
             .filter(|sp| sp.hole_score == max_hole_score)
             .filter(|sp| sp.contains.is_none())
             .collect::<Vec<_>>();
@@ -1287,8 +1287,8 @@ impl LayoutBuilder {
     /// 4. Randomly among all remaining open doors.
     /// Gates do not replace other Seam Teki.
     fn get_gate_spawn_spot(&self) -> Option<Rc<RefCell<PlacedDoor>>> {
-        let mut spawn_points = Vec::new();
-        let mut spawn_point_weights = Vec::new();
+        let mut spawnpoints = Vec::new();
+        let mut spawnpoint_weights = Vec::new();
 
         // Spawn path 1: in front of filled item alcoves.
         for map_unit in self.map_units.iter() {
@@ -1309,10 +1309,10 @@ impl LayoutBuilder {
                 continue;
             }
 
-            spawn_points.push(door);
+            spawnpoints.push(door);
         }
-        if spawn_points.len() > 0 {
-            let spot = spawn_points.get(self.rng.rand_int(spawn_points.len() as u32) as usize).cloned();
+        if spawnpoints.len() > 0 {
+            let spot = spawnpoints.get(self.rng.rand_int(spawnpoints.len() as u32) as usize).cloned();
             debug!("Chose gate spawn point at ({}, {}) via spawn path 1.",
                 spot.as_ref().unwrap().borrow().x,
                 spot.as_ref().unwrap().borrow().z
@@ -1377,13 +1377,13 @@ impl LayoutBuilder {
                     if door.borrow().seam_spawnpoint.is_some() {
                         continue;
                     }
-                    spawn_points.push(door.clone());
-                    spawn_point_weights.push(max_open_door_score + 1 - door.borrow().door_score.unwrap());
+                    spawnpoints.push(door.clone());
+                    spawnpoint_weights.push(max_open_door_score + 1 - door.borrow().door_score.unwrap());
                 }
             }
 
-            if spawn_points.len() > 0 {
-                let spot = spawn_points.get(self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()).cloned();
+            if spawnpoints.len() > 0 {
+                let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
                 debug!("Chose gate spawn point at ({}, {}) via spawn path 3.",
                     spot.as_ref().unwrap().borrow().x,
                     spot.as_ref().unwrap().borrow().z
@@ -1398,18 +1398,18 @@ impl LayoutBuilder {
                 if door.borrow().seam_spawnpoint.is_some() {
                     continue;
                 }
-                spawn_points.push(Rc::clone(door));
+                spawnpoints.push(Rc::clone(door));
                 let weight = if map_unit.unit.room_type == RoomType::Hallway {
                     10 / map_unit.doors.len()
                 }
                 else {
                     map_unit.doors.len()
                 };
-                spawn_point_weights.push(weight as u32);
+                spawnpoint_weights.push(weight as u32);
             }
         }
-        if spawn_points.len() > 0 {
-            let spot = spawn_points.get(self.rng.rand_index_weight(spawn_point_weights.as_slice()).unwrap()).cloned();
+        if spawnpoints.len() > 0 {
+            let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
             debug!("Chose gate spawn point at ({}, {}) via spawn path 4.",
                 spot.as_ref().unwrap().borrow().x,
                 spot.as_ref().unwrap().borrow().z

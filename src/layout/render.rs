@@ -52,26 +52,26 @@ pub fn render_layout(layout: &Layout) {
     }
 
     // Draw spawned objects
-    for spawn_point in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
-        if let Some(spawn_object) = spawn_point.contains.as_ref() {
+    for spawnpoint in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
+        if let Some(spawn_object) = spawnpoint.contains.as_ref() {
             match spawn_object {
                 SpawnObject::TekiBunch(teki_list) => {
                     for (tekiinfo, (dx, _, dz)) in teki_list.iter() {
-                        draw_object_at(&mut image_buffer, tekiinfo, spawn_point.x + dx, spawn_point.z + dz, 1.0);
+                        draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0);
                     }
                 },
                 SpawnObject::Item(iteminfo) => {
-                    draw_object_at(&mut image_buffer, iteminfo, spawn_point.x, spawn_point.z, TREASURE_SCALE);
+                    draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE);
                 },
                 _ => {
-                    draw_object_at(&mut image_buffer, spawn_object, spawn_point.x, spawn_point.z, 1.0);
+                    draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0);
                 },
             }
         }
         
         // Draw falling cap teki
-        if let Some(spawn_object) = spawn_point.falling_cap_teki.as_ref() {
-            draw_object_at(&mut image_buffer, spawn_object, spawn_point.x - 30.0, spawn_point.z - 30.0, 1.0);
+        if let Some(spawn_object) = spawnpoint.falling_cap_teki.as_ref() {
+            draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x - 30.0, spawnpoint.z - 30.0, 1.0);
         }
     }
 

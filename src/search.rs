@@ -19,8 +19,7 @@ impl SearchCondition {
     pub fn matches(&self, layout: &Layout) -> bool {
         match self { 
             SearchCondition::CountEntity{ name, relationship, amount } => {
-                let entity_count = layout.map_units.iter()
-                    .flat_map(|unit| unit.spawnpoints.iter().filter_map(|sp| sp.contains.as_ref()))
+                let entity_count = layout.get_spawn_objects()
                     .filter(|entity| entity.name().eq_ignore_ascii_case(name))
                     .count();
                 &entity_count.cmp(&amount) == relationship

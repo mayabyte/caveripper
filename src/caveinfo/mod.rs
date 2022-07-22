@@ -225,7 +225,7 @@ pub struct CaveUnit {
     pub num_doors: usize,
     pub doors: Vec<DoorUnit>,
     pub rotation: u16,
-    pub spawn_points: Vec<SpawnPoint>,
+    pub spawnpoints: Vec<SpawnPoint>,
 }
 
 
@@ -283,7 +283,7 @@ impl CaveUnit {
     }
 
     pub fn has_start_spawnpoint(&self) -> bool {
-        self.spawn_points.iter().any(|spawn_point| spawn_point.group == 7)
+        self.spawnpoints.iter().any(|spawnpoint| spawnpoint.group == 7)
     }
 }
 

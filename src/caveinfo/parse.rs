@@ -382,11 +382,11 @@ impl TryFrom<Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let mut spawn_points = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let mut spawnpoints = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
             Some(cave_unit_layout_file_txt) => {
-                let spawn_points_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
+                let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
-                spawn_points_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
+                spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
             },
             None => Vec::new(),
         };
@@ -397,7 +397,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
         // Group 9 is a special group specifically for these 'fake' hole/geyser spawnpoints.
         // It does not appear in the game code or on the TKB.
         if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item")) || room_type == RoomType::Hallway {
-            spawn_points.push(
+            spawnpoints.push(
                 SpawnPoint {
                     group: 9,
                     pos_x: 0.0,
@@ -419,7 +419,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
             num_doors,
             doors,
             rotation: 0,
-            spawn_points,
+            spawnpoints,
         })
     }
 }
