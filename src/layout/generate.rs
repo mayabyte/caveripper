@@ -561,7 +561,11 @@ impl LayoutBuilder {
                             }
                         }
                     }
-                    assert!(placed, "Deleted hallway units to combine but couldn't place a new hallway unit in their place! Seed: {:#X}, Sublevel: {}", self.starting_seed, caveinfo.name());
+                    assert!(
+                        placed,
+                        "Deleted hallway units to combine but couldn't place a new hallway unit in their place! Seed: {:#X}, Sublevel: {}",
+                        self.starting_seed, caveinfo.name()
+                    );
                 }
 
                 // After this, we're finished setting room tiles.
@@ -594,7 +598,7 @@ impl LayoutBuilder {
                 .filter(|sp| sp.spawnpoint_unit.group == 7)
                 .collect();
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
-            candidates[chosen].contains = Some(SpawnObject::Ship);
+            candidates[chosen].contains.push(SpawnObject::Ship);
             self.placed_start_point = Some(candidates[chosen].clone());
             debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
         }
@@ -648,7 +652,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 5, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn.clone())));
+                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0))));
                     chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
                     self.placed_teki += 1;
                     debug!(
@@ -674,7 +678,7 @@ impl LayoutBuilder {
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 8
-                    && spawnpoint.contains.is_none()
+                    && spawnpoint.contains.is_empty()
                     && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
                     && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 150.0).unwrap_or(true)
                     && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 150.0).unwrap_or(true)
@@ -695,7 +699,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 8, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 8 at ({}, {}).",
@@ -718,7 +722,7 @@ impl LayoutBuilder {
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 1
-                    && spawnpoint.contains.is_none()
+                    && spawnpoint.contains.is_empty()
                     && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
                     && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 200.0).unwrap_or(true)
                     && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 200.0).unwrap_or(true)
@@ -739,7 +743,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 1, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains = Some(SpawnObject::Teki(teki_to_spawn.clone()));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 1 at ({}, {}).",
@@ -762,7 +766,7 @@ impl LayoutBuilder {
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 0
-                    && spawnpoint.contains.is_none()
+                    && spawnpoint.contains.is_empty()
                     && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
                 })
                 .collect();
@@ -817,7 +821,7 @@ impl LayoutBuilder {
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
                     // Create the teki objects
-                    let mut just_spawned: Vec<RefCell<(TekiInfo, (f32, f32, f32))>> = Vec::new();
+                    let mut to_spawn: Vec<SpawnObject> = Vec::new();
                     for _ in 0..num_to_spawn {
                         // Calculate initial random offset
                         let radius = chosen_spot.spawnpoint_unit.radius * self.rng.rand_f32();
@@ -827,42 +831,56 @@ impl LayoutBuilder {
                         let initial_x_offset = angle.sin() * radius;
                         let initial_z_offset = angle.cos() * radius;
 
-                        just_spawned.push(RefCell::new((teki_to_spawn.clone(), (initial_x_offset, 0.0, initial_z_offset))));
+                        to_spawn.push(SpawnObject::Teki(teki_to_spawn.clone(), (initial_x_offset, initial_z_offset)));
                         num_spawned += 1;
                         self.placed_teki += 1;
                     }
 
                     // Push the enemies away from each other
                     for _ in 0..5 {
-                        for (t1, t2) in just_spawned.iter().tuple_combinations() {
-                            let mut t1 = t1.borrow_mut();
-                            let mut t2 = t2.borrow_mut();
+                        for t1 in to_spawn.iter() {
+                            for t2 in to_spawn.iter() {
+                                if t1 as *const _ == t2 as *const _ {
+                                    continue;
+                                }
 
-                            let dx = t1.1.0 - t2.1.0;
-                            let dy = t1.1.1 - t2.1.1;
-                            let dz = t1.1.2 - t2.1.2;
-
-                            let dist = pikmin_math::sqrt(dx*dx + dy*dy + dz*dz);
-                            if dist > 0.0 && dist < 35.0 {
-                                let multiplier = 0.5 * (35.0 - dist) / dist;
-                                t1.1.0 += dx * multiplier;
-                                t1.1.1 += dy * multiplier;
-                                t1.1.2 += dz * multiplier;
-                                t2.1.0 += dx * multiplier;
-                                t2.1.1 += dy * multiplier;
-                                t2.1.2 += dz * multiplier;
+                                // Retrieve mutable references to each element we're modifying.
+                                let (t1, t2) = unsafe {
+                                    // SAFETY: i1 and i2 are guaranteed to be different elements by the 
+                                    // above condition. They will also always be in range due to the 
+                                    // loop conditions.
+                                    (
+                                        (t1 as *const _ as *mut SpawnObject).as_mut().unwrap(),
+                                        (t2 as *const _ as *mut SpawnObject).as_mut().unwrap()
+                                    )
+                                };
+    
+                                if let (SpawnObject::Teki(_, (t1x, t1z)), SpawnObject::Teki(_, (t2x, t2z))) = (t1, t2) {
+                                    let dx = *t1x - *t2x;
+                                    let dz = *t1z - *t2z;
+    
+                                    let dist = pikmin_math::sqrt(dx*dx + dz*dz);
+                                    if dist > 0.0 && dist < 35.0 {
+                                        let multiplier = 0.5 * (35.0 - dist) / dist;
+                                        *t1x += dx * multiplier;
+                                        *t1z += dz * multiplier;
+                                        *t2x += dx * multiplier;
+                                        *t2z += dz * multiplier;
+                                    }
+                                }
+                                else {
+                                    // binding should always succeed
+                                    unreachable!();
+                                }
                             }
                         }
                     }
 
                     // Spawn the enemies
-                    let just_spawned: Vec<(TekiInfo, (f32, f32, f32))> = just_spawned.into_iter()
-                        .map(|teki| teki.into_inner())
-                        .collect();
-                    let num_spawned_final = just_spawned.len();
-                    chosen_spot.contains = Some(SpawnObject::TekiBunch(just_spawned));
+                    let num_spawned_final = to_spawn.len();
+                    chosen_spot.contains.append(&mut to_spawn);
                     debug!(
-                        "Placed {} Teki \'{}\' in Group 0 around the spawnpoint at ({}, {}).",
+                        "Placed {} Teki \'{}\' in Group 0 near the spawnpoint at ({}, {}).",
                         num_spawned_final,
                         teki_to_spawn.internal_name,
                         chosen_spot.x,
@@ -890,7 +908,7 @@ impl LayoutBuilder {
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 6
-                    && spawnpoint.contains.is_none()
+                    && spawnpoint.contains.is_empty()
                 })
                 .collect();
 
@@ -909,7 +927,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 6, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains = Some(SpawnObject::PlantTeki(teki_to_spawn.clone()));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Plant-Group Teki \'{}\' at ({}, {}).",
@@ -935,17 +953,12 @@ impl LayoutBuilder {
                 // Find all possible spawn points, plus an 'effective treasure score' for each.
                 for map_unit in self.map_units.iter_mut() {
                     if map_unit.unit.room_type == RoomType::Room {
-                        let num_items_in_this_unit: u32 = map_unit.spawnpoints.iter()
-                            .map(|spawnpoint| {
-                                if let Some(SpawnObject::Item(_)) = spawnpoint.contains {
-                                    1
-                                } else {
-                                    0
-                                }
-                            })
-                            .sum();
+                        let num_items_in_this_unit = map_unit.spawnpoints.iter()
+                            .flat_map(|spawnpoint| spawnpoint.contains.iter())
+                            .filter(|spawn_object| matches!(spawn_object, SpawnObject::Item(_)))
+                            .count();
                         for spawnpoint in map_unit.spawnpoints.iter_mut() {
-                            if spawnpoint.spawnpoint_unit.group != 2 || spawnpoint.contains.is_some() {
+                            if spawnpoint.spawnpoint_unit.group != 2 || !spawnpoint.contains.is_empty() {
                                 continue;
                             }
 
@@ -959,7 +972,7 @@ impl LayoutBuilder {
                         let spawnpoint = map_unit.spawnpoints.iter_mut()
                             .find(|spawnpoint| spawnpoint.spawnpoint_unit.group == 9)
                             .expect("No Cap Spawnpoint (group 9) in item unit!");
-                        if spawnpoint.contains.is_some() {
+                        if !spawnpoint.contains.is_empty() {
                             continue;
                         }
 
@@ -987,7 +1000,7 @@ impl LayoutBuilder {
                 let chosen_treasure = choose_rand_item(&self.rng as *const _, caveinfo, num_spawned);
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
-                    chosen_spot.contains = Some(SpawnObject::Item(chosen_treasure.clone()));
+                    chosen_spot.contains.push(SpawnObject::Item(chosen_treasure.clone()));
                     debug!("Placed treasure \"{}\" at ({}, {}) - score {}.", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z, chosen_spot.treasure_score);
                 }
             }
@@ -1003,15 +1016,15 @@ impl LayoutBuilder {
                     continue;
                 }
 
-                let mut spawnpoint = map_unit.spawnpoints.iter_mut()
+                let spawnpoint = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                if spawnpoint.contains.is_some() {
+                if !spawnpoint.contains.is_empty() {
                     continue;
                 }
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, false) {
-                    spawnpoint.contains = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
@@ -1024,17 +1037,20 @@ impl LayoutBuilder {
                     continue;
                 }
 
-                let mut spawnpoint = map_unit.spawnpoints.iter_mut()
+                let spawnpoint = map_unit.spawnpoints.iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
-                match spawnpoint.contains.clone() {
-                    Some(SpawnObject::CapTeki(teki, _)) if teki.is_candypop() || teki.is_falling() => continue,
-                    Some(SpawnObject::Hole(_) | SpawnObject::Geyser) => continue,
-                    _ => {/* otherwise it's fine to spawn. */}
+                if spawnpoint.contains.iter().any(|spawn_object| {
+                    matches!(spawn_object, SpawnObject::CapTeki(teki, _) if teki.is_candypop() || teki.is_falling())
+                    || matches!(spawn_object, SpawnObject::Hole(_) | SpawnObject::Geyser)
+                })
+                {
+                    continue;
                 }
+                
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
-                    spawnpoint.falling_cap_teki = Some(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
@@ -1096,11 +1112,13 @@ impl LayoutBuilder {
         for mut map_unit in self.map_units.iter_mut() {
             // Set Teki Score for each map tile
             for spawnpoint in map_unit.spawnpoints.iter() {
-                match spawnpoint.contains.clone() {
-                    Some(SpawnObject::Teki(TekiInfo{group:1, ..})) => map_unit.teki_score += 10,
-                    Some(SpawnObject::TekiBunch(v)) => map_unit.teki_score += 2 * v.len() as u32,
-                    _ => {/* do nothing */}
-                };
+                for spawn_object in spawnpoint.contains.iter() {
+                    match spawn_object {
+                        SpawnObject::Teki(TekiInfo{group:1, ..}, _) => map_unit.teki_score += 10,
+                        SpawnObject::Teki(TekiInfo{group:0, ..}, _) => map_unit.teki_score += 2,
+                        _ => {/* do nothing */}
+                    };
+                }
             }
             if map_unit.teki_score > 0 {
                 debug!("Set Teki Score for map tile \"{}\" at ({}, {}) to {}.", map_unit.unit.unit_folder_name, map_unit.x, map_unit.z, map_unit.teki_score);
@@ -1109,7 +1127,7 @@ impl LayoutBuilder {
             // Set Seam Teki Score for each door with a seam teki
             for door in map_unit.doors.iter() {
                 let mut door = door.borrow_mut();
-                if let Some(SpawnObject::Teki(_)) = *door.seam_spawnpoint {
+                if let Some(SpawnObject::Teki(_, _)) = *door.seam_spawnpoint {
                     door.seam_teki_score += 5;
                     door.adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_teki_score += 5;
                 }
@@ -1238,7 +1256,7 @@ impl LayoutBuilder {
                 let score = unit.total_score;
 
                 for mut spawnpoint in unit.spawnpoints.iter_mut() {
-                    if spawnpoint.contains.is_some() {
+                    if !spawnpoint.contains.is_empty() {
                         continue;
                     }
 
@@ -1253,18 +1271,17 @@ impl LayoutBuilder {
 
         // Only consider the spots with the highest score
         let max_hole_score = hole_spawnpoints.iter()
-            .filter(|sp| sp.contains.is_none())
+            .filter(|sp| sp.contains.is_empty())
             .map(|sp| sp.hole_score)
             .max()
             .expect(&format!("{} {:#X}", self.cave_name, self.starting_seed));
 
         let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
             .filter(|sp| sp.hole_score == max_hole_score)
-            .filter(|sp| sp.contains.is_none())
+            .filter(|sp| sp.contains.is_empty())
             .collect::<Vec<_>>();
 
-        let mut hole_location = candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize);
-        hole_location.contains = Some(to_place.clone());
+        let hole_location = candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize);
 
         match to_place {
             SpawnObject::Hole(_) => {
@@ -1277,6 +1294,8 @@ impl LayoutBuilder {
             },
             _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
         }
+
+        hole_location.contains.push(to_place);
     }
 
     /// Chooses the location for a gate to spawn.
@@ -1295,10 +1314,10 @@ impl LayoutBuilder {
             if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
                 continue;
             }
-            if map_unit.spawnpoints[0].contains.is_none() {
+            if map_unit.spawnpoints[0].contains.is_empty() {
                 continue;
             }
-            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.to_owned() {
+            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.first() {
                 if cap_teki.is_candypop() && cap_teki.is_falling() {
                     continue;
                 }
@@ -1325,14 +1344,12 @@ impl LayoutBuilder {
             if map_unit.unit.room_type != RoomType::Room {
                 continue;
             }
-            if map_unit.spawnpoints.iter().any(|sp| {
-                if let Some(SpawnObject::Ship) = sp.contains {
-                    true
-                }
-                else {
-                    false
-                }
-            }) {
+
+            // Ignore the map unit containing the ship
+            if map_unit.spawnpoints.iter()
+                .flat_map(|spawnpoint| spawnpoint.contains.iter())
+                .any(|spawn_object| matches!(spawn_object, SpawnObject::Ship))
+            {
                 continue;
             }
 

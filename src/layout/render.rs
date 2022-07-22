@@ -53,12 +53,10 @@ pub fn render_layout(layout: &Layout) {
 
     // Draw spawned objects
     for spawnpoint in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
-        if let Some(spawn_object) = spawnpoint.contains.as_ref() {
+        for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
-                SpawnObject::TekiBunch(teki_list) => {
-                    for (tekiinfo, (dx, _, dz)) in teki_list.iter() {
-                        draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0);
-                    }
+                SpawnObject::Teki(tekiinfo, (dx, dz)) => {
+                    draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0);
                 },
                 SpawnObject::Item(iteminfo) => {
                     draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE);
@@ -67,11 +65,6 @@ pub fn render_layout(layout: &Layout) {
                     draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0);
                 },
             }
-        }
-        
-        // Draw falling cap teki
-        if let Some(spawn_object) = spawnpoint.falling_cap_teki.as_ref() {
-            draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x - 30.0, spawnpoint.z - 30.0, 1.0);
         }
     }
 
@@ -88,11 +81,6 @@ pub fn render_layout(layout: &Layout) {
             }
 
             match spawn_object {
-                SpawnObject::TekiBunch(teki_list) => {
-                    for (tekiinfo, (dx, _, dz)) in teki_list.iter() {
-                        draw_object_at(&mut image_buffer, tekiinfo, x + dx, z + dz, 1.0);
-                    }
-                },
                 SpawnObject::Gate(gateinfo) => {
                     let texture = gateinfo.get_texture();
                     if door.borrow().door_unit.direction % 2 == 1 {
@@ -267,12 +255,7 @@ impl Textured for SpawnObject {
     type Texture = Ref<'static, String, DynamicImage>;
     fn get_texture(&self) -> Self::Texture {
         match self {
-            SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => tekiinfo.get_texture(),
-            SpawnObject::TekiBunch(tekis) => {
-                // All teki in a bunch will have the same texture
-                let (first_teki, _) = tekis.first().unwrap();
-                first_teki.get_texture()
-            },
+            SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture(),
             SpawnObject::Item(iteminfo) => iteminfo.get_texture(),
             SpawnObject::Gate(gateinfo) => gateinfo.get_texture(),
@@ -303,12 +286,7 @@ impl Textured for SpawnObject {
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
         match self {
-            SpawnObject::Teki(tekiinfo) => tekiinfo.get_texture_modifiers(),
-            SpawnObject::TekiBunch(tekis) => {
-                // All teki in a bunch will have the same spawn method
-                let (first_teki, _) = tekis.first().unwrap();
-                first_teki.get_texture_modifiers()
-            },
+            SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture_modifiers(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture_modifiers(),
             _ => Vec::new()
         }

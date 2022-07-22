@@ -28,8 +28,7 @@ impl Layout {
 
     pub fn get_spawn_objects(&self) -> impl Iterator<Item=&SpawnObject> {
         self.map_units.iter()
-            .flat_map(|unit| unit.spawnpoints.iter())
-            .filter_map(|spawnpoint| spawnpoint.contains.as_ref())
+            .flat_map(|unit| unit.spawnpoints.iter().flat_map(|spawnpoint| spawnpoint.contains.iter()))
     }
 
     /// A unique structured string describing this layout.
@@ -57,27 +56,16 @@ impl Layout {
         let mut spawn_object_slugs = Vec::new();
         for map_unit in self.map_units.iter() {
             for spawnpoint in map_unit.spawnpoints.iter() {
-                if let Some(spawn_object) = spawnpoint.contains.as_ref() {
+                for spawn_object in spawnpoint.contains.iter() {
                     match &spawn_object {
-                        SpawnObject::Teki(tekiinfo) | SpawnObject::PlantTeki(tekiinfo) => {
+                        SpawnObject::Teki(tekiinfo, (dx, dz)) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 tekiinfo.internal_name,
                                 tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                                 tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
+                                (spawnpoint.x + dx) as i32,
+                                (spawnpoint.z + dz) as i32,
                             ));
-                        },
-                        SpawnObject::TekiBunch(tekiinfo_list) => {
-                            for (tekiinfo, (dx, _, dz)) in tekiinfo_list.iter() {
-                                spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
-                                    tekiinfo.internal_name,
-                                    tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
-                                    tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                    (spawnpoint.x + dx) as i32,
-                                    (spawnpoint.z + dz) as i32,
-                                ));
-                            }
                         },
                         SpawnObject::CapTeki(capinfo, _) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
@@ -116,15 +104,6 @@ impl Layout {
                         SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
                     }
                 }
-                if let Some(SpawnObject::CapTeki(capinfo, _)) = &spawnpoint.falling_cap_teki {
-                    spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
-                        capinfo.internal_name,
-                        capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
-                        capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                        spawnpoint.x as i32,
-                        spawnpoint.z as i32,
-                    ));
-                }
             }
 
             for door in map_unit.doors.iter() {
@@ -136,12 +115,12 @@ impl Layout {
                     _ => panic!("Invalid door direction in slug"),
                 }
                 match &*door.borrow().seam_spawnpoint {
-                    Some(SpawnObject::Teki(tekiinfo)) => {
+                    Some(SpawnObject::Teki(tekiinfo, (dx, dz))) => {
                         spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                             tekiinfo.internal_name,
                             tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
                             tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                            x as i32, z as i32,
+                            (x + dx) as i32, (z + dz) as i32,
                         ));
                     },
                     Some(SpawnObject::Gate(gateinfo)) => {
@@ -223,10 +202,9 @@ impl PlacedMapUnit {
                     z: actual_z,
                     angle: actual_angle,
                     spawnpoint_unit: sp.clone(),
-                    contains: None,
-                    falling_cap_teki: None,
                     hole_score: 0,
                     treasure_score: 0,
+                    contains: vec![],
                 }
             })
             .collect();
@@ -277,10 +255,9 @@ pub struct PlacedSpawnPoint {
     pub x: f32,
     pub z: f32,
     pub angle: f32,
-    pub contains: Option<SpawnObject>,
-    pub falling_cap_teki: Option<SpawnObject>,
     pub hole_score: u32,
     pub treasure_score: u32,
+    pub contains: Vec<SpawnObject>,
 }
 
 impl PlacedSpawnPoint {
@@ -296,9 +273,7 @@ impl PlacedSpawnPoint {
 
 #[derive(Debug, Clone)]
 pub enum SpawnObject {
-    Teki(TekiInfo),
-    TekiBunch(Vec<(TekiInfo, (f32, f32, f32))>), // For group 0 enemies. Tuple is displacement from parent spawnpoint.
-    PlantTeki(TekiInfo),
+    Teki(TekiInfo, (f32, f32)), // Teki, offset from spawnpoint
     CapTeki(CapInfo, u32), // Cap Teki, num_spawned
     Item(ItemInfo),
     Gate(GateInfo),
@@ -310,9 +285,7 @@ pub enum SpawnObject {
 impl SpawnObject {
     pub fn name(&self) -> &str {
         match self {
-            SpawnObject::Teki(info) => &info.internal_name,
-            SpawnObject::TekiBunch(tekis) => &tekis.first().unwrap().0.internal_name,
-            SpawnObject::PlantTeki(info) => &info.internal_name,
+            SpawnObject::Teki(info, _) => &info.internal_name,
             SpawnObject::CapTeki(info, _) => &info.internal_name,
             SpawnObject::Item(info) => &info.internal_name,
             SpawnObject::Gate(_) => "gate",

@@ -159,7 +159,7 @@ impl AssetManager {
         let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.sublevel+1) as usize);
-            caveinfo.cave_name = Some(sublevel.normalized_name());
+            caveinfo.cave_name = Some(sublevel.short_name());
             if !self.caveinfo_cache.contains_key(&sublevel) {
                 self.caveinfo_cache.insert(sublevel, caveinfo);
             }
