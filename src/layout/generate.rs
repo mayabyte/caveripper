@@ -457,7 +457,6 @@ impl LayoutBuilder {
                 let hallway_unit_names_2x1: Vec<String> = self.corridor_queue.iter()
                     .filter(|unit| unit.room_type == RoomType::Hallway)
                     .filter(|unit| unit.width == 1 && unit.height == 2 && unit.num_doors == 2)
-                    // Filter out east-to-west hallways. Not sure why this is done.
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
                     .map(|unit| unit.unit_folder_name.clone())
                     .collect();
@@ -470,26 +469,26 @@ impl LayoutBuilder {
                 let mut num_placed_units = self.map_units.len();
                 let mut unit_1_idx = 0;
                 while unit_1_idx < num_placed_units {
-                    unit_1_idx += 1;
-                    if !hallway_unit_names_1x1.contains(&self.map_units[unit_1_idx-1].unit.unit_folder_name) {
+                    if !hallway_unit_names_1x1.contains(&self.map_units[unit_1_idx].unit.unit_folder_name) {
+                        unit_1_idx += 1;
                         continue;
                     }
-
-                    // BROKEN TRY  fc3 0x3B197B95
 
                     // Check for another 1x1 hallway next to this one
                     let mut md: Option<Rc<RefCell<PlacedDoor>>> = None;
                     let mut od: Option<Rc<RefCell<PlacedDoor>>> = None;
                     let mut unit_2_idx = 99999999;
                     for j in 0..2 {
-                        md = Some(self.map_units[unit_1_idx-1].doors[j].clone());
+                        md = Some(self.map_units[unit_1_idx].doors[j].clone());
                         unit_2_idx = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().parent_idx.unwrap();
                         if hallway_unit_names_1x1.contains(&self.map_units[unit_2_idx].unit.unit_folder_name) {
                             od = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade();
                             break;
                         }
                     }
+                    // No other hallway found, check the next map unit
                     if od.is_none() {
+                        unit_1_idx += 1;
                         continue;
                     }
 
@@ -497,7 +496,7 @@ impl LayoutBuilder {
                     let desired_direction;
                     // Create a sub-scope to avoid conflicting borrows of self.layout
                     {
-                        let unit_1 = &self.map_units[unit_1_idx-1];
+                        let unit_1 = &self.map_units[unit_1_idx];
                         let unit_2 = &self.map_units[unit_2_idx];
 
                         // Find which door to expand from
@@ -535,13 +534,13 @@ impl LayoutBuilder {
                     
 
                     // Delete the 1x1 hallway units
-                    if unit_1_idx-1 > unit_2_idx {
-                        self.map_units.remove(unit_1_idx-1);
+                    if unit_1_idx > unit_2_idx {
+                        self.map_units.remove(unit_1_idx);
                         self.map_units.remove(unit_2_idx);
                     }
                     else {
                         self.map_units.remove(unit_2_idx);
-                        self.map_units.remove(unit_1_idx-1);
+                        self.map_units.remove(unit_1_idx);
                     }
                     self.recalculate_door_parents();
                     num_placed_units -= 2;
@@ -557,6 +556,7 @@ impl LayoutBuilder {
                                 self.place_map_unit(approved_unit, true);
                                 num_placed_units += 1;
                                 placed = true;
+                                unit_1_idx = 0; // Start checking from the beginning of the map tile list every time
                                 break;
                             }
                         }
