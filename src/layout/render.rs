@@ -3,16 +3,36 @@ use std::ops::Deref;
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo};
 use crate::assets::{ASSETS, get_special_texture_name};
 use super::{Layout, SpawnObject, PlacedMapUnit};
+use clap::Args;
 use dashmap::mapref::one::Ref;
+use image::{Rgba, RgbaImage};
 use image::{DynamicImage, GenericImage, GenericImageView, Pixel, imageops::FilterType};
 use log::debug;
 
 const RENDER_SCALE: u32 = 8;
 const GATE_SCALE: f32 = 1.7;
 const TREASURE_SCALE: f32 = 1.1;
+const FALLING_CAP_TEKI_SCALE: f32 = 0.9;
+const QUICKGLANCE_CIRCLE_SCALE: f32 = 2.4;
+const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [245, 150, 0, 110];
+const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [10, 225, 100, 95];
+const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 80];
+const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
+const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
+const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
 
 
-pub fn render_layout(layout: &Layout) {
+#[derive(Default, Debug, Args)]
+pub struct RenderOptions {
+    #[clap(long)]
+    pub draw_grid: bool,
+
+    #[clap(long, short='q')]
+    pub quickglance: bool,
+}
+
+
+pub fn render_layout(layout: &Layout, options: RenderOptions) {
     debug!("Generating layout image.");
 
     // Find the minimum and maximum map tile coordinates in the layout.
@@ -51,21 +71,36 @@ pub fn render_layout(layout: &Layout) {
         }
     }
 
+    // Draw a map unit grid, if enabled
+    if options.draw_grid {
+        let grid_color: Rgba<u8> = [255, 0, 0, 150].into();
+        let grid_size = 8 * RENDER_SCALE;
+        for x in 0..image_buffer.width() {
+            for z in 0..image_buffer.height() {
+                if x % grid_size == 0 || z % grid_size == 0 {
+                    let mut new_pix = image_buffer.get_pixel(x, z);
+                    new_pix.blend(&grid_color);
+                    image_buffer.put_pixel(x, z, new_pix);
+                }
+            }
+        }
+    }
+
     // Draw spawned objects
     for spawnpoint in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
                 SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0);
+                    draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0, &options);
                 },
                 SpawnObject::Item(iteminfo) => {
-                    draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE);
+                    draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE, &options);
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut image_buffer, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, 0.9);
-                }
+                    draw_object_at(&mut image_buffer, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, FALLING_CAP_TEKI_SCALE, &options);
+                },
                 _ => {
-                    draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0);
+                    draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0, &options);
                 },
             }
         }
@@ -87,14 +122,14 @@ pub fn render_layout(layout: &Layout) {
                 SpawnObject::Gate(gateinfo) => {
                     let texture = gateinfo.get_texture();
                     if door.borrow().door_unit.direction % 2 == 1 {
-                        draw_object_at(&mut image_buffer, &&(texture.rotate90()), x, z, GATE_SCALE);
+                        draw_object_at(&mut image_buffer, &&(texture.rotate90()), x, z, GATE_SCALE, &options);
                     }
                     else {
-                        draw_object_at(&mut image_buffer, &texture.value(), x, z, GATE_SCALE);
+                        draw_object_at(&mut image_buffer, &texture.value(), x, z, GATE_SCALE, &options);
                     }
                 }
                 _ => {
-                    draw_object_at(&mut image_buffer, spawn_object, x, z, 1.0);
+                    draw_object_at(&mut image_buffer, spawn_object, x, z, 1.0, &options);
                 },
             }
         }
@@ -107,7 +142,7 @@ pub fn render_layout(layout: &Layout) {
 }
 
 // x and z are world coordinates, not image or map unit coordinates
-fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: f32, z: f32, scale: f32) {
+fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: f32, z: f32, scale: f32, options: &RenderOptions) {
     let texture = obj.get_texture();
     let texture = texture.resize(
         (32.0 * scale) as u32, (32.0 * scale) as u32,
@@ -117,22 +152,43 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: 
     let img_x = ((x / 170.0) * 8.0 * (RENDER_SCALE as f32) - (texture.width() as f32 / 2.0)) as i32;
     let img_z = ((z / 170.0) * 8.0 * (RENDER_SCALE as f32) - (texture.height() as f32 / 2.0)) as i32;
 
+    // Modifiers to be applied before ('under') the main texture
+    for modifier in obj.get_texture_modifiers().iter() {
+        match modifier {
+            TextureModifier::QuickGlance(color) if options.quickglance => {
+                let circle_size = (32.0 * QUICKGLANCE_CIRCLE_SCALE) as u32;
+                let circle_tex = DynamicImage::from(circle(128, *color))
+                    .resize(circle_size, circle_size, FilterType::Nearest);
+                blend(
+                    image_buffer, 
+                    &&circle_tex, 
+                    ((x / 170.0) * 8.0 * (RENDER_SCALE as f32) - (circle_size as f32 / 2.0)) as i32, 
+                    ((z / 170.0) * 8.0 * (RENDER_SCALE as f32) - (circle_size as f32 / 2.0)) as i32
+                );
+            },
+            _ => {}
+        }
+    }
+
+    // Draw the main texture
     blend(image_buffer, &texture, img_x, img_z);
 
+    // Modifiers to be applied after ('above') the main texture
     for modifier in obj.get_texture_modifiers().iter() {
         match modifier {
             TextureModifier::Falling => {
                 let falling_icon_texture = ASSETS.get_img("resources/enemytex_special/falling_icon.png")
                     .unwrap()
-                    .resize(14, 14, FilterType::Lanczos3);
+                    .resize(18, 18, FilterType::Lanczos3);
                 blend(image_buffer, &falling_icon_texture, img_x - 5, img_z);
             },
             TextureModifier::Carrying(carrying) => {
                 let carried_treasure_icon = ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))
                     .unwrap()
                     .resize(24, 24, FilterType::Lanczos3);
-                blend(image_buffer, &carried_treasure_icon, img_x + 10, img_z + 10);
-            }
+                blend(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
+            },
+            _ => {}
         }
     }
 }
@@ -151,9 +207,23 @@ fn blend(base: &mut DynamicImage, top: &DynamicImage, x: i32, z: i32) {
     }
 }
 
+fn circle(radius: u32, color: Rgba<u8>) -> RgbaImage {
+    let mut buffer = RgbaImage::new(radius*2, radius*2);
+    for x in 0..radius*2 {
+        for z in 0..radius*2 {
+            let r = radius as f32;
+            if ((r - x as f32).powi(2) + (r - z as f32).powi(2)).sqrt() < r {
+                buffer.put_pixel(x, z, color);
+            }
+        }
+    }
+    buffer
+}
+
 enum TextureModifier {
     Falling,
     Carrying(String),
+    QuickGlance(Rgba<u8>),
 }
 
 trait Textured {
@@ -197,6 +267,13 @@ impl Textured for TekiInfo {
         }
         if let Some(carrying) = self.carrying.clone() {
             modifiers.push(TextureModifier::Carrying(carrying));
+            modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into()));
+        }
+        match self.internal_name.to_ascii_lowercase().as_str() {
+            "blackpom" /* Violet Candypop */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_VIOLET_CANDYPOP_COLOR.into())),
+            "whitepom" /* Ivory Candypop */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_IVORY_CANDYPOP_COLOR.into())),
+            "minihoudai" /* Groink */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_ROAMING_COLOR.into())),
+            _ => {}
         }
         modifiers
     }
@@ -224,6 +301,11 @@ impl Textured for CapInfo {
         if self.is_falling() {
             modifiers.push(TextureModifier::Falling);
         }
+        match self.internal_name.to_ascii_lowercase().as_str() {
+            "blackpom" /* Violet Candypop */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_VIOLET_CANDYPOP_COLOR.into())),
+            "whitepom" /* Ivory Candypop */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_IVORY_CANDYPOP_COLOR.into())),
+            _ => {}
+        }
         modifiers
     }
 }
@@ -237,7 +319,7 @@ impl Textured for ItemInfo {
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
-        Vec::new()
+        vec![TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into())]
     }
 }
 
@@ -291,6 +373,12 @@ impl Textured for SpawnObject {
         match self {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture_modifiers(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture_modifiers(),
+            SpawnObject::Hole(_) | SpawnObject::Geyser => {
+                vec![TextureModifier::QuickGlance(QUICKGLANCE_EXIT_COLOR.into())]
+            },
+            SpawnObject::Ship => {
+                vec![TextureModifier::QuickGlance(QUICKGLANCE_SHIP_COLOR.into())]
+            },
             _ => Vec::new()
         }
     }

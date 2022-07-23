@@ -1,4 +1,4 @@
-use cavegen::{sublevel::Sublevel, errors::SeedError, search::SearchCondition};
+use cavegen::{sublevel::Sublevel, errors::SeedError, search::SearchCondition, layout::render::RenderOptions};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -33,6 +33,11 @@ pub enum Commands {
             help = SEED_HELP,
         )]
         seed: u32,
+
+        #[clap(
+            flatten
+        )]
+        render_options: RenderOptions,
     },
 
     #[clap(

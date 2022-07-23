@@ -838,9 +838,9 @@ impl LayoutBuilder {
 
                     // Push the enemies away from each other
                     for _ in 0..5 {
-                        for t1 in to_spawn.iter() {
-                            for t2 in to_spawn.iter() {
-                                if t1 as *const _ == t2 as *const _ {
+                        for t1i in 0..to_spawn.len() {
+                            for t2i in 0..to_spawn.len() {
+                                if t1i == t2i {
                                     continue;
                                 }
 
@@ -850,8 +850,8 @@ impl LayoutBuilder {
                                     // above condition. They will also always be in range due to the 
                                     // loop conditions.
                                     (
-                                        (t1 as *const _ as *mut SpawnObject).as_mut().unwrap(),
-                                        (t2 as *const _ as *mut SpawnObject).as_mut().unwrap()
+                                        (&to_spawn[t1i] as *const _ as *mut SpawnObject).as_mut().unwrap(),
+                                        (&to_spawn[t2i] as *const _ as *mut SpawnObject).as_mut().unwrap()
                                     )
                                 };
     

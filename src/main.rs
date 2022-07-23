@@ -35,10 +35,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Run the desired command.
     match args.subcommand {
-        Commands::Generate{ sublevel, seed } => {
+        Commands::Generate{ sublevel, seed, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, &caveinfo);
-            render_layout(&layout);
+            render_layout(&layout, render_options);
         },
         Commands::Caveinfo { sublevel } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
