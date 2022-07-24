@@ -148,8 +148,8 @@ impl Layout {
 #[derive(Debug, Clone)]
 pub struct PlacedMapUnit {
     pub unit: CaveUnit,
-    pub x: isize,
-    pub z: isize,
+    pub x: i32,
+    pub z: i32,
     pub doors: Vec<Rc<RefCell<PlacedDoor>>>,
     pub spawnpoints: Vec<PlacedSpawnPoint>,
     pub teki_score: u32,
@@ -157,15 +157,15 @@ pub struct PlacedMapUnit {
 }
 
 impl PlacedMapUnit {
-    pub fn new(unit: &CaveUnit, x: isize, z: isize) -> PlacedMapUnit {
+    pub fn new(unit: &CaveUnit, x: i32, z: i32) -> PlacedMapUnit {
         let doors = unit.doors.iter()
             .map(|door| {
                 // Adjust door positions depending on room rotation
                 let (door_x, door_z) = match door.direction {
-                    0 => (x + door.side_lateral_offset as isize, z),
-                    1 => (x + unit.width as isize,               z + door.side_lateral_offset as isize),
-                    2 => (x + door.side_lateral_offset as isize, z + unit.height as isize),
-                    3 => (x,                                     z + door.side_lateral_offset as isize),
+                    0 => (x + door.side_lateral_offset as i32, z),
+                    1 => (x + unit.width as i32,               z + door.side_lateral_offset as i32),
+                    2 => (x + door.side_lateral_offset as i32, z + unit.height as i32),
+                    3 => (x,                                     z + door.side_lateral_offset as i32),
                     _ => panic!("Invalid door direction")
                 };
                 Rc::new(RefCell::new(
@@ -227,8 +227,8 @@ impl PlacedMapUnit {
 
 #[derive(Debug)]
 pub struct PlacedDoor {
-    pub x: isize,
-    pub z: isize,
+    pub x: i32,
+    pub z: i32,
     pub door_unit: DoorUnit,
     pub parent_idx: Option<usize>,
     pub marked_as_cap: bool,
@@ -240,7 +240,7 @@ pub struct PlacedDoor {
 
 impl PlacedDoor {
     pub fn facing(&self, other: &PlacedDoor) -> bool {
-        (self.door_unit.direction as isize - other.door_unit.direction as isize).abs() == 2
+        (self.door_unit.direction as i32 - other.door_unit.direction as i32).abs() == 2
     }
 
     pub fn lines_up_with(&self, other: &PlacedDoor) -> bool {
@@ -296,6 +296,6 @@ impl SpawnObject {
     }
 }
 
-pub fn boxes_overlap(x1: isize, z1: isize, w1: u16, h1: u16, x2: isize, z2: isize, w2: u16, h2: u16) -> bool {
-    !((x1 + w1 as isize <= x2 || x2 + w2 as isize <= x1) || (z1 + h1 as isize <= z2 || z2 + h2 as isize <= z1))
+pub fn boxes_overlap(x1: i32, z1: i32, w1: u16, h1: u16, x2: i32, z2: i32, w2: u16, h2: u16) -> bool {
+    !((x1 + w1 as i32 <= x2 || x2 + w2 as i32 <= x1) || (z1 + h1 as i32 <= z2 || z2 + h2 as i32 <= z1))
 }

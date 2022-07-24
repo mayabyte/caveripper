@@ -31,6 +31,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 default_panic_handler(panic_info);
             }
         }
+        else {
+            default_panic_handler(panic_info);
+        }
     }));
 
     // Run the desired command.
@@ -54,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }, timeout);
             
             if let Some(seed) = result {
-                println!("🍞 Found matching seed: {:#10X}.", seed);
+                println!("🍞 Found matching seed: {:#010X}.", seed);
             }
             else {
                 println!("🍞 Couldn't find a layout matching the condition '{}' in {}s.", condition, timeout);

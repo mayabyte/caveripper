@@ -19,10 +19,10 @@ pub struct LayoutBuilder {
     enemy_weight_sum_by_group: [u32; 10],
     num_slots_used_for_min: u32,
     min_teki_0: u32,
-    map_min_x: isize,
-    map_min_z: isize,
-    map_max_x: isize,
-    map_max_z: isize,
+    map_min_x: i32,
+    map_min_z: i32,
+    map_max_x: i32,
+    map_max_z: i32,
     placed_teki: u32,
     map_has_diameter_36: bool,
     marked_open_doors_as_caps: bool,
@@ -195,7 +195,7 @@ impl LayoutBuilder {
                         // A door counts as 'linkable' if it's inside a 10x10 rectangle
                         // in front of the starting door.
                         let mut link_door = None;
-                        let mut link_door_dist = isize::MAX;
+                        let mut link_door_dist = i32::MAX;
                         for candidate in open_doors.iter() {
                             if open_door.borrow().parent_idx == candidate.borrow().parent_idx {
                                 continue;
@@ -1464,8 +1464,8 @@ impl LayoutBuilder {
         let last_placed_unit = self.map_units.last().unwrap();
         self.map_min_x = min(self.map_min_x, last_placed_unit.x);
         self.map_min_z = min(self.map_min_z, last_placed_unit.z);
-        self.map_max_x = max(self.map_max_x, last_placed_unit.x + last_placed_unit.unit.width as isize);
-        self.map_max_z = max(self.map_max_z, last_placed_unit.z + last_placed_unit.unit.height as isize);
+        self.map_max_x = max(self.map_max_x, last_placed_unit.x + last_placed_unit.unit.width as i32);
+        self.map_max_z = max(self.map_max_z, last_placed_unit.z + last_placed_unit.unit.height as i32);
         self.map_has_diameter_36 = self.map_max_x-self.map_min_x >= 36 || self.map_max_z-self.map_min_z >= 36;
     }
 
@@ -1594,10 +1594,10 @@ impl LayoutBuilder {
 
         let new_unit_door = &new_unit.doors[door_index];
         let (candidate_unit_x, candidate_unit_z) = match new_unit_door.direction {
-            0 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as isize, destination_door.borrow().z),
-            1 => (destination_door.borrow().x - new_unit.width as isize, destination_door.borrow().z - new_unit_door.side_lateral_offset as isize),
-            2 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as isize, destination_door.borrow().z - new_unit.height as isize),
-            3 => (destination_door.borrow().x, destination_door.borrow().z - new_unit_door.side_lateral_offset as isize),
+            0 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as i32, destination_door.borrow().z),
+            1 => (destination_door.borrow().x - new_unit.width as i32, destination_door.borrow().z - new_unit_door.side_lateral_offset as i32),
+            2 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as i32, destination_door.borrow().z - new_unit.height as i32),
+            3 => (destination_door.borrow().x, destination_door.borrow().z - new_unit_door.side_lateral_offset as i32),
             _ => panic!("Invalid door direction")
         };
         let candidate_unit = PlacedMapUnit::new(new_unit, candidate_unit_x, candidate_unit_z);

@@ -10,6 +10,8 @@ use image::{DynamicImage, GenericImage, GenericImageView, Pixel, imageops::Filte
 use log::debug;
 
 const RENDER_SCALE: u32 = 8;
+const GRID_FACTOR: i32 = 8 * RENDER_SCALE as i32;
+const COORD_FACTOR: f32 = (8.0 * RENDER_SCALE as f32) / 170.0;
 const GATE_SCALE: f32 = 1.7;
 const TREASURE_SCALE: f32 = 1.1;
 const FALLING_CAP_TEKI_SCALE: f32 = 0.9;
@@ -36,8 +38,8 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
     debug!("Generating layout image.");
 
     // Find the minimum and maximum map tile coordinates in the layout.
-    let max_map_x = layout.map_units.iter().map(|unit| unit.x + unit.unit.width as isize).max().unwrap();
-    let max_map_z = layout.map_units.iter().map(|unit| unit.z + unit.unit.height as isize).max().unwrap();
+    let max_map_x = layout.map_units.iter().map(|unit| unit.x + unit.unit.width as i32).max().unwrap();
+    let max_map_z = layout.map_units.iter().map(|unit| unit.z + unit.unit.height as i32).max().unwrap();
 
     // Each map tile is 8x8 pixels on the radar.
     // We scale this up further so teki and treasure textures can be rendered at a decent
@@ -64,17 +66,48 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
         let radar_image = radar_image.into_rgba8();
 
         // Copy the pixels of the radar image to the buffer
-        let img_x = map_unit.x as u32 * 8 * RENDER_SCALE;
-        let img_z = map_unit.z as u32 * 8 * RENDER_SCALE;
+        let img_x = (map_unit.x * GRID_FACTOR) as u32;
+        let img_z = (map_unit.z * GRID_FACTOR) as u32;
         for (radar_x, radar_z, pixel) in radar_image.enumerate_pixels() {
             image_buffer.put_pixel(img_x + radar_x, img_z + radar_z, pixel.clone());
+        }
+
+        for waterbox in map_unit.unit.waterboxes.iter() {
+            let (x1, z1, x2, z2) = match map_unit.unit.rotation {
+                0 => {
+                    (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2)
+                },
+                1 => {
+                    (waterbox.z1, waterbox.x1, waterbox.z2, waterbox.x2)
+                },
+                2 => {
+                    (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1)
+                },
+                3 => {
+                    (-waterbox.z2, -waterbox.x2, -waterbox.z1, -waterbox.x1)
+                },
+                _ => panic!("Invalid direction"),
+            };
+            let x1 = (x1 * COORD_FACTOR) as i32;
+            let z1 = (z1 * COORD_FACTOR) as i32;
+            let x2 = (x2 * COORD_FACTOR) as i32;
+            let z2 = (z2 * COORD_FACTOR) as i32;
+            let w = (map_unit.unit.width / 2) as i32 * GRID_FACTOR;
+            let h = (map_unit.unit.height / 2) as i32 * GRID_FACTOR;
+            let mut square: DynamicImage = RgbaImage::new((x2 - x1) as u32, (z2 - z1) as u32).into();
+            for i in 0..(x2 - x1) as u32 {
+                for j in 0..(z2 - z1) as u32 {
+                    square.put_pixel(i, j, [0, 100, 230, 50].into());
+                }
+            }
+            blend(&mut image_buffer, &square, img_x as i32 + x1 + w, img_z as i32 + z1 + h);
         }
     }
 
     // Draw a map unit grid, if enabled
     if options.draw_grid {
         let grid_color: Rgba<u8> = [255, 0, 0, 150].into();
-        let grid_size = 8 * RENDER_SCALE;
+        let grid_size = GRID_FACTOR as u32;
         for x in 0..image_buffer.width() {
             for z in 0..image_buffer.height() {
                 if x % grid_size == 0 || z % grid_size == 0 {
@@ -136,7 +169,7 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
     }
 
     let _ = std::fs::create_dir("./output");
-    let filename = format!("./output/{}_{:#10X}.png", layout.cave_name, layout.starting_seed);
+    let filename = format!("./output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed);
     image_buffer.save_with_format(&filename, image::ImageFormat::Png).unwrap();
     println!("🍞 Saved layout image as \"{}\"", filename);
 }
@@ -149,21 +182,20 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: 
         FilterType::Lanczos3
     );
 
-    let img_x = ((x / 170.0) * 8.0 * (RENDER_SCALE as f32) - (texture.width() as f32 / 2.0)) as i32;
-    let img_z = ((z / 170.0) * 8.0 * (RENDER_SCALE as f32) - (texture.height() as f32 / 2.0)) as i32;
+    let img_x = ((x * COORD_FACTOR) - (texture.width() as f32 / 2.0)) as i32;
+    let img_z = ((z * COORD_FACTOR ) - (texture.height() as f32 / 2.0)) as i32;
 
     // Modifiers to be applied before ('under') the main texture
     for modifier in obj.get_texture_modifiers().iter() {
         match modifier {
             TextureModifier::QuickGlance(color) if options.quickglance => {
-                let circle_size = (32.0 * QUICKGLANCE_CIRCLE_SCALE) as u32;
-                let circle_tex = DynamicImage::from(circle(128, *color))
-                    .resize(circle_size, circle_size, FilterType::Nearest);
+                let circle_size = 32.0 * QUICKGLANCE_CIRCLE_SCALE / 2.0;
+                let circle_tex = DynamicImage::from(circle(circle_size as u32, *color));
                 blend(
                     image_buffer, 
                     &&circle_tex, 
-                    ((x / 170.0) * 8.0 * (RENDER_SCALE as f32) - (circle_size as f32 / 2.0)) as i32, 
-                    ((z / 170.0) * 8.0 * (RENDER_SCALE as f32) - (circle_size as f32 / 2.0)) as i32
+                    ((x * COORD_FACTOR) - circle_size) as i32, 
+                    ((z * COORD_FACTOR) - circle_size) as i32
                 );
             },
             _ => {}

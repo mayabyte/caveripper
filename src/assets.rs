@@ -26,8 +26,12 @@ pub struct AssetManager {
     caveinfo_cache: DashMap<Sublevel, CaveInfo>,
     img_cache: DashMap<String, DynamicImage>,
     custom_img_cache: DashMap<String, DynamicImage>,
+
+    /// All known treasure names. All lowercase so they can be easily compared.
     pub treasures: Vec<String>,
-    pub enemies: Vec<String>,
+
+    /// All known teki name. All lowercase so they can be easily compared.
+    pub teki: Vec<String>,
     pub cave_cfg: Vec<CaveConfig>,
 }
 
@@ -39,7 +43,7 @@ impl AssetManager {
             img_cache: DashMap::new(),
             custom_img_cache: DashMap::new(),
             treasures: Vec::new(),
-            enemies: Vec::new(),
+            teki: Vec::new(),
             cave_cfg: Vec::new(),
         };
 
@@ -50,15 +54,17 @@ impl AssetManager {
             .chain(ek_treasures.lines())
             .filter(|line| line.len() > 0)
             .map(|line| line.split_once(',').unwrap().1.to_owned())
+            .map(|treasure| treasure.to_ascii_lowercase())
             .collect();
         treasure_names.sort();
         mgr.treasures = treasure_names;
 
-        let enemies: Vec<String> = StaticAssets::iter()
+        let teki: Vec<String> = StaticAssets::iter()
             .filter_map(|p| p.strip_prefix("assets/enemytex/arc.d/").and_then(|p| p.strip_suffix("/texture.bti.png")).map(|p| p.to_string()))
             .filter(|path| !path.contains("/"))
+            .map(|teki| teki.to_ascii_lowercase())
             .collect();
-        mgr.enemies = enemies;
+        mgr.teki = teki;
 
         let cave_cfg: Vec<CaveConfig> = String::from_utf8(StaticResources::get("resources/caveinfo_config.txt").unwrap().data.as_ref().to_vec()).unwrap()
             .lines()

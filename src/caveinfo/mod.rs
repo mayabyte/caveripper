@@ -226,6 +226,7 @@ pub struct CaveUnit {
     pub doors: Vec<DoorUnit>,
     pub rotation: u16,
     pub spawnpoints: Vec<SpawnPoint>,
+    pub waterboxes: Vec<Waterbox>,
 }
 
 
@@ -285,6 +286,18 @@ impl CaveUnit {
     pub fn has_start_spawnpoint(&self) -> bool {
         self.spawnpoints.iter().any(|spawnpoint| spawnpoint.group == 7)
     }
+}
+
+
+/// Defines a cuboid of water in a room tile.
+#[derive(Debug, Clone)]
+pub struct Waterbox {
+    pub x1: f32,
+    pub y1: f32,
+    pub z1: f32,
+    pub x2: f32,
+    pub y2: f32,
+    pub z2: f32,
 }
 
 

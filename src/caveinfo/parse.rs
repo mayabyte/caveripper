@@ -3,7 +3,7 @@ use crate::{
     caveinfo::{
         util::{expand_rotations, sort_cave_units},
         CaveInfo, TekiInfo, ItemInfo, CapInfo, GateInfo,
-        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
+        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, Waterbox
     },
     errors::CaveInfoError,
     assets::ASSETS,
@@ -12,12 +12,12 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::{
-        alpha1, char, digit1, hex_digit1, line_ending, multispace0, multispace1, not_line_ending,
+        alpha1, char, digit1, hex_digit1, line_ending, multispace0, multispace1, not_line_ending, space0,
     },
     combinator::{into, opt, success, value},
     multi::{count, many1},
     sequence::{delimited, preceded, tuple},
-    IResult,
+    IResult, number::complete::float,
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -65,7 +65,7 @@ pub(super) fn parse_cave_unit_definition(
     count(section, num_units)(rest)
 }
 
-pub(super) fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IResult<&str, Vec<Section>> {
+fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IResult<&str, Vec<Section>> {
     // Skip the first line, which is just a comment containing "BaseGen file"
     let (cave_unit_layout_file_txt, ()) = skip_lines(cave_unit_layout_file_txt, 1)?;
 
@@ -73,6 +73,22 @@ pub(super) fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IR
     let num_gens = num_gens_str.parse().expect("Couldn't parse num gens from Cave Unit Layout File!");
 
     count(section, num_gens)(rest)
+}
+
+fn parse_waterboxes_file(waterboxes_file_txt: &str) -> IResult<&str, Vec<Waterbox>> {
+    // Skip the first three lines: 'type' which has an unknown effect, a comment line, and the first open bracket.
+    let (waterboxes_file_txt, ()) = skip_lines(waterboxes_file_txt, 3)?;
+
+    let (rest, (_, num_waterboxes_str, _, _)) = tuple((space0, digit1, space0, line_ending))
+        (waterboxes_file_txt)?;
+    let num_waterboxes = num_waterboxes_str.parse().expect("Couldn't parse num waterboxes from waterbox.txt!");
+
+    if num_waterboxes > 0 {
+        count(waterbox_line, num_waterboxes)(rest)
+    }
+    else {
+        Ok((rest, Vec::new()))
+    }
 }
 
 /// One 'section' enclosed by curly brackets in a CaveInfo file.
@@ -169,6 +185,14 @@ fn line_comment(input: &str) -> IResult<&str, Option<()>> {
 
 fn skip_lines(input: &str, skip: usize) -> IResult<&str, ()> {
     value((), count(tuple((not_line_ending, line_ending)), skip))(input)
+}
+
+fn waterbox_line(input: &str) -> IResult<&str, Waterbox> {
+    let (rest, (_, x1, _, y1, _, z1, _, x2, _, y2, _, z2, _, _)) = tuple((
+        multispace0, float, multispace1, float, multispace1, float, multispace1, float, multispace1, float, 
+        multispace1, float, multispace1, line_comment
+    ))(input)?;
+    Ok((rest, Waterbox { x1, y1, z1, x2, y2, z2 }))
 }
 
 // **************************************************
@@ -391,6 +415,14 @@ impl TryFrom<Section<'_>> for CaveUnit {
             None => Vec::new(),
         };
 
+        // Waterboxes file
+        let waterboxes = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/waterbox.txt", unit_folder_name)) {
+            Some (waterboxes_file_txt) => {
+                parse_waterboxes_file(&waterboxes_file_txt).expect(&format!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
+            },
+            None => Vec::new(),
+        };
+
         // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
         // present in Caveinfo files but the generation algorithm acts as if they're there,
         // so adding them here is a simplification.
@@ -420,6 +452,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
             doors,
             rotation: 0,
             spawnpoints,
+            waterboxes,
         })
     }
 }
@@ -489,33 +522,48 @@ static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
     // Carrying item still attached.
     Regex::new(r"(\$\d?)?([A-Za-z_-]+)").unwrap()
 });
-fn extract_internal_identifier(
-    internal_combined_name: &str,
-) -> (Option<String>, String, Option<String>) {
+fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<String>) {
     let captures = INTERNAL_IDENTIFIER_RE
         .captures(internal_combined_name)
         .expect(&format!(
             "Not able to capture info from combined internal identifier {}!",
             internal_combined_name
         ));
+
+    // Extract spawn method
     let spawn_method = captures.get(1)
         .map(|s| s.as_str())
         .and_then(|sm| sm.strip_prefix('$'))
-        .map(|s| s.to_string());
-    let mut internal_combined_name = captures.get(2).unwrap().as_str().to_string();
-    let mut carrying = None;
+        .map(|spawn_method| spawn_method.to_string());
+    let mut combined_name = captures.get(2).unwrap().as_str();
 
-    for treasure_name in ASSETS.treasures.iter() {
-        if internal_combined_name.ends_with(&format!("_{}", treasure_name)) {
-            internal_combined_name = internal_combined_name.strip_suffix(&format!("_{}", treasure_name)).unwrap().to_string();
-            carrying = Some(treasure_name.to_owned());
-            break;
+    // Some teki have an 'F' at the beginning of their name, indicating that they're
+    // fixed in place (e.g. tower groink on scx7). Remove this if it's present.
+    if let Some(candidate) = combined_name.strip_prefix('F') {
+        if ASSETS.teki.iter().any(|teki| candidate.to_ascii_lowercase().starts_with(teki)) {
+            combined_name = candidate;
         }
     }
 
-    if internal_combined_name.starts_with("F") && !ASSETS.enemies.contains(&internal_combined_name.to_ascii_lowercase()) {
-        internal_combined_name = internal_combined_name.strip_prefix("F").unwrap().to_string();
+    // Attempt to separate the candidate name into a teki and treasure component.
+    // Teki carrying treasures are written as "Tekiname_Treasurename", but unfortunately
+    // both teki and treasures can have underscores as part of their names, so splitting
+    // the two is non-trivial. To make things worse, some treasure names are strict 
+    // prefixes or suffixes of others ('fire', 'fire_helmet', 'suit_fire'). The only robust 
+    // way I've found to ensure the right teki/treasure combination is extracted is to 
+    // exhaustively check against all possible combinations of teki and treasure names.
+    // This is an expensive operation, but this should only have to be done at caveinfo
+    // loading time so it shouldn't affect performance where it matters.
+    if combined_name.contains('_') {
+        let combined_name_lower = combined_name.to_ascii_lowercase(); 
+        for (teki, treasure) in ASSETS.teki.iter().cartesian_product(ASSETS.treasures.iter()) {
+            // Check full string equality rather than prefix/suffix because
+            // some treasure names are suffixes of others.
+            if format!("{}_{}", teki, treasure) == combined_name_lower {
+                return (spawn_method, teki.clone(), Some(treasure.clone()));
+            }
+        }
     }
 
-    (spawn_method, internal_combined_name, carrying)
+    (spawn_method, combined_name.to_string(), None)
 }
