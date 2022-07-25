@@ -1,23 +1,13 @@
+use std::fs::{read_to_string, read_dir, read};
 use encoding_rs::SHIFT_JIS;
 use image::DynamicImage;
-use log::debug;
+use log::info;
 use once_cell::sync::Lazy;
-use rust_embed::RustEmbed;
 use dashmap::{DashMap, mapref::one::Ref};
 
 use crate::caveinfo::CaveInfo;
 use crate::errors::{AssetError, SublevelError, CaveInfoError};
 use crate::sublevel::Sublevel;
-
-#[derive(RustEmbed)]
-#[folder="$CARGO_MANIFEST_DIR/assets"]
-#[prefix="assets/"]
-struct StaticAssets;
-
-#[derive(RustEmbed)]
-#[folder="$CARGO_MANIFEST_DIR/resources"]
-#[prefix="resources/"]
-struct StaticResources;
 
 pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new());
 
@@ -47,8 +37,9 @@ impl AssetManager {
             cave_cfg: Vec::new(),
         };
 
-        let treasures = String::from_utf8(StaticResources::get("resources/treasures.txt").unwrap().data.as_ref().to_vec()).unwrap();
-        let ek_treasures = String::from_utf8(StaticResources::get("resources/treasures_exploration_kit.txt").unwrap().data.as_ref().to_vec()).unwrap();
+        let treasures = read_to_string("resources/treasures.txt").unwrap();
+        let ek_treasures = read_to_string("resources/treasures_exploration_kit.txt").unwrap();
+
         let mut treasure_names: Vec<String> = treasures
             .lines()
             .chain(ek_treasures.lines())
@@ -59,14 +50,14 @@ impl AssetManager {
         treasure_names.sort();
         mgr.treasures = treasure_names;
 
-        let teki: Vec<String> = StaticAssets::iter()
-            .filter_map(|p| p.strip_prefix("assets/enemytex/arc.d/").and_then(|p| p.strip_suffix("/texture.bti.png")).map(|p| p.to_string()))
-            .filter(|path| !path.contains("/"))
-            .map(|teki| teki.to_ascii_lowercase())
+        let teki: Vec<String> = read_dir("assets/enemytex/arc.d").expect("Couldn't read enemytex directory!")
+            .filter_map(Result::ok)
+            .filter(|dir_entry| dir_entry.path().is_dir())
+            .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
             .collect();
         mgr.teki = teki;
 
-        let cave_cfg: Vec<CaveConfig> = String::from_utf8(StaticResources::get("resources/caveinfo_config.txt").unwrap().data.as_ref().to_vec()).unwrap()
+        let cave_cfg: Vec<CaveConfig> = read_to_string("resources/caveinfo_config.txt").unwrap()
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
@@ -85,14 +76,13 @@ impl AssetManager {
 
     pub fn get_txt_file(&self, path: &str) -> Option<String> {
         if !self.txt_cache.contains_key(path) {
-            debug!("Loading {}...", path);
+            info!("Loading {}...", path);
+            let data = read(path).ok()?;
             if path.starts_with("assets") {
-                let file = StaticAssets::get(path)?;
-                self.txt_cache.insert(path.to_string(), SHIFT_JIS.decode(&file.data).0.into_owned());
+                self.txt_cache.insert(path.to_string(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
             }
             else if path.starts_with("resources") {
-                let file = StaticResources::get(path)?;
-                self.txt_cache.insert(path.to_string(), String::from_utf8(file.data.as_ref().to_vec()).ok()?);
+                self.txt_cache.insert(path.to_string(), String::from_utf8(data).ok()?);
             }
         }
         Some(self.txt_cache.get(path)?.clone())
@@ -111,15 +101,10 @@ impl AssetManager {
 
     pub fn get_img(&self, path: &str) -> Option<Ref<String, DynamicImage>> {
         if !self.img_cache.contains_key(path) {
-            debug!("Loading image {}...", path);
-            if path.starts_with("assets") {
-                let img = image::load_from_memory(StaticAssets::get(path)?.data.as_ref()).ok()?;
-                self.img_cache.insert(path.to_string(), img);
-            }
-            else if path.starts_with("resources") {
-                let img = image::load_from_memory(StaticResources::get(path)?.data.as_ref()).ok()?;
-                self.img_cache.insert(path.to_string(), img);
-            }
+            info!("Loading image {}...", path);
+            let data = read(path).expect(&format!("Couldn't read image file '{}'!", path));
+            let img = image::load_from_memory(data.as_slice()).ok()?;
+            self.img_cache.insert(path.to_string(), img);
         }
         self.img_cache.get(path)
     }
@@ -158,7 +143,7 @@ impl AssetManager {
     /// Loads and parses a caveinfo file, then stores the
     /// resultant FloorInfo structs in the cache.
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), AssetError> {
-        debug!("Loading CaveInfo for {}...", cave.full_name);
+        info!("Loading CaveInfo for {}...", cave.full_name);
         let caveinfo_filename = format!("assets/caveinfo/{}", cave.caveinfo_filename);
         let caveinfo_txt = self.get_txt_file(&caveinfo_filename)
             .ok_or_else(|| CaveInfoError::MissingFileError(caveinfo_filename.clone()))?;

@@ -10,9 +10,12 @@ pub struct Cli {
     #[clap(
         global = true,
         short = 'v',
+        parse(from_occurrences),
+        takes_value = false,
+        multiple_occurrences = true,
         help = VERBOSE_HELP,
     )]
-    pub debug_logging: bool,
+    pub verbosity: u8,
 }
 
 #[derive(Debug, Subcommand)]

@@ -24,10 +24,6 @@ version = "1.13"
 default-features = false
 features = ["colors"]
 
-[dependencies.rust-embed]
-version = "6.3"
-features = ["interpolate-folder-path", "compression"]
-
 [dev-dependencies]
 criterion = "0.3"
 rand = {version="0.8", features=["small_rng"]}

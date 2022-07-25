@@ -17,8 +17,11 @@ static RAYON_EARLY_EXIT_PAYLOAD: &'static str = "__RAYON_EARLY_EXIT__";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
-    if args.debug_logging {
-        SimpleLogger::new().with_level(log::LevelFilter::max()).init()?;
+    match args.verbosity {
+        1 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
+        2 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
+        3 => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
+        _ => {/* No higher log levels */},
     }
 
     // Register a custom pass-through panic handler that suppresses the panic
