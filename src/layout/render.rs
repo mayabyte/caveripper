@@ -7,7 +7,7 @@ use clap::Args;
 use dashmap::mapref::one::Ref;
 use image::{Rgba, RgbaImage};
 use image::{DynamicImage, GenericImage, GenericImageView, Pixel, imageops::FilterType};
-use log::debug;
+use log::{info};
 
 const RENDER_SCALE: u32 = 8;
 const GRID_FACTOR: i32 = 8 * RENDER_SCALE as i32;
@@ -35,7 +35,7 @@ pub struct RenderOptions {
 
 
 pub fn render_layout(layout: &Layout, options: RenderOptions) {
-    debug!("Generating layout image.");
+    info!("Drawing layout image...");
 
     // Find the minimum and maximum map tile coordinates in the layout.
     let max_map_x = layout.map_units.iter().map(|unit| unit.x + unit.unit.width as i32).max().unwrap();

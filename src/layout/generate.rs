@@ -1,7 +1,7 @@
 use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
 
 use itertools::Itertools;
-use log::debug;
+use log::{debug, info};
 
 use crate::{pikmin_math::{PikminRng, self}, caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, layout::{PlacedDoor, SpawnObject}};
 
@@ -66,6 +66,7 @@ impl LayoutBuilder {
     /// when that results in non-idiomatic Rust code. It is my 'reference'
     /// implementation; a more optimized one will follow.
     fn _generate(mut self, caveinfo: &CaveInfo) -> Layout {
+        info!("Generating layout for {} {:#010X}...", caveinfo.cave_name.as_ref().unwrap(), self.starting_seed);
         // ** mapUnitsInitialSorting ** //
         // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L644
 
