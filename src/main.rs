@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
             )?;
         },
-        Commands::Caveinfo { sublevel } => {
+        Commands::Caveinfo{ sublevel } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             println!("Caveinfo for {}:\n{}", sublevel.short_name(), caveinfo);
         },
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("🍞 Couldn't find a layout matching the condition '{}' in {}s.", condition, timeout);
             }
         },
-        Commands::Stats { sublevel, condition, num_to_search } => {
+        Commands::Stats{ sublevel, condition, num_to_search } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             let num_matched = (0..num_to_search).into_par_iter()
                 .progress()

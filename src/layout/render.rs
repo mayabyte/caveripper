@@ -77,33 +77,25 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) -> Result<DynamicI
 
         for waterbox in map_unit.unit.waterboxes.iter() {
             let (x1, z1, x2, z2) = match map_unit.unit.rotation {
-                0 => {
-                    (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2)
-                },
-                1 => {
-                    (waterbox.z1, waterbox.x1, waterbox.z2, waterbox.x2)
-                },
-                2 => {
-                    (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1)
-                },
-                3 => {
-                    (-waterbox.z2, -waterbox.x2, -waterbox.z1, -waterbox.x1)
-                },
+                0 => (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2),
+                1 => (-waterbox.z2, waterbox.x1, -waterbox.x1, waterbox.x2),
+                2 => (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1),
+                3 => (waterbox.z1, -waterbox.x2, waterbox.z2, -waterbox.x1),
                 _ => return Err(RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed)),
             };
-            let x1 = (x1 * COORD_FACTOR) as i32;
-            let z1 = (z1 * COORD_FACTOR) as i32;
-            let x2 = (x2 * COORD_FACTOR) as i32;
-            let z2 = (z2 * COORD_FACTOR) as i32;
-            let w = (map_unit.unit.width / 2) as i32 * GRID_FACTOR;
-            let h = (map_unit.unit.height / 2) as i32 * GRID_FACTOR;
+            let x1 = x1 * COORD_FACTOR;
+            let z1 = z1 * COORD_FACTOR;
+            let x2 = x2 * COORD_FACTOR;
+            let z2 = z2 * COORD_FACTOR;
+            let w = (map_unit.unit.width as i32 * GRID_FACTOR) as f32 / 2.0;
+            let h = (map_unit.unit.height as i32 * GRID_FACTOR) as f32 / 2.0;
             let mut square: DynamicImage = RgbaImage::new((x2 - x1) as u32, (z2 - z1) as u32).into();
             for i in 0..(x2 - x1) as u32 {
                 for j in 0..(z2 - z1) as u32 {
                     square.put_pixel(i, j, [0, 100, 230, 50].into());
                 }
             }
-            blend(&mut image_buffer, &square, img_x as i32 + x1 + w, img_z as i32 + z1 + h);
+            blend(&mut image_buffer, &square, img_x as i32 + (x1 + w) as i32, img_z as i32 + (z1 + h) as i32);
         }
     }
 
