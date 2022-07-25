@@ -6,7 +6,7 @@ use crate::{
         DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, Waterbox
     },
     errors::CaveInfoError,
-    assets::ASSETS,
+    assets::{ASSETS, Treasure},
 };
 use nom::{
     branch::alt,
@@ -212,8 +212,8 @@ impl TryFrom<[Section<'_>; 5]> for CaveInfo {
             .expect("Couldn't parse Cave Unit Definition file!");
 
         Ok(CaveInfo {
-            cave_name: None,
-            sublevel: floorinfo_section.get_tag("000")?,
+            sublevel: None,
+            floor_num: floorinfo_section.get_tag("000")?,
             max_main_objects: floorinfo_section.get_tag("002")?,
             max_treasures: floorinfo_section.get_tag("003")?,
             max_gates: floorinfo_section.get_tag("004")?,
@@ -521,7 +521,7 @@ static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
     // Carrying item still attached.
     Regex::new(r"(\$\d?)?([A-Za-z_-]+)").unwrap()
 });
-fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<String>) {
+fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<Treasure>) {
     let captures = INTERNAL_IDENTIFIER_RE
         .captures(internal_combined_name)
         .expect(&format!(
@@ -558,7 +558,7 @@ fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>,
         for (teki, treasure) in ASSETS.teki.iter().cartesian_product(ASSETS.treasures.iter()) {
             // Check full string equality rather than prefix/suffix because
             // some treasure names are suffixes of others.
-            if format!("{}_{}", teki, treasure) == combined_name_lower {
+            if format!("{}_{}", teki, treasure.internal_name) == combined_name_lower {
                 return (spawn_method, teki.clone(), Some(treasure.clone()));
             }
         }

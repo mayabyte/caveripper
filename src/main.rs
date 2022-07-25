@@ -8,7 +8,7 @@ use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{error::Error, panic::RefUnwindSafe};
 use std::panic::catch_unwind;
 use std::time::{SystemTime, Duration};
-use cavegen::{assets::ASSETS, layout::render::save_image};
+use cavegen::{assets::ASSETS, layout::render::{save_image, RenderOptions, render_caveinfo}};
 use cavegen::layout::Layout;
 use cavegen::layout::render::render_layout;
 use simple_logger::SimpleLogger;
@@ -51,7 +51,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         Commands::Caveinfo{ sublevel } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-            println!("Caveinfo for {}:\n{}", sublevel.short_name(), caveinfo);
+            save_image(
+                &render_caveinfo(&caveinfo, RenderOptions::default())?,
+                format!("{}_Caveinfo", caveinfo.name())
+            )?;
         },
         Commands::Search{ sublevel, condition, timeout } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;

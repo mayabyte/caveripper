@@ -15,7 +15,7 @@ use std::{cmp::Ordering, fmt::{Display, Formatter}};
 use nom::Finish;
 use parse::parse_caveinfo;
 
-use crate::errors::CaveInfoError;
+use crate::{errors::CaveInfoError, sublevel::Sublevel, assets::Treasure};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -25,8 +25,8 @@ use crate::errors::CaveInfoError;
 /// generate one sublevel.
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
-    pub cave_name: Option<String>,  // Not part of the CaveInfo file, just for debugging and logging purposes.
-    pub sublevel: u32, // 0-indexed
+    pub sublevel: Option<Sublevel>,  // Not part of the CaveInfo file, just for debugging and logging purposes.
+    pub floor_num: u32, // 0-indexed
     pub max_main_objects: u32,
     pub max_treasures: u32,
     pub max_gates: u32,
@@ -58,7 +58,7 @@ impl CaveInfo {
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        format!("{}", self.cave_name.as_ref().expect("No cave name found!"))
+        self.sublevel.as_ref().expect("No cave name found!").short_name()
     }
 
     pub fn parse_from(caveinfo_txt: &str) -> Result<Vec<CaveInfo>, CaveInfoError> {
@@ -105,7 +105,7 @@ impl Display for CaveInfo {
             }
             write!(f, ")")?;
             if let Some(carrying) = &tekiinfo.carrying {
-                write!(f, " Carrying: {}", carrying)?;
+                write!(f, " Carrying: {}", carrying.internal_name)?;
             }
             writeln!(f)?;
         }
@@ -142,7 +142,7 @@ impl Display for CaveInfo {
 #[derive(Debug, Clone)]
 pub struct TekiInfo {
     pub internal_name: String,
-    pub carrying: Option<String>, // The object held by this Teki, if any.
+    pub carrying: Option<Treasure>, // The object held by this Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u32, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
@@ -188,7 +188,7 @@ pub struct GateInfo {
 #[derive(Debug, Clone)]
 pub struct CapInfo {
     pub internal_name: String,
-    pub carrying: Option<String>, // The object held by this Cap Teki, if any.
+    pub carrying: Option<Treasure>, // The object held by this Cap Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u8,                      // Does not control spawn location like it does in TekiInfo.

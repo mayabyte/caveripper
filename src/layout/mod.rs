@@ -61,7 +61,7 @@ impl Layout {
                         SpawnObject::Teki(tekiinfo, (dx, dz)) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 tekiinfo.internal_name,
-                                tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                                tekiinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
                                 tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
                                 (spawnpoint.x + dx) as i32,
                                 (spawnpoint.z + dz) as i32,
@@ -70,7 +70,7 @@ impl Layout {
                         SpawnObject::CapTeki(capinfo, _) => {
                             spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                                 capinfo.internal_name,
-                                capinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                                capinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
                                 capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
                                 spawnpoint.x as i32,
                                 spawnpoint.z as i32,
@@ -118,7 +118,7 @@ impl Layout {
                     Some(SpawnObject::Teki(tekiinfo, (dx, dz))) => {
                         spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
                             tekiinfo.internal_name,
-                            tekiinfo.carrying.clone().unwrap_or_else(|| "none".to_string()),
+                            tekiinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
                             tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
                             (x + dx) as i32, (z + dz) as i32,
                         ));

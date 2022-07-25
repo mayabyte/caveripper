@@ -1,6 +1,7 @@
 use std::fs::{read_to_string, read_dir, read};
 use encoding_rs::SHIFT_JIS;
-use image::DynamicImage;
+use image::RgbaImage;
+use itertools::Itertools;
 use log::info;
 use once_cell::sync::Lazy;
 use dashmap::{DashMap, mapref::one::Ref};
@@ -14,11 +15,11 @@ pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new());
 pub struct AssetManager {
     txt_cache: DashMap<String, String>,
     caveinfo_cache: DashMap<Sublevel, CaveInfo>,
-    img_cache: DashMap<String, DynamicImage>,
-    custom_img_cache: DashMap<String, DynamicImage>,
+    img_cache: DashMap<String, RgbaImage>,
+    custom_img_cache: DashMap<String, RgbaImage>,
 
     /// All known treasure names. All lowercase so they can be easily compared.
-    pub treasures: Vec<String>,
+    pub treasures: Vec<Treasure>,
 
     /// All known teki name. All lowercase so they can be easily compared.
     pub teki: Vec<String>,
@@ -37,20 +38,21 @@ impl AssetManager {
             cave_cfg: Vec::new(),
         };
 
-        let treasures = read_to_string("resources/treasures.txt")
-            .expect("Couldn't find treasures.txt! Is the `resources/` folder present?");
-        let ek_treasures = read_to_string("resources/treasures_exploration_kit.txt")
-            .expect("Couldn't find treasures_exploration_kit.txt! Is the `resources/` folder present?");
+        let treasures = SHIFT_JIS.decode(
+            read("assets/cfg/pelletlist_us.d/otakara_config.txt")
+            .expect("Couldn't find otakara_config.txt!")
+            .as_slice()
+        ).0.into_owned();
+        let ek_treasures = SHIFT_JIS.decode(
+            read("assets/cfg/pelletlist_us.d/item_config.txt")
+            .expect("Couldn't find item_config.txt!")
+            .as_slice()
+        ).0.into_owned();
 
-        let mut treasure_names: Vec<String> = treasures
-            .lines()
-            .chain(ek_treasures.lines())
-            .filter(|line| line.len() > 0)
-            .map(|line| line.split_once(',').unwrap().1.to_owned())
-            .map(|treasure| treasure.to_ascii_lowercase())
-            .collect();
-        treasure_names.sort();
-        mgr.treasures = treasure_names;
+        let mut treasures = parse_treasure_config(&treasures);
+        treasures.append(&mut parse_treasure_config(&ek_treasures));
+        treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
+        mgr.treasures = treasures;
 
         let teki: Vec<String> = read_dir("assets/enemytex/arc.d").expect("Couldn't read enemytex directory!")
             .filter_map(Result::ok)
@@ -106,23 +108,24 @@ impl AssetManager {
         )
     }
 
-    pub fn get_img(&self, path: &str) -> Result<Ref<String, DynamicImage>, AssetError> {
+    pub fn get_img(&self, path: &str) -> Result<Ref<String, RgbaImage>, AssetError> {
         if !self.img_cache.contains_key(path) {
             info!("Loading image {}...", path);
             let data = read(path)
                 .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
             let img = image::load_from_memory(data.as_slice())
-                .map_err(|_| AssetError::DecodingError(path.to_string()))?;
+                .map_err(|_| AssetError::DecodingError(path.to_string()))?
+                .into_rgba8();
             self.img_cache.insert(path.to_string(), img);
         }
         self.img_cache.get(path).ok_or_else(|| AssetError::DecodingError(path.to_string()))
     }
 
-    pub fn get_custom_img(&self, key: &str) -> Result<Ref<String, DynamicImage>, AssetError> {
+    pub fn get_custom_img(&self, key: &str) -> Result<Ref<String, RgbaImage>, AssetError> {
         self.custom_img_cache.get(key).ok_or_else(|| AssetError::DecodingError(key.to_string()))
     }
 
-    pub fn cache_img(&self, key: &str, img: DynamicImage) {
+    pub fn cache_img(&self, key: &str, img: RgbaImage) {
         self.custom_img_cache.insert(key.to_string(), img);
     }
 
@@ -157,8 +160,8 @@ impl AssetManager {
         let caveinfo_txt = self.get_txt_file(&caveinfo_filename)?;
         let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
         for mut caveinfo in caveinfos.into_iter() {
-            let sublevel = Sublevel::from_cfg(cave, (caveinfo.sublevel+1) as usize);
-            caveinfo.cave_name = Some(sublevel.short_name());
+            let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
+            caveinfo.sublevel = Some(sublevel.clone());
             if !self.caveinfo_cache.contains_key(&sublevel) {
                 self.caveinfo_cache.insert(sublevel, caveinfo);
             }
@@ -197,3 +200,34 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
 }
 
 static ALL_VANILLA_CAVES: [&'static str; 14] = ["ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", "dd"];
+
+#[derive(Clone, Debug)]
+pub struct Treasure {
+    pub internal_name: String,
+    pub min_carry: u32,
+    pub max_carry: u32,
+    pub value: u32,
+}
+
+fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
+    config_txt.lines().skip(4)
+        .batching(|lines| {
+            // Advances by one during this check, conveniently skipping the opening bracket
+            if lines.next().is_none() {
+                return None;
+            }
+            Some(lines.take_while(|line| line != &"}").collect_vec())
+        })
+        .map(|section| {
+            let internal_name = treasure_config_line_value(section[0]).to_string();
+            let min_carry = treasure_config_line_value(section[13]).parse().unwrap();
+            let max_carry = treasure_config_line_value(section[14]).parse().unwrap();
+            let value = treasure_config_line_value(section[18]).parse().unwrap();
+            Treasure { internal_name, min_carry, max_carry, value }
+        })
+        .collect_vec()
+}
+
+fn treasure_config_line_value(line: &str) -> &str {
+    line.trim().split_ascii_whitespace().last().unwrap()
+}
