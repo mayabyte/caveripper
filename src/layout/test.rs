@@ -8,6 +8,9 @@ use crate::layout::boxes_overlap;
 use crate::layout::Layout;
 use crate::sublevel::Sublevel;
 
+use super::render::RenderOptions;
+use super::render::render_layout;
+
 #[test]
 fn test_collision() {
     assert!(!boxes_overlap(0, 0, 5, 7, 5, 5, 5, 5))
@@ -70,4 +73,39 @@ fn test_slugs() {
     println!("Caveripper Accuracy: {:.03}%", accuracy * 100.0);
 
     assert!(accuracy == 1.0, "Accuracy: {:.03}.", accuracy * 100.0);
+}
+
+#[test]
+fn test_render() {
+    let num_layouts = 1_000;
+    let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
+    ASSETS.preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    let all_sublevels = ASSETS.all_sublevels();
+
+    let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
+        .map(|_| {
+            let seed = rng.gen();
+            let sublevel = all_sublevels.iter()
+                .map(|e| e.key().clone())
+                .sorted()
+                .nth(rng.gen_range(0..all_sublevels.len()))
+                .unwrap()
+                .to_owned();
+            (seed, sublevel)
+        })
+        .collect();
+
+    let failures = tests.into_par_iter().filter(|(seed, sublevel)| {
+        let layout = Layout::generate(*seed, all_sublevels.get(&sublevel).as_ref().unwrap());
+        if let Err(cause) = render_layout(&layout, RenderOptions::default()) {
+            println!("({}, {:#010X}) {}", sublevel.short_name(), seed, cause);
+            true
+        }
+        else {
+            false
+        }
+    })
+    .count();
+
+    assert!(failures == 0);
 }

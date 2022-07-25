@@ -1,37 +1,31 @@
-use std::{error::Error, fmt::{Display, Formatter, Debug}, num::{ParseIntError, ParseFloatError}};
+use thiserror::Error;
+use std::{fmt::Debug, num::{ParseIntError, ParseFloatError}, io};
 
-#[derive(Debug)]
+#[derive(Debug, Error, Clone)]
 pub enum SublevelError {
+    #[error("Couldn't find cave name in input string")]
     MissingCaveName,
+
+    #[error("Couldn't find sublevel number in input string")]
     MissingFloorNumber,
+
+    #[error("Unrecognized sublevel {0}")]
     UnrecognizedSublevel(String),
 }
 
-impl Error for SublevelError {}
-
-impl Display for SublevelError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SublevelError::MissingCaveName => write!(f, "Couldn't find cave name in input string!"),
-            SublevelError::MissingFloorNumber => write!(f, "Couldn't find sublevel number in input string!"),
-            SublevelError::UnrecognizedSublevel(sl) => write!(f, "Unrecognized sublevel \"{}\"", sl),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error, Clone)]
 pub enum AssetError {
+    #[error("Failed to load an asset for {0}")]
     SublevelError(SublevelError),
-}
 
-impl Error for AssetError {}
+    #[error("Error during file IO for '{0}': {1}")]
+    IoError(String, io::ErrorKind),
 
-impl Display for AssetError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AssetError::SublevelError(sle) => write!(f, "{}", sle),
-        }
-    }
+    #[error("Asset cache was missing key '{0}'")]
+    CacheError(String),
+
+    #[error("Failed to decode file '{0}'")]
+    DecodingError(String),
 }
 
 impl From<CaveInfoError> for AssetError {
@@ -46,57 +40,49 @@ impl From<SublevelError> for AssetError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error, Clone)]
 pub enum SeedError {
+    #[error("Seed must be 8 digits long, excluding the optional '0x' at the beginning.")]
     InvalidLength,
+
+    #[error("Seed contained invalid hex digits! You can only use 0-9 and A-F (case insensitive).")]
     InvalidHexDigits
 }
 
-impl Error for SeedError {}
-
-impl Display for SeedError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SeedError::InvalidLength => write!(f, "Seed must be 8 digits long, excluding the optional '0x' at the beginning."),
-            SeedError::InvalidHexDigits => write!(f, "Seed contained invalid hex digits! You can only use 0-9 and A-F."),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error, Clone)]
 pub enum SearchConditionError {
+    #[error("Error parsing search condition")]
     ParseError,
 }
 
-impl Error for SearchConditionError {}
-
-impl Display for SearchConditionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SearchConditionError::ParseError => write!(f, "Error parsing search condition!"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum CaveInfoError {
+    #[error("Invalid sublevel '{0}'")]
     InvalidSublevel(String),
+
+    #[error("Malformed line in caveinfo file")]
     MalformedLine,
+
+    #[error("Error parsing value into the appropriate type")]
     ParseValueError,
+
+    #[error("No tag '{0}' in file")]
     NoSuchTag(String),
+
+    #[error("Malformed tag line '{0}'")]
     MalformedTagLine(String),
+
+    #[error("Couldn't read file '{0}'")]
     FileReadError(String),
+
+    #[error("Couldn't find file '{0}'")]
     MissingFileError(String),
+
+    #[error("Failed to parse file '{0}'")]
     ParseFileError(String),
-}
 
-impl Error for CaveInfoError {}
-
-impl Display for CaveInfoError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // Doesn't need to be pretty
-        Debug::fmt(self, f)
-    }
+    #[error("Error loading asset during parsing: {0}")]
+    AssetError(AssetError),
 }
 
 impl From<ParseIntError> for CaveInfoError {
@@ -108,5 +94,29 @@ impl From<ParseIntError> for CaveInfoError {
 impl From<ParseFloatError> for CaveInfoError {
     fn from(_: ParseFloatError) -> CaveInfoError {
         CaveInfoError::ParseValueError
+    }
+}
+
+impl From<AssetError> for CaveInfoError {
+    fn from(e: AssetError) -> Self {
+        CaveInfoError::AssetError(e)
+    }
+}
+
+#[derive(Debug, Error, Clone)]
+pub enum RenderError {
+    #[error("Generated layout '{0} {1}' was invalid")]
+    InvalidLayout(String, u32),
+
+    #[error("Issue with file '{0}'")]
+    IoError(String),
+
+    #[error("Error loading asset for rendering: {0}")]
+    AssetError(AssetError),
+}
+
+impl From<AssetError> for RenderError {
+    fn from(e: AssetError) -> Self {
+        RenderError::AssetError(e)
     }
 }

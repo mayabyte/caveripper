@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo};
 use crate::assets::{ASSETS, get_special_texture_name};
+use crate::errors::{RenderError, AssetError};
 use super::{Layout, SpawnObject, PlacedMapUnit};
 use clap::Args;
 use dashmap::mapref::one::Ref;
@@ -34,12 +35,14 @@ pub struct RenderOptions {
 }
 
 
-pub fn render_layout(layout: &Layout, options: RenderOptions) {
+pub fn render_layout(layout: &Layout, options: RenderOptions) -> Result<DynamicImage, RenderError> {
     info!("Drawing layout image...");
 
     // Find the minimum and maximum map tile coordinates in the layout.
-    let max_map_x = layout.map_units.iter().map(|unit| unit.x + unit.unit.width as i32).max().unwrap();
-    let max_map_z = layout.map_units.iter().map(|unit| unit.z + unit.unit.height as i32).max().unwrap();
+    let max_map_x = layout.map_units.iter().map(|unit| unit.x + unit.unit.width as i32).max()
+        .ok_or_else(|| RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed))?;
+    let max_map_z = layout.map_units.iter().map(|unit| unit.z + unit.unit.height as i32).max()
+        .ok_or_else(|| RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed))?;
 
     // Each map tile is 8x8 pixels on the radar.
     // We scale this up further so teki and treasure textures can be rendered at a decent
@@ -51,7 +54,7 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let mut radar_image = map_unit.get_texture().clone();
+        let mut radar_image = map_unit.get_texture()?.clone();
         
         for _ in 0..map_unit.unit.rotation {
             radar_image = radar_image.rotate90();
@@ -86,7 +89,7 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
                 3 => {
                     (-waterbox.z2, -waterbox.x2, -waterbox.z1, -waterbox.x1)
                 },
-                _ => panic!("Invalid direction"),
+                _ => return Err(RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed)),
             };
             let x1 = (x1 * COORD_FACTOR) as i32;
             let z1 = (z1 * COORD_FACTOR) as i32;
@@ -124,16 +127,16 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
                 SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0, &options);
+                    draw_object_at(&mut image_buffer, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, 1.0, &options)?;
                 },
                 SpawnObject::Item(iteminfo) => {
-                    draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE, &options);
+                    draw_object_at(&mut image_buffer, iteminfo, spawnpoint.x, spawnpoint.z, TREASURE_SCALE, &options)?;
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut image_buffer, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, FALLING_CAP_TEKI_SCALE, &options);
+                    draw_object_at(&mut image_buffer, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, FALLING_CAP_TEKI_SCALE, &options)?;
                 },
                 _ => {
-                    draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0, &options);
+                    draw_object_at(&mut image_buffer, spawn_object, spawnpoint.x, spawnpoint.z, 1.0, &options)?;
                 },
             }
         }
@@ -153,30 +156,39 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) {
 
             match spawn_object {
                 SpawnObject::Gate(gateinfo) => {
-                    let texture = gateinfo.get_texture();
+                    let texture = gateinfo.get_texture()?;
                     if door.borrow().door_unit.direction % 2 == 1 {
-                        draw_object_at(&mut image_buffer, &&(texture.rotate90()), x, z, GATE_SCALE, &options);
+                        draw_object_at(&mut image_buffer, &&(texture.rotate90()), x, z, GATE_SCALE, &options)?;
                     }
                     else {
-                        draw_object_at(&mut image_buffer, &texture.value(), x, z, GATE_SCALE, &options);
+                        draw_object_at(&mut image_buffer, &texture.value(), x, z, GATE_SCALE, &options)?;
                     }
                 }
                 _ => {
-                    draw_object_at(&mut image_buffer, spawn_object, x, z, 1.0, &options);
+                    draw_object_at(&mut image_buffer, spawn_object, x, z, 1.0, &options)?;
                 },
             }
         }
     }
 
+    Ok(image_buffer)
+}
+
+/// Saves a layout image to disc.
+/// Filename should not include an extension.
+pub fn save_image(img: &DynamicImage, filename: String) -> Result<(), RenderError> {
     let _ = std::fs::create_dir("./output");
-    let filename = format!("./output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed);
-    image_buffer.save_with_format(&filename, image::ImageFormat::Png).unwrap();
+    let filename = format!("./output/{}.png", filename);
+    img.save_with_format(&filename, image::ImageFormat::Png)
+        .map_err(|_| RenderError::IoError(filename.clone()))?;
     println!("🍞 Saved layout image as \"{}\"", filename);
+
+    Ok(())
 }
 
 // x and z are world coordinates, not image or map unit coordinates
-fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: f32, z: f32, scale: f32, options: &RenderOptions) {
-    let texture = obj.get_texture();
+fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: f32, z: f32, scale: f32, options: &RenderOptions) -> Result<(), AssetError> {
+    let texture = obj.get_texture()?;
     let texture = texture.resize(
         (32.0 * scale) as u32, (32.0 * scale) as u32,
         FilterType::Lanczos3
@@ -209,20 +221,20 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut DynamicImage, obj: &Tex, x: 
     for modifier in obj.get_texture_modifiers().iter() {
         match modifier {
             TextureModifier::Falling => {
-                let falling_icon_texture = ASSETS.get_img("resources/enemytex_special/falling_icon.png")
-                    .unwrap()
+                let falling_icon_texture = ASSETS.get_img("resources/enemytex_special/falling_icon.png")?
                     .resize(18, 18, FilterType::Lanczos3);
                 blend(image_buffer, &falling_icon_texture, img_x - 5, img_z);
             },
             TextureModifier::Carrying(carrying) => {
-                let carried_treasure_icon = ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))
-                    .unwrap()
+                let carried_treasure_icon = ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?
                     .resize(24, 24, FilterType::Lanczos3);
                 blend(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
             },
             _ => {}
         }
     }
+
+    Ok(())
 }
 
 fn blend(base: &mut DynamicImage, top: &DynamicImage, x: i32, z: i32) {
@@ -260,15 +272,15 @@ enum TextureModifier {
 
 trait Textured {
     type Texture: Deref<Target=DynamicImage>;
-    fn get_texture(&self) -> Self::Texture;
+    fn get_texture(&self) -> Result<Self::Texture, AssetError>;
     fn get_texture_modifiers(&self) -> Vec<TextureModifier>;
 }
 
 impl Textured for PlacedMapUnit {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         let filename = format!("assets/arc/{}/arc.d/texture.bti.png", &self.unit.unit_folder_name);
-        ASSETS.get_img(&filename).unwrap()
+        ASSETS.get_img(&filename)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -278,16 +290,15 @@ impl Textured for PlacedMapUnit {
 
 impl Textured for TekiInfo {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
                 let filename = format!("resources/enemytex_special/{}", special_name);
-                ASSETS.get_img(&filename).unwrap()
+                ASSETS.get_img(&filename)
             },
             None => {
                 let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", &self.internal_name.to_ascii_lowercase());
                 ASSETS.get_img(&filename)
-                    .expect(&format!("Couldn't find image for {}", self.internal_name))
             }
         }
     }
@@ -313,17 +324,17 @@ impl Textured for TekiInfo {
 
 impl Textured for CapInfo {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         // We don't consider the possibility of treasures spawning in CapInfo here since that
         // is never done in the vanilla game. May need to fix in the future for romhack support.
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
                 let filename = format!("resources/enemytex_special/{}", special_name);
-                ASSETS.get_img(&filename).unwrap()
+                ASSETS.get_img(&filename)
             },
             None => {
                 let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", self.internal_name);
-                ASSETS.get_img(&filename).unwrap()
+                ASSETS.get_img(&filename)
             }
         }
     }
@@ -344,10 +355,10 @@ impl Textured for CapInfo {
 
 impl Textured for ItemInfo {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         // TODO: fix US region being hardcoded here.
         let filename = format!("assets/resulttex/us/arc.d/{}/texture.bti.png", self.internal_name);
-        ASSETS.get_img(&filename).unwrap()
+        ASSETS.get_img(&filename)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -357,9 +368,9 @@ impl Textured for ItemInfo {
 
 impl Textured for GateInfo {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
-        ASSETS.get_img(filename).unwrap()
+        ASSETS.get_img(filename)
     }
     
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -370,33 +381,33 @@ impl Textured for GateInfo {
 
 impl Textured for SpawnObject {
     type Texture = Ref<'static, String, DynamicImage>;
-    fn get_texture(&self) -> Self::Texture {
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
         match self {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture(),
             SpawnObject::Item(iteminfo) => iteminfo.get_texture(),
             SpawnObject::Gate(gateinfo) => gateinfo.get_texture(),
             SpawnObject::Hole(plugged) => {
-                ASSETS.get_custom_img("PLUGGED_HOLE").unwrap_or_else(|| {
+                ASSETS.get_custom_img("PLUGGED_HOLE").or_else(|_| {
                     let filename = "resources/enemytex_special/Cave_icon.png";
-                    let mut hole_icon = ASSETS.get_img(filename).unwrap().clone();
+                    let mut hole_icon = ASSETS.get_img(filename)?.clone();
                     if *plugged {
                         let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
-                        let plug_icon = ASSETS.get_img(plug_filename).unwrap()
+                        let plug_icon = ASSETS.get_img(plug_filename)?
                             .resize_exact(hole_icon.width(), hole_icon.height(), FilterType::Lanczos3);
                         blend(&mut hole_icon, &plug_icon, 0, 0);
                     }
                     ASSETS.cache_img("PLUGGED_HOLE", hole_icon);
-                    ASSETS.get_custom_img("PLUGGED_HOLE").unwrap()
+                    ASSETS.get_custom_img("PLUGGED_HOLE")
                 })
             },
             SpawnObject::Geyser => {
                 let filename = "resources/enemytex_special/Geyser_icon.png";
-                ASSETS.get_img(filename).unwrap()
+                ASSETS.get_img(filename)
             },
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
-                ASSETS.get_img(filename).unwrap()
+                ASSETS.get_img(filename)
             }
         }
     }
@@ -418,8 +429,8 @@ impl Textured for SpawnObject {
 
 impl<'a> Textured for &'a DynamicImage {
     type Texture = &'a DynamicImage;
-    fn get_texture(&self) -> Self::Texture {
-        self
+    fn get_texture(&self) -> Result<Self::Texture, AssetError> {
+        Ok(self)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {

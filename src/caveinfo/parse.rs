@@ -207,8 +207,7 @@ impl TryFrom<[Section<'_>; 5]> for CaveInfo {
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
         let cave_unit_definition_path = format!("assets/units/{}", &cave_unit_definition_file_name);
-        let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)
-            .ok_or(CaveInfoError::MissingFileError(cave_unit_definition_path))?;
+        let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
 
@@ -407,20 +406,20 @@ impl TryFrom<Section<'_>> for CaveUnit {
 
         // Cave Unit Layout File (spawn points)
         let mut spawnpoints = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
-            Some(cave_unit_layout_file_txt) => {
+            Ok(cave_unit_layout_file_txt) => {
                 let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
                 spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
             },
-            None => Vec::new(),
+            Err(_) => Vec::new(),
         };
 
         // Waterboxes file
         let waterboxes = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/waterbox.txt", unit_folder_name)) {
-            Some (waterboxes_file_txt) => {
+            Ok(waterboxes_file_txt) => {
                 parse_waterboxes_file(&waterboxes_file_txt).expect(&format!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
             },
-            None => Vec::new(),
+            Err(_) => Vec::new(),
         };
 
         // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't

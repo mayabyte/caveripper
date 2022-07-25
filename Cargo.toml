@@ -18,6 +18,7 @@ rayon = "1.5"
 indicatif = {version="0.16", features=["rayon"]}
 rand = "0.8"
 dashmap = "5.3"
+thiserror = "1.0"
 
 [dependencies.simple_logger]
 version = "1.13"

@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use dashmap::{DashMap, mapref::one::Ref};
 
 use crate::caveinfo::CaveInfo;
-use crate::errors::{AssetError, SublevelError, CaveInfoError};
+use crate::errors::{AssetError, SublevelError};
 use crate::sublevel::Sublevel;
 
 pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new());
@@ -37,8 +37,10 @@ impl AssetManager {
             cave_cfg: Vec::new(),
         };
 
-        let treasures = read_to_string("resources/treasures.txt").unwrap();
-        let ek_treasures = read_to_string("resources/treasures_exploration_kit.txt").unwrap();
+        let treasures = read_to_string("resources/treasures.txt")
+            .expect("Couldn't find treasures.txt! Is the `resources/` folder present?");
+        let ek_treasures = read_to_string("resources/treasures_exploration_kit.txt")
+            .expect("Couldn't find treasures_exploration_kit.txt! Is the `resources/` folder present?");
 
         let mut treasure_names: Vec<String> = treasures
             .lines()
@@ -74,18 +76,23 @@ impl AssetManager {
         mgr
     }
 
-    pub fn get_txt_file(&self, path: &str) -> Option<String> {
+    pub fn get_txt_file(&self, path: &str) -> Result<String, AssetError> {
         if !self.txt_cache.contains_key(path) {
             info!("Loading {}...", path);
-            let data = read(path).ok()?;
+            let data = read(path)
+                .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
             if path.starts_with("assets") {
                 self.txt_cache.insert(path.to_string(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
             }
             else if path.starts_with("resources") {
-                self.txt_cache.insert(path.to_string(), String::from_utf8(data).ok()?);
+                self.txt_cache.insert(path.to_string(), String::from_utf8(data).map_err(|_| AssetError::DecodingError(path.to_string()))?);
             }
         }
-        Some(self.txt_cache.get(path)?.clone())
+        Ok(
+            self.txt_cache.get(path)
+            .ok_or_else(|| AssetError::CacheError(path.to_string()))?
+            .clone()
+        )
     }
 
     pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<CaveInfo, AssetError> {
@@ -99,18 +106,20 @@ impl AssetManager {
         )
     }
 
-    pub fn get_img(&self, path: &str) -> Option<Ref<String, DynamicImage>> {
+    pub fn get_img(&self, path: &str) -> Result<Ref<String, DynamicImage>, AssetError> {
         if !self.img_cache.contains_key(path) {
             info!("Loading image {}...", path);
-            let data = read(path).expect(&format!("Couldn't read image file '{}'!", path));
-            let img = image::load_from_memory(data.as_slice()).ok()?;
+            let data = read(path)
+                .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
+            let img = image::load_from_memory(data.as_slice())
+                .map_err(|_| AssetError::DecodingError(path.to_string()))?;
             self.img_cache.insert(path.to_string(), img);
         }
-        self.img_cache.get(path)
+        self.img_cache.get(path).ok_or_else(|| AssetError::DecodingError(path.to_string()))
     }
 
-    pub fn get_custom_img(&self, key: &str) -> Option<Ref<String, DynamicImage>> {
-        self.custom_img_cache.get(key)
+    pub fn get_custom_img(&self, key: &str) -> Result<Ref<String, DynamicImage>, AssetError> {
+        self.custom_img_cache.get(key).ok_or_else(|| AssetError::DecodingError(key.to_string()))
     }
 
     pub fn cache_img(&self, key: &str, img: DynamicImage) {
@@ -145,8 +154,7 @@ impl AssetManager {
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), AssetError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
         let caveinfo_filename = format!("assets/caveinfo/{}", cave.caveinfo_filename);
-        let caveinfo_txt = self.get_txt_file(&caveinfo_filename)
-            .ok_or_else(|| CaveInfoError::MissingFileError(caveinfo_filename.clone()))?;
+        let caveinfo_txt = self.get_txt_file(&caveinfo_filename)?;
         let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.sublevel+1) as usize);
@@ -181,6 +189,9 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
         "hiba" => Some("Fire_geyser_icon.png"),
         "bomb" => Some("Bingo_Battle_Bomb_icon.png"),
         "egg" => Some("36px-Egg_icon.png"),
+        "wakame_s" => Some("wakame_s.png"),
+        "chiyogami" => Some("chiyogami.PNG"),
+        "rock" => Some("Bingo_Battle_Rock_Storm_icon.png"),
         _ => None
     }
 }
