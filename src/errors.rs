@@ -54,6 +54,9 @@ pub enum SearchConditionError {
     #[error("Error parsing search condition")]
     ParseError,
 
+    #[error("Missing combinator between search conditions")]
+    MissingCombinator,
+
     #[error("Invalid argument passed to search clause: {0}")]
     InvalidArgument(String),
 }

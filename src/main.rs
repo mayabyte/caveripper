@@ -8,7 +8,7 @@ use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{error::Error, panic::RefUnwindSafe};
 use std::panic::catch_unwind;
 use std::time::{SystemTime, Duration};
-use cavegen::{assets::ASSETS, layout::render::{save_image, RenderOptions, render_caveinfo}};
+use cavegen::{assets::ASSETS, layout::{render::{save_image, RenderOptions, render_caveinfo}}};
 use cavegen::layout::Layout;
 use cavegen::layout::render::render_layout;
 use simple_logger::SimpleLogger;
@@ -24,21 +24,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         _ => {/* No higher log levels */},
     }
 
-    // Register a custom pass-through panic handler that suppresses the panic
-    // message normally produced by the Rayon early exit hack, and forwards to
-    // the default panic handler otherwise.
-    let default_panic_handler = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic_info| {
-        if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
-            if *msg != RAYON_EARLY_EXIT_PAYLOAD {
-                default_panic_handler(panic_info);
-            }
-        }
-        else {
-            default_panic_handler(panic_info);
-        }
-    }));
-
     // Run the desired command.
     match args.subcommand {
         Commands::Generate{ sublevel, seed, render_options } => {
@@ -49,42 +34,47 @@ fn main() -> Result<(), Box<dyn Error>> {
                 format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
             )?;
         },
-        Commands::Caveinfo{ sublevel } => {
+        Commands::Caveinfo{ sublevel, text } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-            save_image(
-                &render_caveinfo(&caveinfo, RenderOptions::default())?,
-                format!("{}_Caveinfo", caveinfo.name())
-            )?;
+            if text {
+                println!("{}", caveinfo);
+            }
+            else {
+                save_image(
+                    &render_caveinfo(&caveinfo, RenderOptions::default())?,
+                    format!("{}_Caveinfo", caveinfo.name())
+                )?;
+            }
         },
-        Commands::Search{ sublevel, condition, timeout } => {
+        Commands::Search{ sublevel, query, timeout } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
 
             let result = parallel_search_with_timeout(|| {
                 let seed: u32 = random();
                 let layout = Layout::generate(seed, &caveinfo);
-                condition.matches(&layout).then_some(seed)
+                query.matches(&layout).then_some(seed)
             }, timeout);
             
             if let Some(seed) = result {
                 println!("🍞 Found matching seed: {:#010X}.", seed);
             }
             else {
-                println!("🍞 Couldn't find a layout matching the condition '{}' in {}s.", condition, timeout);
+                println!("🍞 Couldn't find a layout matching the condition '{}' in {}s.", query, timeout);
             }
         },
-        Commands::Stats{ sublevel, condition, num_to_search } => {
+        Commands::Stats{ sublevel, query, num_to_search } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             let num_matched = (0..num_to_search).into_par_iter()
                 .progress()
                 .filter(|_| {
                     let seed: u32 = random();
                     let layout = Layout::generate(seed, &caveinfo);
-                    condition.matches(&layout)
+                    query.matches(&layout)
                 })
                 .count();
             println!(
                 "🍞 Searched {} layouts and found {} ({:.03}%) that match the condition '{}'.", 
-                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &condition
+                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &query
             );
         }
     }
@@ -102,6 +92,12 @@ fn parallel_search_with_timeout<T, F>(f: F, timeout_secs: u64) -> Option<T>
 where F: Fn() -> Option<T> + Sync + Send + RefUnwindSafe,
       T: Send
 {
+    // Register a custom pass-through panic handler that suppresses the panic
+    // message normally produced by the Rayon early exit hack, and forwards to
+    // the default panic handler otherwise.
+    let default_panic_handler = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+
     let timeout = Duration::from_secs(timeout_secs);
     let progress_bar = ProgressBar::new_spinner()
         .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]"));
@@ -116,11 +112,13 @@ where F: Fn() -> Option<T> + Sync + Send + RefUnwindSafe,
                 // Check the timeout condition and panic if it's met. This is necessary
                 // because Rayon doesn't include functionality to cancel parallel iterators
                 // or thread pools manually.
-                if SystemTime::now().duration_since(start_time).unwrap() > timeout {
+                if timeout_secs > 0 && SystemTime::now().duration_since(start_time).unwrap() > timeout {
                     panic!("{}", RAYON_EARLY_EXIT_PAYLOAD);
                 }
                 f()
             })
     });
+
+    std::panic::set_hook(default_panic_handler);
     result.ok().flatten()
 }

@@ -15,7 +15,7 @@ use std::{cmp::Ordering, fmt::{Display, Formatter}};
 use nom::Finish;
 use parse::parse_caveinfo;
 
-use crate::{errors::CaveInfoError, sublevel::Sublevel, assets::Treasure};
+use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::Treasure};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -346,6 +346,18 @@ impl From<usize> for RoomType {
             1 => RoomType::Room,
             2 => RoomType::Hallway,
             _ => panic!("Invalid room type specified"),
+        }
+    }
+}
+
+impl TryFrom<&str> for RoomType {
+    type Error = SearchConditionError;
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        match input.to_ascii_lowercase().as_str() {
+            "room" => Ok(RoomType::Room),
+            "cap" | "alcove" => Ok(RoomType::DeadEnd),
+            "hall" | "hallway" => Ok(RoomType::Hallway),
+            _ => Err(SearchConditionError::InvalidArgument(input.to_string()))
         }
     }
 }

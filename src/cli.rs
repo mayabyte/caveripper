@@ -1,4 +1,4 @@
-use cavegen::{sublevel::Sublevel, errors::SeedError, search::SearchCondition, layout::render::RenderOptions};
+use cavegen::{sublevel::Sublevel, errors::SeedError, search::Query, layout::render::RenderOptions};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -52,6 +52,13 @@ pub enum Commands {
             help = SUBLEVEL_HELP,
         )]
         sublevel: Sublevel,
+
+        #[clap(
+            short = 't',
+            long = "text",
+            help = "Only show text instead of rendering an image"
+        )]
+        text: bool,
     },
 
     /// Search for a seed matching a specified condition.
@@ -66,17 +73,17 @@ pub enum Commands {
         sublevel: Sublevel,
 
         #[clap(
-            value_parser = |s: &str| {<SearchCondition as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
             long_help = SEARCH_COND_LONG_HELP,
         )]
-        condition: SearchCondition,
+        query: Query,
 
         #[clap(
             default_value = "10",
             short = 't',
             long = "timeout",
-            help = "The maximum time to search for a layout, in seconds."
+            help = "The maximum time to search for a layout, in seconds. If set to 0, search indefinitely"
         )]
         timeout: u64,
     },
@@ -93,11 +100,11 @@ pub enum Commands {
         sublevel: Sublevel,
 
         #[clap(
-            value_parser = |s: &str| {<SearchCondition as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
             long_help = SEARCH_COND_LONG_HELP,
         )]
-        condition: SearchCondition,
+        query: Query,
 
         #[clap(
             default_value = "10000",
@@ -121,13 +128,22 @@ fn parse_seed(src: &str) -> Result<u32, SeedError> {
 const SUBLEVEL_HELP: &'static str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &'static str = "A condition to search for in the sublevel.";
 const SEARCH_COND_LONG_HELP: &'static str = r##"
-A string with a query condition to search for.
+A string with one or more query conditions, joined by '&'. Caveripper will attempt 
+to find a layout matching all conditions.
 
 Currently available query conditions:
-- "count INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
+- "INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
   each layout. This can include Teki, Treasures, or gates (use the name "gate").
-- "count_unit ROOM_TYPE </=/> NUM". Check the number of the given unit type present
-  in each layout. ROOM_TYPE can be "room", "alcove", or "hallway".
+  Example: "BlackPom > 0" to check for layouts that have at least one Violet 
+  Candypop Bud.
+- "ROOM </=/> NUM". Check the number of the given unit type present. ROOM can be
+  a specific room's name, or "room", "alcove", or "hallway" to check all rooms of
+  a certain type. Example: "alcove < 2" to check for low-alcove layouts.
+- "ENTITY in ROOM". Check whether there's at least one of the named entity in one
+  of the specified rooms/room types. Example: "hole in room" to check if the exit
+  hole spawned in a room rather than an alcove.
+- "ENTITY1 with ENTITY2". Check whether the two named entities are in the same room
+  as each other.
 "##;
 const SEED_HELP: &'static str = r##"
 The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed with "0x". Not case sensitive.
