@@ -3,7 +3,7 @@ use itertools::Itertools;
 use nom::{
     sequence::tuple, 
     character::{
-        complete::{alpha1, u32 as nomU32, space1, space0},
+        complete::{u32 as nomU32, space1, space0, alphanumeric1},
     }, 
     branch::alt, bytes::complete::tag, multi::many1, combinator::recognize, IResult
 };
@@ -181,7 +181,7 @@ impl From<&str> for RoomMatcher {
 // Parsing functions //
 
 fn ident(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((alpha1, tag("_"), tag("-")))))(input)
+    recognize(many1(alt((alphanumeric1, tag("_"), tag("-")))))(input)
 }
 
 fn comparator(input: &str) -> IResult<&str, &str> {

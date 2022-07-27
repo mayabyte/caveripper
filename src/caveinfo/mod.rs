@@ -11,7 +11,7 @@
 mod util;
 mod parse;
 
-use std::{cmp::Ordering, fmt::{Display, Formatter}};
+use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use nom::Finish;
 use parse::parse_caveinfo;
 
@@ -125,6 +125,12 @@ impl Display for CaveInfo {
                 write!(f, ", spawn method: {}", spawn_method)?;
             }
             writeln!(f, ")")?;
+        }
+
+        writeln!(f, "Rooms:")?;
+        let unique_units: HashSet<&str> = self.cave_units.iter().map(|unit| unit.unit_folder_name.as_ref()).collect();
+        for unit in unique_units.iter() {
+            writeln!(f, "\t{}", unit)?;
         }
 
         Ok(())
