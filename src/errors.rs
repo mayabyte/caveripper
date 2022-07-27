@@ -53,6 +53,9 @@ pub enum SeedError {
 pub enum SearchConditionError {
     #[error("Error parsing search condition")]
     ParseError,
+
+    #[error("Invalid argument passed to search clause: {0}")]
+    InvalidArgument(String),
 }
 
 #[derive(Debug, Clone, Error)]
