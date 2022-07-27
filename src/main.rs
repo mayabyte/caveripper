@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )?;
             }
         },
-        Commands::Search{ sublevel, query, timeout } => {
+        Commands::Search{ sublevel, query, timeout, render, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
 
             let result = parallel_search_with_timeout(|| {
@@ -57,6 +57,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             
             if let Some(seed) = result {
                 println!("🍞 Found matching seed: {:#010X}.", seed);
+                if render {
+                    let layout = Layout::generate(seed, &caveinfo);
+                    save_image(
+                        &render_layout(&layout, render_options)?,
+                        format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
+                    )?;
+                }
             }
             else {
                 println!("🍞 Couldn't find a layout matching the condition '{}' in {}s.", query, timeout);

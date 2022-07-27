@@ -37,9 +37,7 @@ pub enum Commands {
         )]
         seed: u32,
 
-        #[clap(
-            flatten
-        )]
+        #[clap(flatten)]
         render_options: RenderOptions,
     },
 
@@ -86,6 +84,16 @@ pub enum Commands {
             help = "The maximum time to search for a layout, in seconds. If set to 0, search indefinitely"
         )]
         timeout: u64,
+
+        #[clap(
+            short = 'r',
+            long = "render",
+            help = "Render the found layout immediately"
+        )]
+        render: bool,
+
+        #[clap(flatten)]
+        render_options: RenderOptions,
     },
 
     /// Calculate statistics on what proportion of seeds match a given condition.
