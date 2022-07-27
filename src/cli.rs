@@ -126,6 +126,8 @@ A string with a query condition to search for.
 Currently available query conditions:
 - "count INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
   each layout. This can include Teki, Treasures, or gates (use the name "gate").
+- "count_unit ROOM_TYPE </=/> NUM". Check the number of the given unit type present
+  in each layout. ROOM_TYPE can be "room", "alcove", or "hallway".
 "##;
 const SEED_HELP: &'static str = r##"
 The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed with "0x". Not case sensitive.
