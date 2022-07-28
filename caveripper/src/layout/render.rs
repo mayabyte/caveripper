@@ -8,6 +8,7 @@ use super::{Layout, SpawnObject, PlacedMapUnit};
 use clap::Args;
 use fontdue::layout::{Layout as FontLayout, TextStyle};
 use fontdue::{Font, FontSettings};
+use image::imageops::colorops::brighten_in_place;
 use image::imageops::{resize, rotate90, overlay};
 use image::{Rgba, RgbaImage};
 use image::{Pixel, imageops::FilterType};
@@ -64,6 +65,7 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) -> Result<RgbaImag
     // Draw map units
     for map_unit in layout.map_units.iter() {
         let mut radar_image = map_unit.get_texture()?.clone();
+        brighten_in_place(&mut radar_image, 45);
         
         for _ in 0..map_unit.unit.rotation {
             radar_image = rotate90(&radar_image);
