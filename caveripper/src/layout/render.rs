@@ -631,13 +631,14 @@ impl Textured for SpawnObject {
         match self {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture_modifiers(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture_modifiers(),
+            SpawnObject::Item(iteminfo) => iteminfo.get_texture_modifiers(),
             SpawnObject::Hole(_) | SpawnObject::Geyser => {
                 vec![TextureModifier::QuickGlance(QUICKGLANCE_EXIT_COLOR.into())]
             },
             SpawnObject::Ship => {
                 vec![TextureModifier::QuickGlance(QUICKGLANCE_SHIP_COLOR.into())]
             },
-            _ => Vec::new()
+            SpawnObject::Gate(gateinfo) => gateinfo.get_texture_modifiers(),
         }
     }
 }
