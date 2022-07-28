@@ -49,7 +49,7 @@ fn test_slugs() {
                 .arg("-seed")
                 .arg(format!("{:#010X}", seed))
                 .arg("-noImages")
-                .current_dir("./CaveGen/")
+                .current_dir("../CaveGen/")
                 .output()
                 .map(|output| String::from_utf8(output.stdout).unwrap())
                 .expect("Failed to invoke CaveGen in test")

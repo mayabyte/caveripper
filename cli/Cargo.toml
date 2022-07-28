@@ -1,0 +1,19 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+simple_logger = {version="1.13", default-features=false, features=["colors"]}
+rayon = "1.5"
+indicatif = {version="0.16", features=["rayon"]}
+clap = {version="3.2", features=["derive"]}
+rand = "0.8"
+log = "0.4"
+caveripper = {path="../caveripper"}
+
+[[bin]]
+name = "caveripper"
+path = "src/main.rs"

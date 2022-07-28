@@ -8,9 +8,9 @@ use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{error::Error, panic::RefUnwindSafe};
 use std::panic::catch_unwind;
 use std::time::{SystemTime, Duration};
-use cavegen::{assets::ASSETS, layout::{render::{save_image, RenderOptions, render_caveinfo}}};
-use cavegen::layout::Layout;
-use cavegen::layout::render::render_layout;
+use caveripper::{assets::ASSETS, layout::{render::{save_image, RenderOptions, render_caveinfo}}};
+use caveripper::layout::Layout;
+use caveripper::layout::render::render_layout;
 use simple_logger::SimpleLogger;
 
 static RAYON_EARLY_EXIT_PAYLOAD: &'static str = "__RAYON_EARLY_EXIT__";

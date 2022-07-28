@@ -46,9 +46,9 @@ The finished executable after running the latter command will be `target/release
 If you're interested in the nitty-gritty details of how the program works, I'd suggest reading the code directly rather than relying on explanations due to how particular the cave generation algorithm is. I attempt to keep this repository well-commented to facilitate this - please let me know and/or submit a PR if you feel that the comments can be improved!
 
 General guide to the most important parts of the source tree:
-- `src/caveinfo/` contains everything relating to loading, reading, and parsing the game's Caveinfo files.
-- `src/layout/generate.rs` contains the Cave Generation algorithm.
-- `src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
+- `caveripper/src/caveinfo/` contains everything relating to loading, reading, and parsing the game's Caveinfo files.
+- `caveripper/src/layout/generate.rs` contains the Cave Generation algorithm.
+- `caveripper/src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
 - `reference/` contains reference implementations in Java of certain important functions for comparison against my own implementations. These are largely copied from JHawk's implementation of Cavegen.
 - `CaveGen/` is a submodule pointing to a fork of JHawk's Cavegen implementation I made for the sole purpose of testing the accuracy of my reference implementation. The modifications within are minor, but it's there if you're curious.
 

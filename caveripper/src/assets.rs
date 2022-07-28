@@ -1,4 +1,5 @@
 use std::fs::{read_to_string, read_dir, read};
+use std::path::{Path, PathBuf};
 use encoding_rs::SHIFT_JIS;
 use image::RgbaImage;
 use itertools::Itertools;
@@ -10,9 +11,10 @@ use crate::caveinfo::CaveInfo;
 use crate::errors::{AssetError, SublevelError};
 use crate::sublevel::Sublevel;
 
-pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new());
+pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new("."));
 
 pub struct AssetManager {
+    base_path: PathBuf,
     txt_cache: DashMap<String, String>,
     caveinfo_cache: DashMap<Sublevel, CaveInfo>,
     img_cache: DashMap<String, RgbaImage>,
@@ -27,8 +29,9 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
-    pub fn new() -> Self {
+    pub fn new<T: AsRef<Path>>(base_path: T) -> Self {
         let mut mgr = Self {
+            base_path: base_path.as_ref().into(),
             txt_cache: DashMap::new(),
             caveinfo_cache: DashMap::new(),
             img_cache: DashMap::new(),
@@ -39,12 +42,12 @@ impl AssetManager {
         };
 
         let treasures = SHIFT_JIS.decode(
-            read("assets/cfg/pelletlist_us.d/otakara_config.txt")
+            read(mgr.base_path.join("assets/cfg/pelletlist_us.d/otakara_config.txt"))
             .expect("Couldn't find otakara_config.txt!")
             .as_slice()
         ).0.into_owned();
         let ek_treasures = SHIFT_JIS.decode(
-            read("assets/cfg/pelletlist_us.d/item_config.txt")
+            read(mgr.base_path.join("assets/cfg/pelletlist_us.d/item_config.txt"))
             .expect("Couldn't find item_config.txt!")
             .as_slice()
         ).0.into_owned();
@@ -54,14 +57,14 @@ impl AssetManager {
         treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
         mgr.treasures = treasures;
 
-        let teki: Vec<String> = read_dir("assets/enemytex/arc.d").expect("Couldn't read enemytex directory!")
+        let teki: Vec<String> = read_dir(mgr.base_path.join("assets/enemytex/arc.d")).expect("Couldn't read enemytex directory!")
             .filter_map(Result::ok)
             .filter(|dir_entry| dir_entry.path().is_dir())
             .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
             .collect();
         mgr.teki = teki;
 
-        let cave_cfg: Vec<CaveConfig> = read_to_string("resources/caveinfo_config.txt").unwrap()
+        let cave_cfg: Vec<CaveConfig> = read_to_string(mgr.base_path.join("resources/caveinfo_config.txt")).unwrap()
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
@@ -81,7 +84,7 @@ impl AssetManager {
     pub fn get_txt_file(&self, path: &str) -> Result<String, AssetError> {
         if !self.txt_cache.contains_key(path) {
             info!("Loading {}...", path);
-            let data = read(path)
+            let data = read(self.base_path.join(path))
                 .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
             if path.starts_with("assets") {
                 self.txt_cache.insert(path.to_string(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
@@ -111,7 +114,7 @@ impl AssetManager {
     pub fn get_img(&self, path: &str) -> Result<Ref<String, RgbaImage>, AssetError> {
         if !self.img_cache.contains_key(path) {
             info!("Loading image {}...", path);
-            let data = read(path)
+            let data = read(self.base_path.join(path))
                 .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
             let img = image::load_from_memory(data.as_slice())
                 .map_err(|_| AssetError::DecodingError(path.to_string()))?

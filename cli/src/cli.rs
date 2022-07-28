@@ -1,4 +1,4 @@
-use cavegen::{sublevel::Sublevel, errors::SeedError, search::Query, layout::render::RenderOptions};
+use caveripper::{sublevel::Sublevel, errors::SeedError, search::Query, layout::render::RenderOptions};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]

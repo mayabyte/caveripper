@@ -5,7 +5,7 @@ const TEST_SEED: u32 = 0x12345678u32;
 
 #[test]
 fn test_raw_rng() {
-    let expected = read_to_string("./reference/rng_1mil.txt").unwrap()
+    let expected = read_to_string("../reference/rng_1mil.txt").unwrap()
         .lines()
         .map(|line| line.parse::<u32>().unwrap())
         .collect::<Vec<u32>>();
@@ -16,7 +16,7 @@ fn test_raw_rng() {
 
 #[test]
 fn test_rand_int() {
-    let expected = read_to_string("./reference/randInt_65k.txt").unwrap()
+    let expected = read_to_string("../reference/randInt_65k.txt").unwrap()
         .lines()
         .map(|line| line.parse::<u32>().unwrap())
         .collect::<Vec<u32>>();
@@ -28,7 +28,7 @@ fn test_rand_int() {
 
 #[test]
 fn test_rand_f32() {
-    let expected = read_to_string("./reference/randFloat_100k.txt").unwrap()
+    let expected = read_to_string("../reference/randFloat_100k.txt").unwrap()
         .lines()
         .map(|line| line.parse::<f32>().unwrap())
         .collect::<Vec<f32>>();
@@ -39,7 +39,7 @@ fn test_rand_f32() {
 
 #[test]
 fn test_rand_backs() {
-    let expected: Vec<Vec<u32>> = read_to_string("./reference/randBacks_2k.txt").unwrap()
+    let expected: Vec<Vec<u32>> = read_to_string("../reference/randBacks_2k.txt").unwrap()
         .lines()
         .map(|line| line.split_terminator(',').map(|num| num.parse::<u32>().unwrap()).collect())
         .collect();
@@ -55,7 +55,7 @@ fn test_rand_backs() {
 
 #[test]
 fn test_rand_swaps() {
-    let expected: Vec<Vec<u32>> = read_to_string("./reference/randSwaps_2k.txt").unwrap()
+    let expected: Vec<Vec<u32>> = read_to_string("../reference/randSwaps_2k.txt").unwrap()
         .lines()
         .map(|line| line.split_terminator(',').map(|num| num.parse::<u32>().unwrap()).collect())
         .collect();
@@ -71,7 +71,7 @@ fn test_rand_swaps() {
 
 // #[test]
 // fn test_rand_index_weight() {
-//     let expected: Vec<isize> = read_to_string("./reference/randIndexWeight_10k.txt").unwrap()
+//     let expected: Vec<isize> = read_to_string("../reference/randIndexWeight_10k.txt").unwrap()
 //         .lines()
 //         .take(10000)
 //         .map(|line| line.parse::<isize>().unwrap())
@@ -88,7 +88,7 @@ fn test_rand_swaps() {
 
 #[test]
 fn test_sqrt() {
-    let expected: Vec<f32> = read_to_string("./reference/sqrt_5k_point3.txt").unwrap()
+    let expected: Vec<f32> = read_to_string("../reference/sqrt_5k_point3.txt").unwrap()
         .lines()
         .map(|line| line.parse::<f32>().unwrap())
         .collect();
