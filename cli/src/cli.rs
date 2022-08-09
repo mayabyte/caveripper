@@ -2,7 +2,7 @@ use caveripper::{sublevel::Sublevel, errors::SeedError, search::Query, layout::r
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(name="caveripper", author, version, about, long_about = None)]
 pub struct Cli {
     #[clap(subcommand)]
     pub subcommand: Commands,
@@ -41,6 +41,7 @@ pub enum Commands {
         render_options: RenderOptions,
     },
 
+    /// Display a particular sublevel's CaveInfo.
     #[clap(
         arg_required_else_help = true,
     )]
@@ -115,9 +116,10 @@ pub enum Commands {
         query: Query,
 
         #[clap(
-            default_value = "10000",
+            default_value = "100000",
             short = 'n',
             long = "num-to-search",
+            help = "Number of seeds to check. Larger sample sizes will produce more reliable results."
         )]
         num_to_search: usize,
     }
@@ -135,8 +137,8 @@ fn parse_seed(src: &str) -> Result<u32, SeedError> {
 
 const SUBLEVEL_HELP: &'static str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &'static str = "A condition to search for in the sublevel.";
-const SEARCH_COND_LONG_HELP: &'static str = r##"
-A string with one or more query conditions, joined by '&'. Caveripper will attempt 
+const SEARCH_COND_LONG_HELP: &'static str = 
+r##"A string with one or more query conditions, joined by '&'. Caveripper will attempt 
 to find a layout matching all conditions.
 
 Currently available query conditions:
@@ -153,8 +155,9 @@ Currently available query conditions:
 - "ENTITY1 with ENTITY2". Check whether the two named entities are in the same room
   as each other.
 "##;
-const SEED_HELP: &'static str = r##"
-The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed with "0x". Not case sensitive.
+const SEED_HELP: &'static str = 
+r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed 
+with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
 "##;
-const VERBOSE_HELP: &'static str = "Enable debug logging.";
+const VERBOSE_HELP: &'static str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";

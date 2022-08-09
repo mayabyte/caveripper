@@ -7,9 +7,34 @@ Caveripper is an implementation of the Pikmin 2 cave generation algorithm intend
 - Finding "rare" seeds - some floors have possible but extremely rare phenomena that are simply fun to know about, e.g. Bloysterless SR7, Clackerless GK3, longest possible 'meme hallways', etc.
 - Finding "interesting" seeds (high number of available bonus treasures, rare layout configurations, difficult score reads, etc.) for community races and practice.
 
+## How to Use
+The CLI has comprehensive help messages:
+```bash
+caveripper help
+```
+
+Here are some examples of common use-cases. All ouput images will be in the `output/` folder.
+```bash
+# Generate a layout image for a given sublevel and seed with quickglance rendering enabled.
+caveripper generate scx3 0x1234abcd --quickglance
+
+# Find a towerless seed and render an image of it.
+caveripper search scx7 "MiniHoudai < 2" -r
+
+# Compute the percentage of SR5 layouts with a Violet Candypop Bud.
+caveripper stats sr5 "BlackPom = 1"
+```
+
+Caveripper only recognizes *internal names* for game objects at present. If you want to see the internal names for things on a given floor, there's a handy text-only Caveinfo command that can be of assistance:
+```bash
+caveripper caveinfo fc3 --text
+```
+
+You can cross-reference which internal names correspond to which teki/rooms/treasures using this page on the Pikmin Technical Knowledge Base: https://pikmintkb.com/wiki/Pikmin_2_identifiers.
+
 ## Project Status
 
-This is a **work in progress** project. The cave generation implementation still has some minor inaccuracies and seed finding capability is currently limited.
+This is a **work in progress** project. The cave generation implementation still has some minor inaccuracies and seed finding capability is currently limited to basic query conditions.
 
 While the original and main goal of this project is seed finding, I've found myself wanting to use Caveripper as a base for a whole host of other things too. As such, sub-goals related to seed finding specifically (new Judge algorithm) are on a 'whenever I feel like it' schedule; many of the recent additions have been made with other uses in mind.
 

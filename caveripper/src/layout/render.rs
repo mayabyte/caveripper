@@ -35,10 +35,13 @@ const CAVEINFO_ICON_SIZE: u32 = 48;
 
 
 #[derive(Default, Debug, Args)]
+#[clap(next_help_heading="Rendering options")]
 pub struct RenderOptions {
+    /// Draw grid lines corresponding to map unit grid boundaries.
     #[clap(long)]
     pub draw_grid: bool,
 
+    /// Draw highlight circles behind important objects in layouts.
     #[clap(long, short='q')]
     pub quickglance: bool,
 }
