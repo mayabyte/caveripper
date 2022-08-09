@@ -17,17 +17,19 @@ impl Sublevel {
     }
 
     /// Constructs the normalized name of this sublevel, i.e. one in the
-    /// same format that JHawk's CaveGen implementation accepts.
-    /// The first entry in the shortened names list in cave_config.txt
+    /// same format that JHawk's CaveGen implementation accepts (i.e. "SCx-3" - proper capitalization
+    /// and hyphenated sublevel number.) The first entry in the shortened names list in cave_config.txt 
     /// should always be the normalized cave name.
     pub fn normalized_name(&self) -> String {
         format!("{}-{}", self.cfg.shortened_names.first().unwrap(), self.floor)
     }
 
+    /// Constructs the short cave name of this sublevel, e.g. "SCx3" with no hyphen.
     pub fn short_name(&self) -> String {
         format!("{}{}", self.cfg.shortened_names.first().unwrap(), self.floor)
     }
 
+    /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
     pub fn long_name(&self) -> String {
         format!("{} {}", self.cfg.full_name, self.floor)
     }

@@ -43,6 +43,7 @@ pub enum SearchCondition {
 }
 
 impl SearchCondition {
+    /// Checks whether the given layout matches the search condition.
     pub fn matches(&self, layout: &Layout) -> bool {
         match self { 
             SearchCondition::CountEntity { name, relationship, amount } => {
@@ -82,6 +83,8 @@ impl SearchCondition {
     }
 }
 
+/// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
+/// This effectively defines a DSL for search terms.
 impl TryFrom<&str> for Query {
     type Error = SearchConditionError;
     fn try_from(input: &str) -> Result<Self, Self::Error> {
@@ -152,6 +155,9 @@ impl Display for SearchCondition {
     }
 }
 
+/// Helper type for matching rooms (really any cave unit). There are several attributes
+/// on each unit that we may want to match against such as type, name, etc., and this
+/// type abstracts over them so they can be used interchangeably.
 #[derive(Debug, Clone)]
 pub enum RoomMatcher {
     UnitType(RoomType),
@@ -178,16 +184,25 @@ impl From<&str> for RoomMatcher {
     }
 }
 
-// Parsing functions //
+/// Parsing functions for layout query strings ///
 
+/// Parses an identifier consisting of letters, numbers, underscores, and dashes.
 fn ident(input: &str) -> IResult<&str, &str> {
     recognize(many1(alt((alphanumeric1, tag("_"), tag("-")))))(input)
 }
 
+/// Recognizes '<', '=', or '>' for mathematical relationships.
 fn comparator(input: &str) -> IResult<&str, &str> {
     alt((tag("<"), tag("="), tag(">")))(input)
 }
 
+
+/// Recognizes an ampersand '&' optionally padded on either side by spaces.
+fn query_combinator(input: &str) -> IResult<&str, ()> {
+    Ok((tuple((space0, tag("&"), space0))(input)?.0, ()))
+}
+
+/// Parses any comparison command of the structure "IDENT_1 COMPARATOR IDENT_2".
 fn compare_cmd(input: &str) -> IResult<&str, (&str, &str, u32)> {
     let (rest, (name, _, relationship_char, _, amount)) = tuple((
         ident, space0, comparator, space0, nomU32,
@@ -195,6 +210,7 @@ fn compare_cmd(input: &str) -> IResult<&str, (&str, &str, u32)> {
     Ok((rest, (name, relationship_char, amount)))
 }
 
+/// Parses an "in" command of the structure "ENTITY_IDENT in ROOM_IDENT".
 fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
     let (rest, (entity, _, _, _, room)) = tuple((
         ident, space1, tag("in"), space1, ident
@@ -202,15 +218,12 @@ fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
     Ok((rest, (entity, room)))
 }
 
+/// Parses a "with" command of the structure "ENTITY_1 with ENTITY_2".
 fn entity_in_same_room_as(input: &str) -> IResult<&str, (&str, &str)> {
     let (rest, (e1, _, _, _, e2)) = tuple((
         ident, space1, tag("with"), space1, ident
     ))(input)?;
     Ok((rest, (e1, e2)))
-}
-
-fn query_combinator(input: &str) -> IResult<&str, ()> {
-    Ok((tuple((space0, tag("&"), space0))(input)?.0, ()))
 }
 
 fn char_to_ordering(c: &str) -> Ordering {
