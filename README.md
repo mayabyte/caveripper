@@ -33,23 +33,45 @@ If this process fails for some reason and you want to clean up and start from sc
 
 NOTE: This repo is only set up to work with an NTSC-U (US) Pikmin 2 ISO currently. If you want to try this with another version, you may have to edit the script and/or the code a bit to get it to play nice.
 
-### Building and Running Tests
-Caveripper is a Rust project, and as such building is very simple. Make sure you have Rust installed (I recommend using Rustup: https://rustup.rs/), then use the following commands:
+### Building
+Caveripper is a Rust project, and as such building should be very straightforward. Make sure you have Rust installed using [Rustup](https://rustup.rs/): 
 ```bash
-cargo test -- --nocapture
-cargo criterion  # run benchmarks
+rustup default nightly
+rustup update
+```
+
+(Nightly Rust is required at the moment since Caveripper uses a few unstable language features.)
+
+Then you can build the Caveripper executable:
+```bash
 cargo build --release
 ```
-The finished executable after running the latter command will be `target/release/caveripper` (Mac/Linux) or `target\release\caveripper.exe` (Windows). The `assets/` and `resources/` directories must be in the current working directory when run.
+
+The finished executable will be `target/release/caveripper` (Mac/Linux) or `target\release\caveripper.exe` (Windows). The `assets/` and `resources/` directories must be in the current working directory when run.
+
+### Running Tests and Benchmarks
+The test and benchmark suite is currently sparse, not especially comprehensive, and likely very fragile, and as such I'd recommend you don't bother with this unless you're trying to develop Caveripper yourself.
+
+Tests can be run as follows:
+```bash
+cargo test -- --nocapture
+```
+
+Benchmarks can be run like this:
+```bash
+cargo install cargo-criterion  # one-time installation of the benchmark harness
+cargo criterion  # run benchmarks
+```
 
 ## Guide to Reading the Code
-If you're interested in the nitty-gritty details of how the program works, I'd suggest reading the code directly rather than relying on explanations due to how particular the cave generation algorithm is. I attempt to keep this repository well-commented to facilitate this - please let me know and/or submit a PR if you feel that the comments can be improved!
+If you're interested in the precise details of how cave generation works, I'd suggest reading the code directly rather than relying on explanations due to how particular the cave generation algorithm is. I attempt to keep this repository well-commented to facilitate this - please let me know and/or submit a PR if you feel that the comments can be improved!
 
 General guide to the most important parts of the source tree:
+- The `caveripper/` folder has the generation algorithm itself, plus all the other searching and analysis code that makes finding specific layouts possible.
+- The `cli/` folder just contains the command line interface portion of the program - you probably don't need to read anything in here.
 - `caveripper/src/caveinfo/` contains everything relating to loading, reading, and parsing the game's Caveinfo files.
-- `caveripper/src/layout/generate.rs` contains the Cave Generation algorithm.
+- `caveripper/src/layout/generate.rs` contains the Cave Generation algorithm. This is currently a very straightforward port of the logic in JHawk's implementation, so reading it can be difficult in places.
 - `caveripper/src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
+- `caveripper/src/search.rs` is where the layout search conditions are defined. If you want to add a custom search condition, this file is probably the place to do it.
 - `reference/` contains reference implementations in Java of certain important functions for comparison against my own implementations. These are largely copied from JHawk's implementation of Cavegen.
 - `CaveGen/` is a submodule pointing to a fork of JHawk's Cavegen implementation I made for the sole purpose of testing the accuracy of my reference implementation. The modifications within are minor, but it's there if you're curious.
-
-In case you're not familiar with Rust, `mod.rs` inside a folder is the main source file for code in that module and you should probably start there when reading.
