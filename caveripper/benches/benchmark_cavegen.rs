@@ -1,8 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use cavegen::layout::Layout;
-use cavegen::assets::ASSETS;
 use itertools::Itertools;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
+use caveripper::{
+    layout::Layout,
+    assets::ASSETS,
+};
 
 pub fn benchmark_layout_generation(c: &mut Criterion) {
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
@@ -20,5 +22,9 @@ pub fn benchmark_layout_generation(c: &mut Criterion) {
 }
 
 
-criterion_group!(benches, benchmark_layout_generation);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().sample_size(10000);
+    targets = benchmark_layout_generation
+);
 criterion_main!(benches);
