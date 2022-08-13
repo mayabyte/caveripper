@@ -7,8 +7,8 @@ use once_cell::sync::OnceCell;
 /// for sublevel specifiers.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Sublevel {
-    pub cfg: CaveConfig,
-    pub floor: usize,
+    pub(crate) cfg: CaveConfig,
+    pub(crate) floor: usize,
 }
 
 impl Sublevel {

@@ -1,7 +1,7 @@
 use std::cmp::max;
 use std::fs::read;
 
-use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit};
+use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
 use crate::assets::{ASSETS, get_special_texture_name};
 use crate::errors::{RenderError, AssetError};
 use super::{Layout, SpawnObject, PlacedMapUnit};
@@ -67,19 +67,7 @@ pub fn render_layout(layout: &Layout, options: RenderOptions) -> Result<RgbaImag
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let mut radar_image = map_unit.get_texture()?.clone();
-        brighten_in_place(&mut radar_image, 45);
-        
-        for _ in 0..map_unit.unit.rotation {
-            radar_image = rotate90(&radar_image);
-        }
-
-        let radar_image = resize(
-            &radar_image,
-            radar_image.width() * RENDER_SCALE, 
-            radar_image.height() * RENDER_SCALE, 
-            FilterType::Nearest
-        );
+        let radar_image = map_unit.get_texture()?.clone();
 
         // Copy the pixels of the radar image to the buffer
         let img_x = map_unit.x as i64 * GRID_FACTOR;
@@ -240,7 +228,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                     TextureModifier::Carrying(carrying) => {
                         let carried_treasure_icon = resize(
                             &*ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?,
-                            CAVEINFO_ICON_SIZE - 6, CAVEINFO_ICON_SIZE - 6, FilterType::Lanczos3
+                            CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
                         overlay(&mut canvas_header, &carried_treasure_icon, x + 18, y + 14);
                     },
@@ -353,9 +341,58 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
     );
     overlay(&mut canvas_maptiles, &maptiles_metadata_txt, canvas_header.width() as i64 / 2 - maptiles_metadata_txt.width() as i64 / 2, 0);
 
-    // for unit in caveinfo.cave_units.iter() {
+    let maptile_margin = (RENDER_SCALE * 4) as i64;
+    let mut base_x = maptile_margin;
+    let mut base_y = maptiles_metadata_txt.height() as i64 + maptile_margin;
+    let mut max_y = base_y;
+
+    let rooms = caveinfo.cave_units.iter()
+        .filter(|unit| unit.rotation == 0)
+        .filter(|unit| unit.room_type == RoomType::Room);
+
+    let caps = caveinfo.cave_units.iter()
+        .filter(|unit| unit.rotation == 0)
+        .filter(|unit| unit.room_type == RoomType::DeadEnd);
+
+    for (i, unit) in caps.enumerate() {
+        let unit_texture = unit.get_texture()?;
+        let y = base_y + i as i64 * ((RENDER_SCALE * 8) as i64 + maptile_margin);
+        overlay(&mut canvas_maptiles, &unit_texture, base_x, y);
+        draw_border(
+            &mut canvas_maptiles, 
+            base_x as u32, 
+            y as u32, 
+            base_x as u32 + (RENDER_SCALE * 8), 
+            y as u32 + (RENDER_SCALE * 8),
+        );
+    }
+
+    base_x += (RENDER_SCALE * 8) as i64 + maptile_margin;
+
+    for unit in rooms {
+        let unit_texture = unit.get_texture()?;
+        if base_x + unit_texture.width() as i64 + maptile_margin > canvas_maptiles.width() as i64 {
+            base_x = maptile_margin;
+            base_y = max_y + maptile_margin;
+        }
+
+        if base_y + unit_texture.height() as i64 > canvas_maptiles.height() as i64 {
+            let h = canvas_maptiles.height();
+            expand_canvas(
+                &mut canvas_maptiles, 
+                0, 
+                base_y as u32 + unit_texture.height() + maptile_margin as u32 - h, 
+                Some([20, 20, 20, 255].into())
+            );
+        }
+
+        overlay(&mut canvas_maptiles, &unit_texture, base_x, base_y);
+
+        draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
         
-    // }
+        max_y = max(max_y, base_y + unit_texture.height() as i64);
+        base_x += unit_texture.width() as i64 + maptile_margin;
+    }
 
 
     // Combine sections
@@ -382,6 +419,18 @@ fn expand_canvas(canvas: &mut RgbaImage, w: u32, h: u32, fill_color: Option<Rgba
     let mut new_canvas = RgbaImage::from_pixel(canvas.width() + w, canvas.height() + h, fill_color.unwrap_or_else(|| [0,0,0,0].into()));
     overlay(&mut new_canvas, canvas, 0, 0);
     *canvas = new_canvas;
+}
+
+fn draw_border(canvas: &mut RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
+    let color = [255, 30, 30, 150].into();
+    for x in x1..=x2 {
+        canvas.put_pixel(x, y1, color);
+        canvas.put_pixel(x, y2, color);
+    }
+    for y in y1..=y2 {
+        canvas.put_pixel(x1, y, color);
+        canvas.put_pixel(x2, y, color);
+    }
 }
 
 // x and z are world coordinates, not image or map unit coordinates
@@ -649,7 +698,23 @@ impl Textured for SpawnObject {
 impl Textured for CaveUnit {
     fn get_texture(&self) -> Result<RgbaImage, AssetError> {
         let filename = format!("assets/arc/{}/arc.d/texture.bti.png", &self.unit_folder_name);
-        Ok(ASSETS.get_img(&filename)?.to_owned())
+        let mut img = ASSETS.get_img(&filename)?.to_owned();
+
+        // Radar images are somewhat dark by default; this improves visibility.
+        brighten_in_place(&mut img, 45);
+
+        for _ in 0..self.rotation {
+            img = rotate90(&img);
+        }
+
+        let img = resize(
+            &img,
+            img.width() * RENDER_SCALE, 
+            img.height() * RENDER_SCALE, 
+            FilterType::Nearest
+        );
+
+        Ok(img)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
