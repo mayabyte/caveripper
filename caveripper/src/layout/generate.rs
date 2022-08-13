@@ -1063,11 +1063,14 @@ impl LayoutBuilder {
             for _ in 0..caveinfo.max_gates {
                 let mut gates = Vec::new();
                 let mut gate_weights = Vec::new();
+
+                // Choose a weighted gate to spawn.
+                // (In practice, all gates on every floor in vanilla are identical, so this
+                // doesn't really do anything. It does call RNG though, so it needs to be accurate.)
                 for gate in caveinfo.gate_info.iter() {
                     gates.push(gate);
                     gate_weights.push(gate.spawn_distribution_weight);
                 }
-
                 let mut gate_to_spawn = None;
                 if gates.len() > 0 {
                     gate_to_spawn = Some(gates[self.rng.rand_index_weight(gate_weights.as_slice()).unwrap()]);
@@ -1315,13 +1318,26 @@ impl LayoutBuilder {
             if map_unit.unit.room_type != RoomType::DeadEnd || !map_unit.unit.unit_folder_name.contains("item") {
                 continue;
             }
-            if map_unit.spawnpoints[0].contains.is_empty() {
+
+            // If there are no grounded teki here, don't consider this cap.
+            // Alcoves with falling teki only do not count.
+            if !map_unit.spawnpoints[0].contains.iter()
+                .any(|so| {
+                    if let SpawnObject::CapTeki(capteki, _) = so && !capteki.is_falling() { true }
+                    else { false }
+                })
+            {
                 continue;
             }
-            if let Some(SpawnObject::CapTeki(cap_teki, _)) = map_unit.spawnpoints[0].contains.first() {
-                if cap_teki.is_candypop() && cap_teki.is_falling() {
-                    continue;
-                }
+
+            // If there is a falling Candypop Bud here, don't consider this cap.
+            if map_unit.spawnpoints[0].contains.iter()
+                .any(|so| {
+                    if let SpawnObject::CapTeki(capteki, _) = so && capteki.is_candypop() && capteki.is_falling() { true }
+                    else { false }
+                }) 
+            {
+                continue;
             }
 
             let door = Rc::clone(&map_unit.doors[0]);
