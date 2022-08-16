@@ -2,18 +2,16 @@ mod cli;
 
 use cli::*;
 use clap::Parser;
+use crossbeam::channel::bounded;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
-use std::{error::Error, panic::RefUnwindSafe};
-use std::panic::catch_unwind;
+use std::error::Error;
 use std::time::{SystemTime, Duration};
 use caveripper::{assets::ASSETS, layout::{render::{save_image, RenderOptions, render_caveinfo}}};
 use caveripper::layout::Layout;
 use caveripper::layout::render::render_layout;
 use simple_logger::SimpleLogger;
-
-static RAYON_EARLY_EXIT_PAYLOAD: &'static str = "__RAYON_EARLY_EXIT__";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
@@ -29,10 +27,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Generate{ sublevel, seed, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, &caveinfo);
-            save_image(
-                &render_layout(&layout, render_options)?,
+            let filename = save_image(
+                &render_layout(&layout, &render_options)?,
                 format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
             )?;
+            println!("🍞 Saved layout image as \"{}\"", filename);
         },
         Commands::Caveinfo{ sublevel, text } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
@@ -40,29 +39,51 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("{}", caveinfo);
             }
             else {
-                save_image(
+                let filename = save_image(
                     &render_caveinfo(&caveinfo, RenderOptions::default())?,
                     format!("{}_Caveinfo", caveinfo.name())
                 )?;
+                println!("🍞 Saved caveinfo image as \"{}\"", filename);
             }
         },
-        Commands::Search{ sublevel, query, timeout, render, render_options } => {
+        Commands::Search{ sublevel, query, timeout, quiet, num, render, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-
-            let result = parallel_search_with_timeout(|| {
-                let seed: u32 = random();
-                let layout = Layout::generate(seed, &caveinfo);
-                query.matches(&layout).then_some(seed)
-            }, timeout);
             
-            if let Some(seed) = result {
-                println!("🍞 Found matching seed: {:#010X}.", seed);
-                if render {
+            let results = parallel_search_with_timeout(
+                || {
+                    let seed: u32 = random();
                     let layout = Layout::generate(seed, &caveinfo);
-                    save_image(
-                        &render_layout(&layout, render_options)?,
-                        format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
-                    )?;
+                    query.matches(&layout).then_some(seed)
+                }, 
+                timeout,
+                num
+            );
+            
+            if results.len() > 0 {
+                if !quiet {
+                    print!("🍞 Found matching seed(s):");
+                    for seed in results.iter() {
+                        print!(" {:#010X}", seed);
+                    }
+                    println!();
+                }
+                else {
+                    for seed in results.iter() {
+                        println!("{:#010X}", seed);
+                    }
+                }
+
+                if render {
+                    for seed in results.iter() {
+                        let layout = Layout::generate(*seed, &caveinfo);
+                        let filename = save_image(
+                            &render_layout(&layout, &render_options)?,
+                            format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
+                        )?;
+                        if !quiet {
+                            println!("🍞 Saved layout image as \"{}\"", filename);
+                        }
+                    }
                 }
             }
             else {
@@ -95,37 +116,37 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// `f` should return Some(T) when it has found the desired condition.
 /// This function returns Some(T) when a value has been found, and None if the
 /// timeout was reached or the search function panicked.
-fn parallel_search_with_timeout<T, F>(f: F, timeout_secs: u64) -> Option<T> 
-where F: Fn() -> Option<T> + Sync + Send + RefUnwindSafe,
+fn parallel_search_with_timeout<T, F>(f: F, timeout_secs: u64, num: usize) -> Vec<T> 
+where F: Fn() -> Option<T> + Sync + Send,
       T: Send
 {
-    // Register a custom pass-through panic handler that suppresses the panic
-    // message normally produced by the Rayon early exit hack, and forwards to
-    // the default panic handler otherwise.
-    let default_panic_handler = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-
     let timeout = Duration::from_secs(timeout_secs);
     let progress_bar = ProgressBar::new_spinner()
         .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]"));
     progress_bar.enable_steady_tick(100);
     let start_time = SystemTime::now();
-    
-    let result = catch_unwind(|| {
-        rayon::iter::repeat(())
-            .progress_with(progress_bar)
-            .panic_fuse()
-            .find_map_any(|_| {
-                // Check the timeout condition and panic if it's met. This is necessary
-                // because Rayon doesn't include functionality to cancel parallel iterators
-                // or thread pools manually.
-                if timeout_secs > 0 && SystemTime::now().duration_since(start_time).unwrap() > timeout {
-                    panic!("{}", RAYON_EARLY_EXIT_PAYLOAD);
-                }
-                f()
-            })
-    });
 
-    std::panic::set_hook(default_panic_handler);
-    result.ok().flatten()
+    let (sender, results) = bounded(num);
+    
+    rayon::iter::repeat(())
+        .progress_with(progress_bar)
+        .map(|_| {
+            if timeout_secs > 0 && SystemTime::now().duration_since(start_time).unwrap() > timeout {
+                return None;
+            }
+
+            if sender.is_full() {
+                return None;
+            }
+
+            if let Some(result) = f() {
+                return sender.try_send(result).ok();
+            }
+
+            Some(())
+        })
+        .while_some()
+        .collect::<Vec<()>>();
+
+    results.iter().take(num).collect()
 }

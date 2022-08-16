@@ -87,6 +87,20 @@ pub enum Commands {
         timeout: u64,
 
         #[clap(
+            long = "quiet",
+            help = "Only print the found seed, nothing else."
+        )]
+        quiet: bool,
+
+        #[clap(
+            default_value = "1",
+            short = 'n',
+            long = "num",
+            help = "Number of seeds to attempt to find."
+        )]
+        num: usize,
+
+        #[clap(
             short = 'r',
             long = "render",
             help = "Render the found layout immediately"

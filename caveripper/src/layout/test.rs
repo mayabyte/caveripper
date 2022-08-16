@@ -97,7 +97,7 @@ fn test_render() {
 
     let failures = tests.into_par_iter().filter(|(seed, sublevel)| {
         let layout = Layout::generate(*seed, all_sublevels.get(&sublevel).as_ref().unwrap());
-        if let Err(cause) = render_layout(&layout, RenderOptions::default()) {
+        if let Err(cause) = render_layout(&layout, &RenderOptions::default()) {
             println!("({}, {:#010X}) {}", sublevel.short_name(), seed, cause);
             true
         }

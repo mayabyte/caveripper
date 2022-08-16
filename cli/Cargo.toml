@@ -12,6 +12,7 @@ indicatif = {version="0.16", features=["rayon"]}
 clap = {version="3.2", features=["derive"]}
 rand = "0.8"
 log = "0.4"
+crossbeam = "0.8.2"
 caveripper = {path="../caveripper"}
 
 [[bin]]

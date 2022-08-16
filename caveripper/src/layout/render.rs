@@ -47,7 +47,7 @@ pub struct RenderOptions {
 }
 
 
-pub fn render_layout(layout: &Layout, options: RenderOptions) -> Result<RgbaImage, RenderError> {
+pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaImage, RenderError> {
     info!("Drawing layout image...");
 
     // Find the minimum and maximum map tile coordinates in the layout.
@@ -405,14 +405,13 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
 
 /// Saves a layout image to disc.
 /// Filename should not include an extension.
-pub fn save_image(img: &RgbaImage, filename: String) -> Result<(), RenderError> {
+pub fn save_image(img: &RgbaImage, filename: String) -> Result<String, RenderError> {
     let _ = std::fs::create_dir("./output");
     let filename = format!("./output/{}.png", filename);
     img.save_with_format(&filename, image::ImageFormat::Png)
         .map_err(|_| RenderError::IoError(filename.clone()))?;
-    println!("🍞 Saved layout image as \"{}\"", filename);
 
-    Ok(())
+    Ok(filename)
 }
 
 fn expand_canvas(canvas: &mut RgbaImage, w: u32, h: u32, fill_color: Option<Rgba<u8>>) {
