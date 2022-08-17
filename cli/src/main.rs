@@ -3,13 +3,11 @@ mod cli;
 use atty::Stream;
 use cli::*;
 use clap::Parser;
-use crossbeam::channel::bounded;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
-use log::info;
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
-use std::{error::Error, thread::{scope, available_parallelism}, num::NonZeroUsize, fs::read_to_string, io::stdin, time::{Instant, Duration}};
-use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, RenderOptions, render_caveinfo}}};
+use std::{error::Error, fs::read_to_string, io::stdin, time::{Instant, Duration}};
+use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, RenderOptions, render_caveinfo}}, search::find_matching_layouts_parallel};
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -45,8 +43,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("🍞 Saved caveinfo image as \"{}\"", filename);
             }
         },
-        Commands::Search { sublevel, query, timeout_s, num, render, render_options } => {
-            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
+        Commands::Search { query, timeout_s, num } => {
+            let start_time = Instant::now();
+            let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
 
             let progress_bar = ProgressBar::new_spinner()
                 .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]").unwrap());
@@ -56,73 +55,31 @@ fn main() -> Result<(), Box<dyn Error>> {
                 progress_bar.finish_and_clear();
             }
 
-            let timeout = Duration::from_secs(timeout_s);
-            let start_time = Instant::now();
+            // Apply the query clauses in sequence, using the result of the previous one's
+            // search as the seed source for the following one.
+            let result_recv = query.clauses.iter().enumerate().fold(None, |recv, (i, clause)| {
+                let num = (i == query.clauses.len()).then_some(num);
+                Some(find_matching_layouts_parallel(clause, timeout, num, recv, Some(&progress_bar)))
+            })
+            .unwrap();
 
-            let parallelism = available_parallelism().unwrap_or(NonZeroUsize::new(8).unwrap()).into();
-            info!("Searching with {} threads", parallelism);
+            let mut num_found = 0;
+            for seed in result_recv.iter().take(num) {
+                num_found += 1;
+                progress_bar.suspend(|| println!("{:#010X}", seed));
+            }
 
-            let (sender, results) = bounded(num);
-            let (finished_s, finished_r) = bounded::<()>(1);
-
-            scope(|s| -> Result<(), Box<dyn Error>> {
-                for _ in 0..parallelism {
-                    s.spawn(|| loop {
-                        if finished_r.len() > 0 {
-                            return;
-                        }
-
-                        let seed: u32 = random();
-                        let layout = Layout::generate(seed, &caveinfo);
-    
-                        if query.matches(&layout) {
-                            if let Err(_) = sender.try_send(seed) {
-                                return;
-                            }
-                        }
-
-                        progress_bar.inc(1);
-                    });
-                }
-
-                let mut received = 0;
-                while received < num && let Ok(seed) = results.recv_deadline(start_time + timeout) {
-                    received += 1;
-                    progress_bar.suspend(|| println!("{:#010X}", seed));
-                    
-                    if render {
-                        let layout = Layout::generate(seed, &caveinfo);
-                        let filename = save_image(
-                            &render_layout(&layout, &render_options)?,
-                            format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
-                        )?;
-                        if atty::is(Stream::Stdout) {
-                            eprintln!("🍞 Saved layout image as \"{}\"", filename);
-                        }
-                    }
-                }
-
-                progress_bar.finish_and_clear();
-                finished_s.send(())?;
-
-                if received == 0 {
-                    eprintln!("🍞 No matching layouts found.");
-                }
-                else if atty::is(Stream::Stdout) {
-                    eprintln!("🍞 Found {} matching seeds in {}s.", received, start_time.elapsed().as_secs());
-                }
-
-                Ok(())
-            })?;
+            progress_bar.finish_and_clear();
+            if atty::is(Stream::Stdout) {
+                eprintln!("🍞 Found {} matching seed(s) in {}s.", num_found, start_time.elapsed().as_secs());
+            }
         },
-        Commands::Stats { sublevel, query, num_to_search } => {
-            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
+        Commands::Stats { query, num_to_search } => {
             let num_matched = (0..num_to_search).into_par_iter()
                 .progress()
                 .filter(|_| {
                     let seed: u32 = random();
-                    let layout = Layout::generate(seed, &caveinfo);
-                    query.matches(&layout)
+                    query.matches(seed)
                 })
                 .count();
             println!(
@@ -130,9 +87,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &query
             );
         },
-        Commands::Filter { sublevel, query, file } => {
-            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-
+        Commands::Filter { query, file } => {
             // Read from a file. In this case, we can check the seeds in parallel.
             if let Some(filename) = file {
                 read_to_string(filename)?.lines()
@@ -140,8 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .into_par_iter()
                     .filter_map(|line| parse_seed(line).ok())    
                     .filter(|seed| {
-                        let layout = Layout::generate(*seed, &caveinfo);
-                        query.matches(&layout)
+                        query.matches(*seed)
                     })
                     .for_each(|seed| {
                         println!("{:#010X}", seed);
@@ -152,8 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 stdin().lines()
                     .filter_map(|line| parse_seed(&line.ok()?).ok())
                     .filter(|seed| {
-                        let layout = Layout::generate(*seed, &caveinfo);
-                        query.matches(&layout)
+                        query.matches(*seed)
                     })
                     .for_each(|seed| {
                         println!("{:#010X}", seed);

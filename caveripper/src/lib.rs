@@ -7,5 +7,6 @@ pub mod layout;
 pub mod pikmin_math;
 pub mod assets;
 pub mod sublevel;
+pub mod query;
 pub mod search;
 pub mod errors;

@@ -17,6 +17,9 @@ clap = {version="3.2", features=["derive"]}
 dashmap = "5.3"
 thiserror = "1.0"
 fontdue = "0.7.2"
+crossbeam = "0.8.2"
+rand = "0.8"
+indicatif = "0.17"
 
 
 [dev-dependencies]

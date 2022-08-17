@@ -1,4 +1,4 @@
-use caveripper::{sublevel::Sublevel, errors::SeedError, search::Query, layout::render::RenderOptions};
+use caveripper::{sublevel::Sublevel, errors::SeedError, query::Query, layout::render::RenderOptions};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -66,12 +66,6 @@ pub enum Commands {
     )]
     Search {
         #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
-            help = SUBLEVEL_HELP,
-        )]
-        sublevel: Sublevel,
-
-        #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
             long_help = SEARCH_COND_LONG_HELP,
@@ -93,16 +87,6 @@ pub enum Commands {
             help = "Number of seeds to attempt to find."
         )]
         num: usize,
-
-        #[clap(
-            short = 'r',
-            long = "render",
-            help = "Render the found layout immediately"
-        )]
-        render: bool,
-
-        #[clap(flatten)]
-        render_options: RenderOptions,
     },
 
     /// Calculate statistics on what proportion of seeds match a given condition.
@@ -110,12 +94,6 @@ pub enum Commands {
         arg_required_else_help = true,
     )]
     Stats {
-        #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
-            help = SUBLEVEL_HELP,
-        )]
-        sublevel: Sublevel,
-
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
@@ -138,12 +116,6 @@ pub enum Commands {
         arg_required_else_help = true,
     )]
     Filter {
-        #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
-            help = SUBLEVEL_HELP,
-        )]
-        sublevel: Sublevel,
-
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,

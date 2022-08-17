@@ -52,7 +52,7 @@ pub enum SeedError {
 #[derive(Debug, Error, Clone)]
 pub enum SearchConditionError {
     #[error("Error parsing search condition")]
-    ParseError,
+    ParseError(String),
 
     #[error("Missing combinator between search conditions")]
     MissingCombinator,

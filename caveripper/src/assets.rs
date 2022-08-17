@@ -19,13 +19,16 @@ pub struct AssetManager {
     caveinfo_cache: DashMap<Sublevel, CaveInfo>,
     img_cache: DashMap<String, RgbaImage>,
     custom_img_cache: DashMap<String, RgbaImage>,
+    pub cave_cfg: Vec<CaveConfig>,
 
     /// All known treasure names. All lowercase so they can be easily compared.
     pub treasures: Vec<Treasure>,
 
-    /// All known teki name. All lowercase so they can be easily compared.
+    /// All known teki names. All lowercase so they can be easily compared.
     pub teki: Vec<String>,
-    pub cave_cfg: Vec<CaveConfig>,
+
+    /// All known room names.
+    pub rooms: Vec<String>,
 }
 
 impl AssetManager {
@@ -36,9 +39,10 @@ impl AssetManager {
             caveinfo_cache: DashMap::new(),
             img_cache: DashMap::new(),
             custom_img_cache: DashMap::new(),
+            cave_cfg: Vec::new(),
             treasures: Vec::new(),
             teki: Vec::new(),
-            cave_cfg: Vec::new(),
+            rooms: Vec::new(),
         };
 
         let treasures = SHIFT_JIS.decode(
@@ -63,6 +67,13 @@ impl AssetManager {
             .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
             .collect();
         mgr.teki = teki;
+
+        let rooms: Vec<String> = read_dir(mgr.base_path.join("assets/arc")).expect("Couldn't read arc directory!")
+            .filter_map(Result::ok)
+            .filter(|dir_entry| dir_entry.path().is_dir())
+            .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
+            .collect();
+        mgr.rooms = rooms;
 
         let cave_cfg: Vec<CaveConfig> = read_to_string(mgr.base_path.join("resources/caveinfo_config.txt")).unwrap()
             .lines()
