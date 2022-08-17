@@ -8,11 +8,12 @@ edition = "2021"
 [dependencies]
 simple_logger = {version="1.13", default-features=false, features=["colors"]}
 rayon = "1.5"
-indicatif = {version="0.16", features=["rayon"]}
+indicatif = {version="0.17", features=["rayon"]}
 clap = {version="3.2", features=["derive"]}
 rand = "0.8"
 log = "0.4"
 crossbeam = "0.8.2"
+atty = "0.2"
 caveripper = {path="../caveripper"}
 
 [[bin]]

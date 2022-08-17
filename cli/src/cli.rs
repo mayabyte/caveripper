@@ -84,13 +84,7 @@ pub enum Commands {
             long = "timeout",
             help = "The maximum time to search for a layout, in seconds. If set to 0, search indefinitely"
         )]
-        timeout: u64,
-
-        #[clap(
-            long = "quiet",
-            help = "Only print the found seed, nothing else."
-        )]
-        quiet: bool,
+        timeout_s: u64,
 
         #[clap(
             default_value = "1",
@@ -136,10 +130,35 @@ pub enum Commands {
             help = "Number of seeds to check. Larger sample sizes will produce more reliable results."
         )]
         num_to_search: usize,
+    },
+
+    /// Accepts input seeds from a file or stdin, and only prints those that
+    /// match the query condition.
+    #[clap(
+        arg_required_else_help = true,
+    )]
+    Filter {
+        #[clap(
+            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
+            help = SUBLEVEL_HELP,
+        )]
+        sublevel: Sublevel,
+
+        #[clap(
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
+            help = SEARCH_COND_HELP,
+            long_help = SEARCH_COND_LONG_HELP,
+        )]
+        query: Query,
+
+        #[clap(
+            long_help = SEED_FILE_HELP,
+        )]
+        file: Option<String>,
     }
 }
 
-fn parse_seed(src: &str) -> Result<u32, SeedError> {
+pub fn parse_seed(src: &str) -> Result<u32, SeedError> {
     let trimmed = src.strip_prefix("0x").unwrap_or(src);
     if trimmed.len() != 8 {
         Err(SeedError::InvalidLength)
@@ -175,3 +194,7 @@ with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
 "##;
 const VERBOSE_HELP: &'static str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
+const SEED_FILE_HELP: &'static str = 
+r##"The file to read seeds from. Should contain one seed on each line with no extra 
+punctuation. If not specified, reads from STDIN.
+"##;

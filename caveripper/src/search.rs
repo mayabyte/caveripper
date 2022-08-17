@@ -50,13 +50,13 @@ impl SearchCondition {
                 let entity_count = layout.get_spawn_objects()
                     .filter(|entity| entity.name().eq_ignore_ascii_case(name))
                     .count();
-                &entity_count.cmp(&amount) == relationship
+                entity_count.cmp(amount) == *relationship
             },
             SearchCondition::CountRoom { room_matcher, relationship, amount } => {
                 let unit_count = layout.map_units.iter()
                     .filter(|unit| room_matcher.matches(&unit.unit))
                     .count();
-                &unit_count.cmp(&amount) == relationship
+                unit_count.cmp(amount) == *relationship
             },
             SearchCondition::EntityInRoom { entity_name, room_matcher } => {
                 layout.map_units.iter()
@@ -94,7 +94,10 @@ impl TryFrom<&str> for Query {
             if let Ok((rest, (obj, relationship_char, amount))) = compare_cmd(remaining_text) {
                 remaining_text = rest;
                 let relationship = char_to_ordering(relationship_char);
-                if ASSETS.teki.contains(&obj.to_ascii_lowercase()) || obj.eq_ignore_ascii_case("gate") {
+                if ASSETS.teki.contains(&obj.to_ascii_lowercase()) 
+                   || ASSETS.treasures.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(&obj)) 
+                   || obj.eq_ignore_ascii_case("gate") 
+                {
                     search_conditions.push(SearchCondition::CountEntity { name: obj.trim().to_string(), relationship, amount: amount as usize });
                 }
                 else {
