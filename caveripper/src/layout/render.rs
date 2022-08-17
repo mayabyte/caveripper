@@ -157,10 +157,10 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
 }
 
 pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<RgbaImage, RenderError> {
-    let mut canvas_header = RgbaImage::from_pixel(980, 310, [220,220,220,255].into());
+    let mut canvas_header = RgbaImage::from_pixel(1060, 310, [220,220,220,255].into());
 
     // Sublevel name
-    let sublevel_title = render_text(&caveinfo.sublevel.as_ref().unwrap().long_name(), 64.0, [0,0,0]);
+    let sublevel_title = render_text(&caveinfo.sublevel.as_ref().unwrap().long_name(), 64.0, [0,0,0, 255].into());
     overlay(&mut canvas_header, &sublevel_title, CAVEINFO_MARGIN * 2, -8);
 
     // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
@@ -175,7 +175,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
     let num_gates = caveinfo.max_gates;
     if num_gates > 0 {
         let gate_icon = resize(&SpawnObject::Gate(caveinfo.gate_info[0].clone()).get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
-        let num_txt = render_text(&format!("x{}", num_gates), 24.0, [20, 20, 20]);
+        let num_txt = render_text(&format!("x{}", num_gates), 24.0, [20, 20, 20, 255].into());
         let mut final_gate_icon = RgbaImage::new(CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE);
         overlay(&mut final_gate_icon, &gate_icon, 0, -8);
         overlay(&mut final_gate_icon, &num_txt, CAVEINFO_ICON_SIZE as i64 / 2 - num_txt.width() as i64 / 2, CAVEINFO_ICON_SIZE as i64 - 32);
@@ -191,16 +191,18 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
         );
     }
 
-    let mut base_y =  64 + CAVEINFO_MARGIN * 2;
+    let poko_icon = resize(&*ASSETS.get_img("resources/enemytex_special/Poko_icon.png")?, 16, 19, FilterType::Lanczos3);
 
     // Teki section
-    let teki_header = render_text(&format!("Teki (max {})", caveinfo.max_main_objects), 48.0, [225,0,0]);
+    let mut base_y =  64 + CAVEINFO_MARGIN * 2;
+    let teki_header = render_text(&format!("Teki (max {})", caveinfo.max_main_objects), 48.0, [225,0,0, 255].into());
     overlay(&mut canvas_header, &teki_header, CAVEINFO_MARGIN * 2, base_y);
-    let mut i = 0;
+    let mut base_x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
+
     for group in [8, 1, 0, 6, 5] {
         for tekiinfo in caveinfo.teki_group(group) {
             let texture = resize(&tekiinfo.get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
-            let mut x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64 + i as i64 * (CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN);
+            let mut x = base_x;
             let mut y = base_y + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
 
             // If we overflow the width of the image, wrap to the next line.
@@ -208,7 +210,6 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                 x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
                 y += 70;
                 base_y += 70;
-                i = 0;
 
                 // Expand the header to make room for the other rows
                 expand_canvas(&mut canvas_header, 0, 70 + CAVEINFO_MARGIN as u32, Some([220,220,220,255].into()));
@@ -226,11 +227,28 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                         overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
+                        let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&carrying))
+                            .expect("Teki carrying unknown or invalid treasure!");
+
                         let carried_treasure_icon = resize(
                             &*ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
                         overlay(&mut canvas_header, &carried_treasure_icon, x + 18, y + 14);
+
+                        // Treasure value/carry text
+                        let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into());
+                        let sidetext_x = x + texture.width() as i64 + 5;
+                        overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
+                        overlay(&mut canvas_header, &value_text,
+                            sidetext_x + poko_icon.width() as i64 + 3,
+                            y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
+                        );
+
+                        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into());
+                        overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
+
+                        base_x += max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
                     },
                     _ => {}
                 }
@@ -243,40 +261,32 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                 format!("x{}", tekiinfo.minimum_amount)
             };
 
-            let subtext_color = match tekiinfo.group {
-                0 => [47, 99, 245],
-                1 => [201, 2, 52],
-                8 => [148, 2, 201],
-                6 => [59, 148, 90],
-                5 => [133, 133, 133],
-                _ => panic!("Invalid teki group in tekiinfo"),
-            };
+            let subtext_color = group_color(tekiinfo.group).into();
 
             let teki_subtext_texture = render_text(&teki_subtext, 24.0, subtext_color);
             overlay(&mut canvas_header, &teki_subtext_texture, x + CAVEINFO_ICON_SIZE as i64 / 2 - teki_subtext_texture.width() as i64 / 2, y + CAVEINFO_ICON_SIZE as i64 - 8);
 
-            i += 1;
+            base_x += CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN;
         }
     }
 
     base_y += teki_header.height() as i64 + CAVEINFO_MARGIN;
 
     // Treasures section
-    let treasure_header = render_text("Treasures", 48.0, [207, 105, 33]);
-    let poko_icon = resize(&*ASSETS.get_img("resources/enemytex_special/Poko_icon.png")?, 16, 19, FilterType::Lanczos3);
+    let treasure_header = render_text("Treasures", 48.0, [207, 105, 33, 255].into());
     overlay(&mut canvas_header, &treasure_header, CAVEINFO_MARGIN * 2, base_y);
     
     let mut base_x = treasure_header.width() as i64 + CAVEINFO_MARGIN;
     for treasureinfo in caveinfo.item_info.iter() {
         let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
-            .expect("Teki carrying unknown or invalid treasure!");
+            .expect("Unknown or invalid treasure!");
 
         let treasure_texture = resize(&treasureinfo.get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let x = base_x + CAVEINFO_MARGIN * 4;
         let y = base_y + CAVEINFO_MARGIN + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &treasure_texture, x, y);
 
-        let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20]);
+        let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into());
         let sidetext_x = x + treasure_texture.width() as i64 + 2;
         overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
         overlay(&mut canvas_header, &value_text,
@@ -284,7 +294,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
             y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
         );
 
-        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20]);
+        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into());
         overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
 
         base_x = sidetext_x + max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64);
@@ -293,7 +303,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
     base_y += treasure_header.height() as i64;
 
     // Capteki section
-    let capteki_color = [45, 173, 167];
+    let capteki_color = [45, 173, 167, 255].into();
     let capteki_header = render_text("Cap Teki", 48.0, capteki_color);
     overlay(&mut canvas_header, &capteki_header, CAVEINFO_MARGIN * 2, base_y);
     for (i, capinfo) in caveinfo.cap_info.iter().enumerate() {
@@ -329,7 +339,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
     // Done with header section
     // Start Map Tile section
 
-    let mut canvas_maptiles = RgbaImage::from_pixel(canvas_header.width(), 500, [20, 20, 20, 255].into());
+    let mut canvas_maptiles = RgbaImage::from_pixel(canvas_header.width(), 250, [20, 20, 20, 255].into());
 
     let maptiles_metadata_txt = render_text(
         &format!(
@@ -337,7 +347,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
             caveinfo.num_rooms, caveinfo.corridor_probability * 100.0, caveinfo.cap_probability * 100.0
         ), 
         24.0, 
-        [220,220,220]
+        [220,220,220,255].into()
     );
     overlay(&mut canvas_maptiles, &maptiles_metadata_txt, canvas_header.width() as i64 / 2 - maptiles_metadata_txt.width() as i64 / 2, 0);
 
@@ -381,14 +391,34 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
             expand_canvas(
                 &mut canvas_maptiles, 
                 0, 
-                base_y as u32 + unit_texture.height() + maptile_margin as u32 - h, 
+                base_y as u32 + unit_texture.height() + (maptile_margin as u32) * 2 - h, 
                 Some([20, 20, 20, 255].into())
             );
         }
 
         overlay(&mut canvas_maptiles, &unit_texture, base_x, base_y);
-
         draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
+
+        let unit_name_text = render_text(&unit.unit_folder_name, 14.0, [220,220,220,255].into());
+        overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
+
+        for spawnpoint in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
+            let sp_x = (spawnpoint.pos_x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
+            let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
+
+            let sp_img = match spawnpoint.group {
+                0 => circle((spawnpoint.radius * COORD_FACTOR) as u32, group_color(0).into()),
+                1 => circle(5, group_color(1).into()),
+                2 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/duck.png").unwrap().clone(), 14, 14, FilterType::Lanczos3), group_color(2).into()), // treasure
+                4 => resize(&ASSETS.get_img("resources/enemytex_special/cave_white.png").unwrap().clone(), 18, 18, FilterType::Lanczos3),
+                6 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/leaf_icon.png").unwrap().clone(), 10, 10, FilterType::Lanczos3), group_color(6).into()),
+                7 => resize(&ASSETS.get_img("resources/enemytex_special/ship.png").unwrap().clone(), 16, 16, FilterType::Lanczos3),
+                8 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/star.png").unwrap().clone(), 16, 16, FilterType::Lanczos3), group_color(8).into()),
+                _ => circle(5, [255,0,0,255].into()),
+            };
+
+            overlay(&mut canvas_maptiles, &sp_img, base_x + sp_x - (sp_img.width() / 2) as i64 , base_y + sp_z - (sp_img.height() / 2) as i64);
+        }
         
         max_y = max(max_y, base_y + unit_texture.height() as i64);
         base_x += unit_texture.width() as i64 + maptile_margin;
@@ -412,6 +442,29 @@ pub fn save_image(img: &RgbaImage, filename: String) -> Result<String, RenderErr
         .map_err(|_| RenderError::IoError(filename.clone()))?;
 
     Ok(filename)
+}
+
+fn group_color(group: u32) -> [u8; 4] {
+    match group {
+        0 => [221, 99, 255, 90],
+        1 => [201, 2, 52, 255],
+        2 => [207, 105, 33, 255],
+        5 => [133, 133, 133, 255],
+        6 => [59, 148, 90, 255],
+        7 => [230, 50, 86, 255],
+        8 => [58, 14, 171, 255],
+        _ => panic!("Invalid teki group in tekiinfo"),
+    }
+}
+
+fn colorize(img: &RgbaImage, color: Rgba<u8>) -> RgbaImage {
+    let mut img = img.clone();
+    img.enumerate_pixels_mut().for_each(|px| {
+        px.2.0[0] = color.0[0];
+        px.2.0[1] = color.0[1];
+        px.2.0[2] = color.0[2];
+    });
+    img
 }
 
 fn expand_canvas(canvas: &mut RgbaImage, w: u32, h: u32, fill_color: Option<Rgba<u8>>) {
@@ -491,7 +544,7 @@ static FONT: Lazy<Font> = Lazy::new(|| {
     Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
 });
 
-fn render_text(text: &str, size: f32, color: [u8; 3]) -> RgbaImage {
+fn render_text(text: &str, size: f32, color: Rgba<u8>) -> RgbaImage {
     let mut layout = FontLayout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
     layout.append(&[&*FONT], &TextStyle::new(text, size, 0));
     let width = layout.glyphs().iter().map(|g| g.x as usize + g.width).max().unwrap_or(0);
@@ -504,7 +557,7 @@ fn render_text(text: &str, size: f32, color: [u8; 3]) -> RgbaImage {
             let y = (i / metrics.width) as i64 + glyph.y as i64;
             if x >= 0 && x < img.width() as i64 && y >= 0 && y < img.height() as i64 {
                 let coverage = (cr as f32 + cg as f32 + cb as f32) / 3.0;
-                img.put_pixel(x as u32, y as u32, [color[0].saturating_add(255-cr), color[1].saturating_add(255-cg), color[2].saturating_add(255-cb), coverage as u8].into());
+                img.put_pixel(x as u32, y as u32, [color.0[0].saturating_add(255-cr), color.0[1].saturating_add(255-cg), color.0[2].saturating_add(255-cb), coverage as u8].into());
             }
         }
     }
@@ -700,7 +753,7 @@ impl Textured for CaveUnit {
         let mut img = ASSETS.get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
-        brighten_in_place(&mut img, 45);
+        brighten_in_place(&mut img, 55);
 
         for _ in 0..self.rotation {
             img = rotate90(&img);

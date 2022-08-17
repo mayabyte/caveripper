@@ -113,17 +113,16 @@ impl TryFrom<&str> for Query {
         let mut clauses = Vec::new();
         loop {
             let sublevel;
-            let rest;
-            if let Ok((r, sublevel_str)) = ident_s(remaining_text) {
+            if let Ok((rest, sublevel_str)) = ident_s(remaining_text) {
                 sublevel = Sublevel::try_from(sublevel_str)
                     .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
-                rest = r;
+                remaining_text = rest;
             }
             else {
                 return Err(SearchConditionError::ParseError("No valid sublevel specified in query.".to_string()))
             }
 
-            if let Ok((rest, (obj, relationship_char, amount))) = compare_cmd(rest) {
+            if let Ok((rest, (obj, relationship_char, amount))) = compare_cmd(remaining_text) {
                 remaining_text = rest;
                 let relationship = char_to_ordering(relationship_char);
                 if ASSETS.teki.contains(&obj.to_ascii_lowercase()) 
@@ -283,16 +282,16 @@ fn compare_cmd(input: &str) -> IResult<&str, (&str, &str, u32)> {
 
 /// Parses an "in" command of the structure "ENTITY_IDENT in ROOM_IDENT".
 fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
-    let (rest, (entity, _, _, _, room)) = tuple((
-        ident, space1, tag("in"), space1, ident
+    let (rest, (_, entity, _, _, _, room)) = tuple((
+        space0, ident, space1, tag("in"), space1, ident
     ))(input)?;
     Ok((rest, (entity, room)))
 }
 
 /// Parses a "with" command of the structure "ENTITY_1 with ENTITY_2".
 fn entity_in_same_room_as(input: &str) -> IResult<&str, (&str, &str)> {
-    let (rest, (e1, _, _, _, e2)) = tuple((
-        ident, space1, tag("with"), space1, ident
+    let (rest, (_, e1, _, _, _, e2)) = tuple((
+        space0, ident, space1, tag("with"), space1, ident
     ))(input)?;
     Ok((rest, (e1, e2)))
 }
