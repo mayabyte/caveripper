@@ -3,7 +3,8 @@ use crate::{
     caveinfo::{
         util::{expand_rotations, sort_cave_units},
         CaveInfo, TekiInfo, ItemInfo, CapInfo, GateInfo,
-        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, Waterbox
+        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, 
+        Waterbox, Waypoint
     },
     errors::CaveInfoError,
     assets::{ASSETS, Treasure},
@@ -12,17 +13,18 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::{
-        alpha1, char, digit1, hex_digit1, line_ending, multispace0, multispace1, not_line_ending, space0,
+        alpha1, char, digit1, hex_digit1, line_ending, multispace0, multispace1, not_line_ending, space0, space1,
     },
-    combinator::{into, opt, success, value},
+    combinator::{into, opt, success, value, recognize},
     multi::{count, many1},
     sequence::{delimited, preceded, tuple},
-    IResult, number::complete::float,
+    IResult, number::{complete::float},
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::str::FromStr;
+
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
 /// CaveInfo struct, ready for passing to the generator.
@@ -89,6 +91,43 @@ fn parse_waterboxes_file(waterboxes_file_txt: &str) -> IResult<&str, Vec<Waterbo
     else {
         Ok((rest, Vec::new()))
     }
+}
+
+fn parse_waypoints_file(waypoints_file_txt: &str) -> IResult<&str, Vec<Waypoint>> {
+    let (rest, (num_waypoints_str, _, _)) = tuple((digit1, space0, line_comment))(waypoints_file_txt)?;
+    let num_waypoints: usize = num_waypoints_str.parse().unwrap();
+
+    if num_waypoints > 0 {
+        count(waypoint_section, num_waypoints)(rest)
+    }
+    else {
+        Ok((rest, Vec::new()))
+    }
+}
+
+fn waypoint_section(txt: &str) -> IResult<&str, Waypoint> {
+    let (txt, _) = line_comment(txt)?;
+    let (txt, _) = skip_lines(txt, 1)?;
+    let (rest, line1) = recognize(tuple((not_line_ending, line_ending)))(txt)?;
+    let (rest, line2) = recognize(tuple((not_line_ending, line_ending)))(rest)?;
+
+    let (_, (_, index_str, _, _)) = tuple((space0, digit1, space0, line_comment))(line1)?;
+    let (_, (_, num_links_str, _, _)) = tuple((space0, digit1, space0, line_comment))(line2)?;
+
+    let num_links: usize = num_links_str.parse().unwrap();
+    let (rest, links) = count(tuple((space0, digit1, space0, line_comment)), num_links)(rest)?;
+    let links = links.into_iter()
+        .map(|(_, link_str, _, _)| link_str.parse::<u32>().unwrap())
+        .collect();
+
+    let (rest, (_, x, _, y, _, z, _, r, _, _)) = tuple((space0, float, space1, float, space1, float, space1, float, space0, line_ending))(rest)?;
+    let (rest, _) = skip_lines(rest, 1)?;
+    Ok((
+        rest,
+        Waypoint {
+            x, y, z, r, links, index: index_str.parse().unwrap()
+        }
+    ))
 }
 
 /// One 'section' enclosed by curly brackets in a CaveInfo file.
@@ -420,6 +459,11 @@ impl TryFrom<Section<'_>> for CaveUnit {
             Err(_) => Vec::new(),
         };
 
+        // route.txt file (Waypoints)
+        let waypoints_file_txt = ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/route.txt", unit_folder_name))?;
+        let waypoints = parse_waypoints_file(&waypoints_file_txt)
+            .map_err(|e| CaveInfoError::ParseFileError(format!("Couldn't parse routes.txt for {}: {}", unit_folder_name, e)))?.1;
+
         // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
         // present in Caveinfo files but the generation algorithm acts as if they're there,
         // so adding them here is a simplification.
@@ -450,6 +494,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
             rotation: 0,
             spawnpoints,
             waterboxes,
+            waypoints,
         })
     }
 }

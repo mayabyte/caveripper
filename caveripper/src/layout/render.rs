@@ -423,6 +423,14 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
         draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
         overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
 
+        for waypoint in unit.waypoints.iter() {
+            let wp_x = (waypoint.x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
+            let wp_z = (waypoint.z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
+
+            let wp_img = circle(3, [0,0,0,255].into());
+            overlay(&mut canvas_maptiles, &wp_img, base_x + wp_x - (wp_img.width() / 2) as i64, base_y + wp_z - (wp_img.height() / 2) as i64)
+        }
+
         for spawnpoint in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
             let sp_x = (spawnpoint.pos_x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
             let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;

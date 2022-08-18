@@ -26,11 +26,14 @@ pub enum AssetError {
 
     #[error("Failed to decode file '{0}'")]
     DecodingError(String),
+
+    #[error("Failed to parse CaveInfo: '{0}'")]
+    CaveInfoError(String),
 }
 
 impl From<CaveInfoError> for AssetError {
-    fn from(_: CaveInfoError) -> Self {
-        todo!()
+    fn from(e: CaveInfoError) -> Self {
+        AssetError::CaveInfoError(e.to_string())
     }
 }
 

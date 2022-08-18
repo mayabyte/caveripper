@@ -233,6 +233,7 @@ pub struct CaveUnit {
     pub rotation: u16,
     pub spawnpoints: Vec<SpawnPoint>,
     pub waterboxes: Vec<Waterbox>,
+    pub waypoints: Vec<Waypoint>,  // Points in 3d space that guide carried objects
 }
 
 
@@ -304,6 +305,16 @@ pub struct Waterbox {
     pub x2: f32,
     pub y2: f32,
     pub z2: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct Waypoint {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub r: f32,
+    pub index: u32,
+    pub links: Vec<u32>,
 }
 
 
