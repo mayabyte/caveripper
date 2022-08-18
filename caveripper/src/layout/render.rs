@@ -112,13 +112,13 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
                 SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, &options)?;
+                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, options)?;
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, &options)?;
+                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, options)?;
                 },
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, &options)?;
+                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, options)?;
                 },
             }
         }
@@ -140,14 +140,14 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
                 SpawnObject::Gate(gateinfo) => {
                     let texture = gateinfo.get_texture()?;
                     if door.borrow().door_unit.direction % 2 == 1 {
-                        draw_object_at(&mut canvas, &WithCustomTexture{ inner: gateinfo.clone(), custom_texture: rotate90(&texture) }, x, z, &options)?;
+                        draw_object_at(&mut canvas, &WithCustomTexture{ inner: gateinfo.clone(), custom_texture: rotate90(&texture) }, x, z, options)?;
                     }
                     else {
-                        draw_object_at(&mut canvas, gateinfo, x, z, &options)?;
+                        draw_object_at(&mut canvas, gateinfo, x, z, options)?;
                     }
                 }
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, x, z, &options)?;
+                    draw_object_at(&mut canvas, spawn_object, x, z, options)?;
                 },
             }
         }
@@ -227,7 +227,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                         overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
-                        let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&carrying))
+                        let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
                             .expect("Teki carrying unknown or invalid treasure!");
 
                         let carried_treasure_icon = resize(
@@ -313,15 +313,12 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
         overlay(&mut canvas_header, &texture, x, y);
 
         for modifier in capinfo.get_texture_modifiers().iter() {
-            match modifier {
-                TextureModifier::Falling => {
-                    let falling_icon_texture = resize(
-                        &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
-                        24, 24, FilterType::Nearest
-                    );
-                    overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
-                },
-                _ => {}
+            if let TextureModifier::Falling = modifier {
+                let falling_icon_texture = resize(
+                    &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
+                    24, 24, FilterType::Nearest
+                );
+                overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
             }
         }
 

@@ -126,7 +126,7 @@ impl TryFrom<&str> for Query {
                 remaining_text = rest;
                 let relationship = char_to_ordering(relationship_char);
                 if ASSETS.teki.contains(&obj.to_ascii_lowercase()) 
-                    || ASSETS.treasures.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(&obj)) 
+                    || ASSETS.treasures.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(obj)) 
                     || obj.eq_ignore_ascii_case("gate") 
                 {
                     clauses.push(QueryClause {
@@ -178,7 +178,7 @@ impl TryFrom<&str> for Query {
                 return Err(SearchConditionError::InvalidArgument("Unrecognized query".to_string()));
             }
 
-            if remaining_text.trim().len() == 0 {
+            if remaining_text.trim().is_empty() {
                 break;
             }
 

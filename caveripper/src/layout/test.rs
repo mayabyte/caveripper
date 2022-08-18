@@ -31,8 +31,7 @@ fn test_slugs() {
                 .map(|e| e.key().clone())
                 .sorted()
                 .nth(rng.gen_range(0..all_sublevels.len()))
-                .unwrap()
-                .to_owned();
+                .unwrap();
             (seed, sublevel)
         })
         .collect();
@@ -89,14 +88,13 @@ fn test_render() {
                 .map(|e| e.key().clone())
                 .sorted()
                 .nth(rng.gen_range(0..all_sublevels.len()))
-                .unwrap()
-                .to_owned();
+                .unwrap();
             (seed, sublevel)
         })
         .collect();
 
     let failures = tests.into_par_iter().filter(|(seed, sublevel)| {
-        let layout = Layout::generate(*seed, all_sublevels.get(&sublevel).as_ref().unwrap());
+        let layout = Layout::generate(*seed, all_sublevels.get(sublevel).as_ref().unwrap());
         if let Err(cause) = render_layout(&layout, &RenderOptions::default()) {
             println!("({}, {:#010X}) {}", sublevel.short_name(), seed, cause);
             true

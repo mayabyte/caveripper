@@ -70,6 +70,7 @@ impl PikminRng {
 
     /// Takes a list of weights and chooses a random weight. Returns the index of
     /// the chosen weight in the original list rather than the weight itself.
+    #[allow(clippy::needless_range_loop)]
     pub fn rand_index_weight(&self, weights: &[u32]) -> Option<usize> {
         let total: u32 = weights.iter().sum();
         let mut cumulative_sum: u32 = 0;

@@ -140,9 +140,9 @@ pub fn parse_seed(src: &str) -> Result<u32, SeedError> {
     }
 }
 
-const SUBLEVEL_HELP: &'static str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
-const SEARCH_COND_HELP: &'static str = "A condition to search for in the sublevel.";
-const SEARCH_COND_LONG_HELP: &'static str = 
+const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
+const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
+const SEARCH_COND_LONG_HELP: &str = 
 r##"A string with one or more query conditions, joined by '&'. Caveripper will attempt 
 to find a layout matching all conditions.
 
@@ -160,13 +160,13 @@ Currently available query conditions:
 - "ENTITY1 with ENTITY2". Check whether the two named entities are in the same room
   as each other.
 "##;
-const SEED_HELP: &'static str = 
+const SEED_HELP: &str = 
 r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed 
 with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
 "##;
-const VERBOSE_HELP: &'static str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
-const SEED_FILE_HELP: &'static str = 
+const VERBOSE_HELP: &str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
+const SEED_FILE_HELP: &str = 
 r##"The file to read seeds from. Should contain one seed on each line with no extra 
 punctuation. If not specified, reads from STDIN.
 "##;

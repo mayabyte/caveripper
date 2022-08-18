@@ -112,12 +112,12 @@ impl AssetManager {
     }
 
     pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<CaveInfo, AssetError> {
-        if !self.caveinfo_cache.contains_key(&sublevel) {
+        if !self.caveinfo_cache.contains_key(sublevel) {
             self.load_caveinfo(&sublevel.cfg)?;
         }
         Ok(
-            self.caveinfo_cache.get(&sublevel)
-            .ok_or(SublevelError::UnrecognizedSublevel(sublevel.short_name()))?
+            self.caveinfo_cache.get(sublevel)
+            .ok_or_else(|| SublevelError::UnrecognizedSublevel(sublevel.short_name()))?
             .clone()
         )
     }
@@ -213,7 +213,7 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
     }
 }
 
-static ALL_VANILLA_CAVES: [&'static str; 14] = ["ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", "dd"];
+static ALL_VANILLA_CAVES: [&str; 14] = ["ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", "dd"];
 
 #[derive(Clone, Debug)]
 pub struct Treasure {
@@ -226,10 +226,8 @@ pub struct Treasure {
 fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
     config_txt.lines().skip(4)
         .batching(|lines| {
-            // Advances by one during this check, conveniently skipping the opening bracket
-            if lines.next().is_none() {
-                return None;
-            }
+            // Skip the opening bracket
+            lines.next()?;
             Some(lines.take_while(|line| line != &"}").collect_vec())
         })
         .map(|section| {

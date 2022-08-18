@@ -77,5 +77,5 @@ pub fn fast_inverse_sqrt(val: f64) -> f64 {
     let index = (i / 2048 + (if odd_exponent {16} else {0})) as usize;
     vali |= ((EXPECTED_BASE[index] - EXPECTED_DEC[index] * (i % 2048)) as u64) << 26;
 
-    return f64::from_bits(vali);
+    f64::from_bits(vali)
 }

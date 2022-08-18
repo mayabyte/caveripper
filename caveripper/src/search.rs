@@ -67,7 +67,7 @@ pub fn find_matching_layouts_parallel(
                     }
                 }
 
-                if let Some(progress) = progress.as_ref().map(|p| p.upgrade()).flatten() {
+                if let Some(progress) = progress.as_ref().and_then(|p| p.upgrade()) {
                     progress.inc(1);
                 }
             }

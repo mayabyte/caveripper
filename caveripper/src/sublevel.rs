@@ -43,10 +43,10 @@ impl TryFrom<&str> for Sublevel {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value_lower = value.to_ascii_lowercase();
         let cave = CHAR.get_or_init(|| Regex::new(r"([[:alpha:]]+)").unwrap()).find(&value_lower)
-            .ok_or_else(|| SublevelError::MissingCaveName)?
+            .ok_or(SublevelError::MissingCaveName)?
             .as_str();
         let floor: usize = DIGIT.get_or_init(|| Regex::new(r"(\d+)").unwrap()).find(&value_lower)
-            .ok_or_else(|| SublevelError::MissingFloorNumber)?
+            .ok_or(SublevelError::MissingFloorNumber)?
             .as_str()
             .parse().unwrap();
 

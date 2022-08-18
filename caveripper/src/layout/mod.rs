@@ -42,7 +42,7 @@ impl Layout {
         slug.push_str(&format!("{};", self.cave_name));
         slug.push_str(&format!("{:#010X};", self.starting_seed));
 
-        slug.push_str("[");
+        slug.push('[');
         for map_unit in self.map_units.iter() {
             slug.push_str(&format!("{},x{}z{}r{};",
                 map_unit.unit.unit_folder_name,
@@ -133,7 +133,7 @@ impl Layout {
             }
         }
 
-        slug.push_str("[");
+        slug.push('[');
         spawn_object_slugs.sort();
         for so_slug in spawn_object_slugs {
             slug.push_str(&so_slug);
@@ -296,6 +296,7 @@ impl SpawnObject {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn boxes_overlap(x1: i32, z1: i32, w1: u16, h1: u16, x2: i32, z2: i32, w2: u16, h2: u16) -> bool {
     !((x1 + w1 as i32 <= x2 || x2 + w2 as i32 <= x1) || (z1 + h1 as i32 <= z2 || z2 + h2 as i32 <= z1))
 }

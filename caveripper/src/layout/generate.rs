@@ -11,7 +11,7 @@ pub struct LayoutBuilder {
     rng: PikminRng,
     starting_seed: u32,
     cave_name: String,
-    map_units: Vec<Box<PlacedMapUnit>>,
+    map_units: Vec<PlacedMapUnit>,
     cap_queue: Vec<CaveUnit>,
     room_queue: Vec<CaveUnit>,
     corridor_queue: Vec<CaveUnit>,
@@ -120,7 +120,7 @@ impl LayoutBuilder {
 
 
         // Keep placing map units until all doors have been closed
-        if self.open_doors().len() > 0 {
+        if !self.open_doors().is_empty() {
             let mut num_loops = 0;
             while num_loops <= 10000 {
                 num_loops += 1;
@@ -153,7 +153,7 @@ impl LayoutBuilder {
                             RoomType::Room => &self.room_queue,
                             RoomType::DeadEnd => &self.cap_queue,
                             RoomType::Hallway => {
-                                self.shuffle_corridor_priority(&caveinfo);
+                                self.shuffle_corridor_priority(caveinfo);
                                 &self.corridor_queue
                             }
                         };
@@ -177,7 +177,7 @@ impl LayoutBuilder {
                 // If we've already placed all the rooms we're allowed to, try to place a
                 // hallway or cap instead.
                 else {
-                    self.mark_random_open_doors_as_caps(&caveinfo);
+                    self.mark_random_open_doors_as_caps(caveinfo);
 
                     // Create a list of 'hallway' units (corridors with exactly 2 doors)
                     let mut hallway_queue: Vec<&CaveUnit> = self.corridor_queue.iter()
@@ -292,10 +292,10 @@ impl LayoutBuilder {
                                 let door_dir_0 = hallway_unit.doors[0].direction;
                                 let door_dir_1 = hallway_unit.doors[1].direction;
                                 if door_dir_0 == dir_hallway_0 && door_dir_1 == dir_hallway_1 {
-                                    unit_to_place = self.try_place_unit_at(open_door.clone(), &hallway_unit, 0);
+                                    unit_to_place = self.try_place_unit_at(open_door.clone(), hallway_unit, 0);
                                 }
                                 else if door_dir_0 == dir_hallway_1 && door_dir_1 == dir_hallway_0 {
-                                    unit_to_place = self.try_place_unit_at(open_door.clone(), &hallway_unit, 1);
+                                    unit_to_place = self.try_place_unit_at(open_door.clone(), hallway_unit, 1);
                                 }
                                 if unit_to_place.is_some() {
                                     break 'place_hallway;
@@ -348,7 +348,7 @@ impl LayoutBuilder {
                     }
                 }
 
-                if self.open_doors().len() > 0 { continue; }
+                if !self.open_doors().is_empty() { continue; }
                 let mut cap_to_replace = None;
 
                 // changeCapToHallMapUnit //
@@ -360,7 +360,7 @@ impl LayoutBuilder {
                     .map(|unit| unit.unit_folder_name.as_ref())
                     .collect();
 
-                if hallway_unit_names.len() > 0 {
+                if !hallway_unit_names.is_empty() {
                     { // subscope to avoid conflicting borrows again
                         'change_cap_to_hallway: for i in 0..self.map_units.len() {
                             
@@ -406,7 +406,7 @@ impl LayoutBuilder {
                                 }
     
                                 // Store this for later
-                                let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction.clone();
+                                let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction;
                                 let attach_to = placed_unit.doors[0].borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap();
     
                                 // Remove the one with the greater index first so we don't have to re-find
@@ -442,7 +442,7 @@ impl LayoutBuilder {
                         self.place_map_unit(cap_to_replace, true);
                     }
                 }
-                if self.open_doors().len() > 0 { continue; }
+                if !self.open_doors().is_empty() { continue; }
 
                 // Look for instances of two 1x1 hallway units in a row and change them to
                 // single 2x1 hallway units.
@@ -578,8 +578,8 @@ impl LayoutBuilder {
         let min_x = self.map_units.iter().map(|unit| unit.x).min().unwrap();
         let min_z = self.map_units.iter().map(|unit| unit.z).min().unwrap();
         for map_unit in self.map_units.iter_mut() {
-            map_unit.x = map_unit.x - min_x;
-            map_unit.z = map_unit.z - min_z;
+            map_unit.x -= min_x;
+            map_unit.z -= min_z;
             for spawnpoint in map_unit.spawnpoints.iter_mut() {
                 spawnpoint.x -= (min_x as f32) * 170.0;
                 spawnpoint.z -= (min_z as f32) * 170.0;
@@ -641,7 +641,7 @@ impl LayoutBuilder {
 
                 // Choose a spot from the available ones to spawn at.
                 // Note: this *should not* hit RNG if spawnpoints has zero elements.
-                let chosen_spot = if spawnpoints.len() > 0 {
+                let chosen_spot = if !spawnpoints.is_empty() {
                     Some(&spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()])
                 }
                 else {
@@ -688,7 +688,7 @@ impl LayoutBuilder {
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[8] {
                 // Note: this *should not* hit RNG if spawnpoints is empty.
-                let chosen_spot = if spawnpoints.len() > 0 {
+                let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
                 }
@@ -732,7 +732,7 @@ impl LayoutBuilder {
 
             for num_spawned in 0..self.allocated_enemy_slots_by_group[1] {
                 // Note: this *should not* hit RNG if spawnpoints is empty.
-                let chosen_spot = if spawnpoints.len() > 0 {
+                let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
                 }
@@ -774,13 +774,11 @@ impl LayoutBuilder {
 
             let mut num_spawned = 0;
             while num_spawned < self.allocated_enemy_slots_by_group[0] {
-                let spawn_in_room;
                 let mut min_num = 0;
                 let mut max_num = 0;
-                let num_to_spawn;
 
                 // Note: this *should not* hit RNG if spawnpoints is empty.
-                let chosen_spot = if spawnpoints.len() > 0 {
+                let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     min_num = spawnpoints[idx].spawnpoint_unit.min_num;
                     max_num = spawnpoints[idx].spawnpoint_unit.max_num;
@@ -794,7 +792,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 0, num_spawned);
 
                 // Randomly choose number of enemies to spawn in this bunch.
-                if num_spawned < self.min_teki_0 {
+                let spawn_in_room = if num_spawned < self.min_teki_0 {
                     let mut cumulative_min = 0;
                     for teki in caveinfo.teki_group(0) {
                         cumulative_min += teki.minimum_amount;
@@ -802,15 +800,15 @@ impl LayoutBuilder {
                             break;
                         }
                     }
-                    spawn_in_room = cumulative_min - num_spawned;
+                    cumulative_min - num_spawned
                 }
                 else {
-                    spawn_in_room = caveinfo.max_main_objects - self.placed_teki;
-                }
+                    caveinfo.max_main_objects - self.placed_teki
+                };
 
                 // Determine how many enemies to spawn in this bunch.
                 max_num = std::cmp::min(max_num, spawn_in_room as u16);
-                num_to_spawn = if max_num <= min_num {
+                let num_to_spawn = if max_num <= min_num {
                     max_num as u32
                 } else {
                     min_num as u32 + self.rng.rand_int((max_num - min_num + 1) as u32)
@@ -917,7 +915,7 @@ impl LayoutBuilder {
                 .map(|teki| teki.minimum_amount)
                 .sum();
             for num_spawned in 0..min_sum {
-                let chosen_spot = if spawnpoints.len() > 0 {
+                let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
                 }
@@ -986,8 +984,8 @@ impl LayoutBuilder {
 
                 // Choose which spot to spawn the treasure at
                 let mut chosen_spot = None;
-                if spawnpoints.len() > 0 {
-                    let max_weight = spawnpoint_weights.iter().max().unwrap().clone();
+                if !spawnpoints.is_empty() {
+                    let max_weight = *spawnpoint_weights.iter().max().unwrap();
                     let mut max_spawnpoints: Vec<_> = spawnpoints.iter_mut()
                         .zip(spawnpoint_weights)
                         .filter(|(_, w)| *w == max_weight)
@@ -1072,7 +1070,7 @@ impl LayoutBuilder {
                     gate_weights.push(gate.spawn_distribution_weight);
                 }
                 let mut gate_to_spawn = None;
-                if gates.len() > 0 {
+                if !gates.is_empty() {
                     gate_to_spawn = Some(gates[self.rng.rand_index_weight(gate_weights.as_slice()).unwrap()]);
                 }
 
@@ -1088,7 +1086,7 @@ impl LayoutBuilder {
         Layout {
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
-            map_units: self.map_units.into_iter().map(|b| *b).collect(),
+            map_units: self.map_units.into_iter().collect(),
         }
     }
 
@@ -1162,7 +1160,7 @@ impl LayoutBuilder {
             // cannot be concurrently modified. Doors are handled inside RefCells and are
             // thus safe from this hack.
             let adj_unit: &mut PlacedMapUnit = unsafe {
-                (self.map_units[adj_door.borrow().parent_idx.unwrap()].as_ref() as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
+                (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
             };
 
             adj_door.borrow_mut().door_score = door.borrow().door_score;
@@ -1218,7 +1216,7 @@ impl LayoutBuilder {
             // cannot be concurrently modified. Doors are handled inside RefCells and are
             // thus safe from this hack.
             let adj_unit: &mut PlacedMapUnit = unsafe {
-                (self.map_units[adj_door.borrow().parent_idx.unwrap()].as_ref() as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
+                (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
             };
 
             let current_adj_unit_total_score = adj_unit.total_score;
@@ -1236,14 +1234,14 @@ impl LayoutBuilder {
         
         // We need to do this because the compiler cannot figure out that the borrows from 
         // self.map_units are never overlapping.
-        let (mut rooms, rest): (Vec<&mut Box<PlacedMapUnit>>, Vec<&mut Box<PlacedMapUnit>>) = self.map_units.iter_mut()
+        let (mut rooms, rest): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) = self.map_units.iter_mut()
             .partition(|unit| unit.unit.room_type == RoomType::Room);
-        let (mut caps, mut hallways): (Vec<&mut Box<PlacedMapUnit>>, Vec<&mut Box<PlacedMapUnit>>) = rest.into_iter()
+        let (mut caps, mut hallways): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) = rest.into_iter()
             .partition(|unit| unit.unit.room_type == RoomType::DeadEnd);
 
         for (unit_type, unit_type_iter) in [(RoomType::Room, &mut rooms), (RoomType::DeadEnd, &mut caps), (RoomType::Hallway, &mut hallways)] {
             // Only use hallway spawn points if there are zero other available locations.
-            if unit_type == RoomType::Hallway && hole_spawnpoints.len() > 0 {
+            if unit_type == RoomType::Hallway && !hole_spawnpoints.is_empty() {
                 continue;
             }
 
@@ -1278,7 +1276,7 @@ impl LayoutBuilder {
             .filter(|sp| sp.contains.is_empty())
             .map(|sp| sp.hole_score)
             .max()
-            .expect(&format!("{} {:#X}", self.cave_name, self.starting_seed));
+            .unwrap_or_else(|| panic!("{} {:#010X}", self.cave_name, self.starting_seed));
 
         let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
             .filter(|sp| sp.hole_score == max_hole_score)
@@ -1347,7 +1345,7 @@ impl LayoutBuilder {
 
             spawnpoints.push(door);
         }
-        if spawnpoints.len() > 0 {
+        if !spawnpoints.is_empty() {
             let spot = spawnpoints.get(self.rng.rand_int(spawnpoints.len() as u32) as usize).cloned();
             debug!("Chose gate spawn point at ({}, {}) via spawn path 1.",
                 spot.as_ref().unwrap().borrow().x,
@@ -1416,7 +1414,7 @@ impl LayoutBuilder {
                 }
             }
 
-            if spawnpoints.len() > 0 {
+            if !spawnpoints.is_empty() {
                 let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
                 debug!("Chose gate spawn point at ({}, {}) via spawn path 3.",
                     spot.as_ref().unwrap().borrow().x,
@@ -1442,7 +1440,7 @@ impl LayoutBuilder {
                 spawnpoint_weights.push(weight as u32);
             }
         }
-        if spawnpoints.len() > 0 {
+        if !spawnpoints.is_empty() {
             let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
             debug!("Chose gate spawn point at ({}, {}) via spawn path 4.",
                 spot.as_ref().unwrap().borrow().x,
@@ -1467,7 +1465,7 @@ impl LayoutBuilder {
     }
 
     fn place_map_unit(&mut self, unit: PlacedMapUnit, checks: bool) {
-        self.map_units.push(Box::new(unit));
+        self.map_units.push(unit);
         self.recalculate_door_parents();
 
         if checks {
@@ -1557,7 +1555,7 @@ impl LayoutBuilder {
 
     fn open_doors(&self) -> Vec<Rc<RefCell<PlacedDoor>>> {
         self.map_units.iter()
-            .flat_map(|unit| unit.doors.iter().map(move |door| door.clone()))
+            .flat_map(|unit| unit.doors.iter().cloned())
             .filter(|door| door.borrow().adjacent_door.is_none())
             .collect()
     }
@@ -1697,7 +1695,7 @@ impl LayoutBuilder {
 
 /// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
 /// RNG is a raw pointer to avoid issues with borrowing self (LayoutBuilder).
-fn choose_rand_teki<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, group: u32, num_spawned: u32) -> Option<&'a TekiInfo> {
+fn choose_rand_teki(rng: *const PikminRng, caveinfo: &CaveInfo, group: u32, num_spawned: u32) -> Option<&TekiInfo> {
     let mut cumulative_mins = 0;
     let mut filler_teki = Vec::new();
     let mut filler_teki_weights = Vec::new();
@@ -1714,15 +1712,15 @@ fn choose_rand_teki<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, group: u3
         }
     }
 
-    if filler_teki.len() > 0 {
-        Some(unsafe{&filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]})
+    if !filler_teki.is_empty() {
+        Some(unsafe{filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]})
     }
     else {
         None
     }
 }
 
-fn choose_rand_item<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, num_spawned: u32) -> Option<&'a ItemInfo> {
+fn choose_rand_item(rng: *const PikminRng, caveinfo: &CaveInfo, num_spawned: u32) -> Option<&ItemInfo> {
     let mut cumulative_mins = 0;
     let mut filler_items = Vec::new();
     let mut filler_item_weights = Vec::new();
@@ -1739,15 +1737,15 @@ fn choose_rand_item<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, num_spawn
         }
     }
 
-    if filler_items.len() > 0 {
-        Some(unsafe{&filler_items[rng.as_ref().unwrap().rand_index_weight(filler_item_weights.as_slice()).unwrap()]})
+    if !filler_items.is_empty() {
+        Some(unsafe{filler_items[rng.as_ref().unwrap().rand_index_weight(filler_item_weights.as_slice()).unwrap()]})
     }
     else {
         None
     }
 }
 
-fn choose_rand_cap_teki<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, num_spawned: u32, falling: bool) -> Option<(&'a CapInfo, u32)> {
+fn choose_rand_cap_teki(rng: *const PikminRng, caveinfo: &CaveInfo, num_spawned: u32, falling: bool) -> Option<(&CapInfo, u32)> {
     let mut cumulative_mins = 0;
     let mut filler_teki = Vec::new();
     let mut filler_teki_weights = Vec::new();
@@ -1778,7 +1776,7 @@ fn choose_rand_cap_teki<'a>(rng: *const PikminRng, caveinfo: &'a CaveInfo, num_s
         }
     }
 
-    if filler_teki.len() > 0 {
+    if !filler_teki.is_empty() {
         let teki = unsafe{&filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]};
         if teki.group == 0 {
             Some((teki, 2))

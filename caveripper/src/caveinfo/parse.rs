@@ -107,10 +107,8 @@ impl<'a> From<Vec<InfoLine<'a>>> for Section<'a> {
 
 impl<'a> Section<'a> {
     pub(self) fn get_tagged_line(&self, tag: &str) -> Option<&Vec<&'a str>> {
-        self.lines
-            .iter()
-            .filter(|line| line.tag.contains(&tag))
-            .next()
+        self.lines.iter()
+            .find(|line| line.tag.contains(&tag))
             .map(|line| &line.items)
     }
 
@@ -417,7 +415,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
         // Waterboxes file
         let waterboxes = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/waterbox.txt", unit_folder_name)) {
             Ok(waterboxes_file_txt) => {
-                parse_waterboxes_file(&waterboxes_file_txt).expect(&format!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
+                parse_waterboxes_file(&waterboxes_file_txt).unwrap_or_else(|_| panic!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
             },
             Err(_) => Vec::new(),
         };
@@ -464,7 +462,7 @@ impl TryFrom<&[InfoLine<'_>]> for DoorUnit {
         let waypoint_index = lines[1].get_line_item(2)?.parse()?;
         let num_links = lines[2].get_line_item(0)?.parse()?;
         let door_links = lines[3..]
-            .into_iter()
+            .iter()
             .map(|line| line.try_into())
             .collect::<Result<Vec<_>, _>>()?;
         Ok(DoorUnit {
@@ -524,10 +522,8 @@ static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
 fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<Treasure>) {
     let captures = INTERNAL_IDENTIFIER_RE
         .captures(internal_combined_name)
-        .expect(&format!(
-            "Not able to capture info from combined internal identifier {}!",
-            internal_combined_name
-        ));
+        .unwrap_or_else(|| panic!("Not able to capture info from combined internal identifier {}!",
+            internal_combined_name));
 
     // Extract spawn method
     let spawn_method = captures.get(1)

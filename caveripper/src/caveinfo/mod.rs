@@ -62,7 +62,7 @@ impl CaveInfo {
     }
 
     pub fn parse_from(caveinfo_txt: &str) -> Result<Vec<CaveInfo>, CaveInfoError> {
-        let floor_chunks = parse_caveinfo(&caveinfo_txt)
+        let floor_chunks = parse_caveinfo(caveinfo_txt)
             .finish()
             .map_err(|e| CaveInfoError::ParseFileError(e.to_string()))?
             .1;

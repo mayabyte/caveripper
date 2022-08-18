@@ -16,7 +16,7 @@ pub fn benchmark_layout_generation(c: &mut Criterion) {
         b.iter(|| {
             let seed = rng.gen();
             let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())].1;
-            black_box(Layout::generate(seed, &caveinfo));
+            black_box(Layout::generate(seed, caveinfo));
         })
     });
 }
