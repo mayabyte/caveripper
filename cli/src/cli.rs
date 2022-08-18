@@ -143,8 +143,9 @@ pub fn parse_seed(src: &str) -> Result<u32, SeedError> {
 const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
 const SEARCH_COND_LONG_HELP: &str = 
-r##"A string with one or more query conditions, joined by '&'. Caveripper will attempt 
-to find a layout matching all conditions.
+r##"A string with one or more queries, joined by '&'. Caveripper will attempt 
+to find a layout matching all queries. All queries must start with a sublevel 
+followed by a space.
 
 Currently available query conditions:
 - "INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
@@ -159,6 +160,9 @@ Currently available query conditions:
   hole spawned in a room rather than an alcove.
 - "ENTITY1 with ENTITY2". Check whether the two named entities are in the same room
   as each other.
+
+Example query structure to find a towerless layout:
+`caveripper search "scx7 minihoudai < 2"`
 "##;
 const SEED_HELP: &str = 
 r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed 
