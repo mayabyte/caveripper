@@ -24,11 +24,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Generate { sublevel, seed, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, &caveinfo);
-            let filename = save_image(
+            let _ = std::fs::create_dir("output");
+            save_image(
                 &render_layout(&layout, &render_options)?,
-                format!("{}_{:#010X}", layout.cave_name, layout.starting_seed)
+                format!("output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed)
             )?;
-            println!("🍞 Saved layout image as \"{}\"", filename);
+            println!("🍞 Saved layout image as \"output/{}_{:#010X}.png\"", layout.cave_name, layout.starting_seed);
         },
         Commands::Caveinfo { sublevel, text } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
@@ -36,11 +37,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("{}", caveinfo);
             }
             else {
-                let filename = save_image(
+                let _ = std::fs::create_dir("output");
+                save_image(
                     &render_caveinfo(&caveinfo, RenderOptions::default())?,
-                    format!("{}_Caveinfo", caveinfo.name())
+                    format!("output/{}_Caveinfo.png", caveinfo.name())
                 )?;
-                println!("🍞 Saved caveinfo image as \"{}\"", filename);
+                println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());
             }
         },
         Commands::Search { query, timeout_s, num } => {

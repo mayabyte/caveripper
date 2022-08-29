@@ -1,5 +1,6 @@
 use std::cmp::max;
 use std::fs::read;
+use std::path::Path;
 
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
 use crate::assets::{ASSETS, get_special_texture_name};
@@ -463,14 +464,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
 }
 
 /// Saves a layout image to disc.
-/// Filename should not include an extension.
-pub fn save_image(img: &RgbaImage, filename: String) -> Result<String, RenderError> {
-    let _ = std::fs::create_dir("./output");
-    let filename = format!("./output/{}.png", filename);
+/// Filename must end with a `.png` extension.
+pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), RenderError> {
     img.save_with_format(&filename, image::ImageFormat::Png)
-        .map_err(|_| RenderError::IoError(filename.clone()))?;
-
-    Ok(filename)
+        .map_err(|_| RenderError::IoError(filename.as_ref().to_string_lossy().into_owned()))?;
+    Ok(())
 }
 
 fn group_color(group: u32) -> [u8; 4] {
