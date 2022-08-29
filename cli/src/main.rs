@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Search { query, timeout_s, num } => {
             let start_time = Instant::now();
             let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
+            let deadline = timeout.map(|t| Instant::now() + t);
 
             let progress_bar = ProgressBar::new_spinner()
                 .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]").unwrap());
@@ -61,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // search as the seed source for the following one.
             let result_recv = query.clauses.iter().enumerate().fold(None, |recv, (i, clause)| {
                 let num = (i == query.clauses.len()).then_some(num);
-                Some(find_matching_layouts_parallel(clause, timeout, num, recv, Some(&progress_bar)))
+                Some(find_matching_layouts_parallel(clause, deadline, num, recv, Some(&progress_bar)))
             })
             .unwrap();
 

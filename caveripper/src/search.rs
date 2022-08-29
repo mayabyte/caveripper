@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use crossbeam::channel::{Receiver, bounded, unbounded};
 use indicatif::ProgressBar;
 use rand::random;
@@ -17,7 +17,7 @@ use crate::query::QueryClause;
 /// - progress: an Indicatif ProgressBar that will be updated as the search progresses.
 pub fn find_matching_layouts_parallel(
     query: &QueryClause, 
-    timeout: Option<Duration>, 
+    deadline: Option<Instant>, 
     num: Option<usize>, 
     seed_source: Option<Receiver<u32>>, 
     progress: Option<&ProgressBar>
@@ -33,9 +33,8 @@ pub fn find_matching_layouts_parallel(
         let seed_source = seed_source.clone();
         let progress = progress.map(|p| p.downgrade());
         spawn(move || {
-            let start_time = Instant::now();
             loop {
-                if let Some(timeout_d) = timeout && Instant::now().duration_since(start_time) > timeout_d {
+                if let Some(deadline_inner) = deadline && Instant::now() > deadline_inner {
                     return;
                 }
 
