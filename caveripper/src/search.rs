@@ -1,7 +1,8 @@
-use std::{time::{Duration, Instant}, thread::{spawn, available_parallelism}, num::NonZeroUsize};
+use std::{time::{Duration, Instant}, num::NonZeroUsize, thread::available_parallelism};
 use crossbeam::channel::{Receiver, bounded, unbounded};
 use indicatif::ProgressBar;
 use rand::random;
+use rayon::spawn;
 use crate::query::QueryClause;
 
 
