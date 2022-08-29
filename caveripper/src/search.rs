@@ -1,8 +1,8 @@
-use std::{time::{Duration, Instant}, num::NonZeroUsize, thread::available_parallelism};
+use std::time::{Duration, Instant};
 use crossbeam::channel::{Receiver, bounded, unbounded};
 use indicatif::ProgressBar;
 use rand::random;
-use rayon::spawn;
+use rayon::{spawn, current_num_threads};
 use crate::query::QueryClause;
 
 
@@ -22,12 +22,10 @@ pub fn find_matching_layouts_parallel(
     seed_source: Option<Receiver<u32>>, 
     progress: Option<&ProgressBar>
 ) -> Receiver<u32> {
-    let parallelism = available_parallelism().unwrap_or(NonZeroUsize::new(8).unwrap()).into();
-
     let (sender, results_r) = unbounded();
     let (num_s, num_r) = bounded::<()>(num.unwrap_or(0));  // 'Free-floating' way for spawned threads to communicate with each other.
     
-    for _ in 0..parallelism {
+    for _ in 0..current_num_threads() {
         let sender = sender.clone();
         let num_s = num_s.clone();
         let num_r = num_r.clone();
