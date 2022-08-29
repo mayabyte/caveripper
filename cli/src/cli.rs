@@ -1,4 +1,4 @@
-use caveripper::{sublevel::Sublevel, errors::SeedError, query::Query, layout::render::RenderOptions};
+use caveripper::{parse_seed, sublevel::Sublevel, query::Query, layout::render::RenderOptions};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -127,16 +127,6 @@ pub enum Commands {
             long_help = SEED_FILE_HELP,
         )]
         file: Option<String>,
-    }
-}
-
-pub fn parse_seed(src: &str) -> Result<u32, SeedError> {
-    let trimmed = src.strip_prefix("0x").unwrap_or(src);
-    if trimmed.len() != 8 {
-        Err(SeedError::InvalidLength)
-    }
-    else {
-        u32::from_str_radix(trimmed, 16).map_err(|_| SeedError::InvalidHexDigits)
     }
 }
 

@@ -1,5 +1,5 @@
 use thiserror::Error;
-use std::{fmt::Debug, num::{ParseIntError, ParseFloatError}, io, path::PathBuf};
+use std::{fmt::Debug, num::{ParseIntError, ParseFloatError}, io};
 
 #[derive(Debug, Error, Clone)]
 pub enum SublevelError {

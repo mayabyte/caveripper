@@ -7,7 +7,7 @@ use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{error::Error, fs::read_to_string, io::stdin, time::{Instant, Duration}};
-use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, RenderOptions, render_caveinfo}}, search::find_matching_layouts_parallel};
+use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, RenderOptions, render_caveinfo}}, search::find_matching_layouts_parallel, parse_seed};
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
