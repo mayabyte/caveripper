@@ -271,6 +271,7 @@ impl PlacedSpawnPoint {
 }
 
 
+/// Any object that can be placed in a SpawnPoint.
 #[derive(Debug, Clone)]
 pub enum SpawnObject {
     Teki(TekiInfo, (f32, f32)), // Teki, offset from spawnpoint

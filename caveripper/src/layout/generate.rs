@@ -1317,12 +1317,15 @@ impl LayoutBuilder {
                 continue;
             }
 
-            // If there are no grounded teki here, don't consider this cap.
+            // If there are no grounded teki or treasures here, don't consider this cap.
             // Alcoves with falling teki only do not count.
             if !map_unit.spawnpoints[0].contains.iter()
                 .any(|so| {
-                    if let SpawnObject::CapTeki(capteki, _) = so && !capteki.is_falling() { true }
-                    else { false }
+                    match so {
+                        SpawnObject::CapTeki(capteki, _) if !capteki.is_falling() => true,
+                        SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser => true,
+                        _ => false,
+                    }
                 })
             {
                 continue;
