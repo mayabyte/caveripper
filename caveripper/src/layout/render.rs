@@ -224,25 +224,24 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     let teki_header = render_text(&format!("Teki (max {})", caveinfo.max_main_objects), 48.0, [225,0,0, 255].into(), None);
     overlay(&mut canvas_header, &teki_header, CAVEINFO_MARGIN * 2, base_y);
     let mut base_x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
+    base_y += (64 - CAVEINFO_ICON_SIZE as i64) / 2;
 
     for group in [8, 1, 0, 6, 5] {
         for tekiinfo in caveinfo.teki_group(group) {
             let texture = resize(&tekiinfo.get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
-            let mut x = base_x;
-            let mut y = base_y + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
 
             // If we overflow the width of the image, wrap to the next line.
-            if x + CAVEINFO_ICON_SIZE as i64 > canvas_header.width() as i64 {
-                x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
-                y += 70;
+            if base_x + CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN > canvas_header.width() as i64 {
+                base_x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
                 base_y += 70;
 
                 // Expand the header to make room for the other rows
                 expand_canvas(&mut canvas_header, 0, 70 + CAVEINFO_MARGIN as u32, Some([220,220,220,255].into()));
             }
 
-            overlay(&mut canvas_header, &texture, x, y);
+            overlay(&mut canvas_header, &texture, base_x, base_y);
 
+            let mut extra_width = 0;
             for modifier in tekiinfo.get_texture_modifiers().iter() {
                 match modifier {
                     TextureModifier::Falling => {
@@ -250,7 +249,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                             &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
                             24, 24, FilterType::Nearest
                         );
-                        overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
+                        overlay(&mut canvas_header, &falling_icon_texture, base_x - 8, base_y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
                         let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
@@ -260,21 +259,23 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                             &*ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
-                        overlay(&mut canvas_header, &carried_treasure_icon, x + 18, y + 14);
+                        overlay(&mut canvas_header, &carried_treasure_icon, base_x + 18, base_y + 14);
 
                         // Treasure value/carry text
                         let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
-                        let sidetext_x = x + texture.width() as i64 + 5;
-                        overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
+                        let sidetext_x = base_x + texture.width() as i64 + 5;
+                        overlay(&mut canvas_header, &poko_icon, sidetext_x, base_y + 4);
                         overlay(&mut canvas_header, &value_text,
                             sidetext_x + poko_icon.width() as i64 + 3,
-                            y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
+                            base_y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
                         );
 
                         let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
-                        overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
+                        overlay(&mut canvas_header, &carriers_text, sidetext_x, base_y + poko_icon.height() as i64 + 2);
 
-                        base_x += max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
+                        let text_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
+                        base_x += text_width;
+                        extra_width += text_width;
                     },
                     _ => {}
                 }
@@ -290,7 +291,12 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             let subtext_color = group_color(tekiinfo.group).into();
 
             let teki_subtext_texture = render_text(&teki_subtext, 24.0, subtext_color, None);
-            overlay(&mut canvas_header, &teki_subtext_texture, x + CAVEINFO_ICON_SIZE as i64 / 2 - teki_subtext_texture.width() as i64 / 2, y + CAVEINFO_ICON_SIZE as i64 - 8);
+            overlay(
+                &mut canvas_header, 
+                &teki_subtext_texture, 
+                base_x + CAVEINFO_ICON_SIZE as i64 / 2 - teki_subtext_texture.width() as i64 / 2 - extra_width / 2,
+                base_y + CAVEINFO_ICON_SIZE as i64 - 8
+            );
 
             base_x += CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN;
         }
