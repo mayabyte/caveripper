@@ -32,10 +32,24 @@ const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 80];
 const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
-const WAYPOINT_COLOR: [u8; 4] = [147, 201, 77, 150];
-const CARRY_PATH_COLOR: [u8; 4] = [103, 138, 58, 200];
+const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
+const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
+
+const fn group_color(group: u32) -> [u8; 4] {
+    match group {
+        0 => [250, 87, 207, 120],  // Easy Teki
+        1 => [201, 2, 52, 255],    // Hard Teki
+        2 => [230, 115, 0, 255],   // Treasures
+        5 => [133, 133, 133, 255], // Seam Teki
+        6 => [59, 148, 90, 255],   // Plants
+        7 => [230, 50, 86, 255],   // Ship spawns
+        8 => [89, 6, 138, 255],   // Special teki
+        9 => [45, 173, 167, 255],  // Fake capteki / hallway spawnpoint group
+        _ => panic!("Invalid teki group in tekiinfo"),
+    }
+}
 
 
 #[derive(Default, Debug, Args)]
@@ -493,20 +507,6 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Re
     Ok(())
 }
 
-fn group_color(group: u32) -> [u8; 4] {
-    match group {
-        0 => [221, 99, 255, 90],
-        1 => [201, 2, 52, 255],
-        2 => [207, 105, 33, 255],
-        5 => [133, 133, 133, 255],
-        6 => [59, 148, 90, 255],
-        7 => [230, 50, 86, 255],
-        8 => [58, 14, 171, 255],
-        9 => [45, 173, 167, 255],  // Fake capteki / hallway spawnpoint group
-        _ => panic!("Invalid teki group in tekiinfo"),
-    }
-}
-
 fn colorize(img: &RgbaImage, color: Rgba<u8>) -> RgbaImage {
     let mut img = img.clone();
     img.enumerate_pixels_mut().for_each(|px| {
@@ -883,7 +883,7 @@ impl Textured for CaveUnit {
         let mut img = ASSETS.get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
-        brighten_in_place(&mut img, 55);
+        brighten_in_place(&mut img, 75);
 
         for _ in 0..self.rotation {
             img = rotate90(&img);
