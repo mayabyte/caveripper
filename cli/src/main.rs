@@ -7,7 +7,7 @@ use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{error::Error, fs::read_to_string, io::stdin, time::{Instant, Duration}};
-use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, RenderOptions, render_caveinfo}}, search::find_matching_layouts_parallel, parse_seed};
+use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, render_caveinfo}}, search::find_matching_layouts_parallel, parse_seed};
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -26,12 +26,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             let layout = Layout::generate(seed, &caveinfo);
             let _ = std::fs::create_dir("output");
             save_image(
-                &render_layout(&layout, &render_options)?,
+                &render_layout(&layout, render_options)?,
                 format!("output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed)
             )?;
             println!("🍞 Saved layout image as \"output/{}_{:#010X}.png\"", layout.cave_name, layout.starting_seed);
         },
-        Commands::Caveinfo { sublevel, text } => {
+        Commands::Caveinfo { sublevel, text, render_options } => {
             let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
             if text {
                 println!("{}", caveinfo);
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             else {
                 let _ = std::fs::create_dir("output");
                 save_image(
-                    &render_caveinfo(&caveinfo, RenderOptions::default())?,
+                    &render_caveinfo(&caveinfo, render_options)?,
                     format!("output/{}_Caveinfo.png", caveinfo.name())
                 )?;
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());

@@ -8,9 +8,9 @@ use crate::query::QueryClause;
 
 /// Finds seeds matching the given QueryClause in parallel and sends them to the returned
 /// Receiver.
-/// - timeout: how long to search for. Passing 'None' will search until the associated channels
+/// - deadline: how long to search for. Passing 'None' will search until the associated channels
 ///   close, or until 'num' seeds have been found.
-/// - num: how many matching seeds to find. Passing 'None' will search until the timeout is
+/// - num: how many matching seeds to find. Passing 'None' will search until the deadline is
 ///   reached, or until the associated channels close.
 /// - seed_source: A channel receiver that supplies the seeds to check. Random seeds are
 ///   searched if 'None' is passed.

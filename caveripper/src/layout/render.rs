@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::f32::consts::PI;
 use std::fs::read;
 use std::path::Path;
 
@@ -31,13 +32,15 @@ const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 80];
 const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
+const WAYPOINT_COLOR: [u8; 4] = [147, 201, 77, 150];
+const CARRY_PATH_COLOR: [u8; 4] = [103, 138, 58, 200];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
 
 
 #[derive(Default, Debug, Args)]
 #[clap(next_help_heading="Rendering options")]
-pub struct RenderOptions {
+pub struct LayoutRenderOptions {
     /// Draw grid lines corresponding to map unit grid boundaries.
     #[clap(long)]
     pub draw_grid: bool,
@@ -47,8 +50,16 @@ pub struct RenderOptions {
     pub quickglance: bool,
 }
 
+#[derive(Default, Debug, Args)]
+#[clap(next_help_heading="Rendering options")]
+pub struct CaveinfoRenderOptions {
+    /// Disable rendering for pathing waypoints
+    #[clap(long)]
+    pub dont_draw_waypoints: bool,
+}
 
-pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaImage, RenderError> {
+
+pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<RgbaImage, RenderError> {
     info!("Drawing layout image...");
 
     // Find the minimum and maximum map tile coordinates in the layout.
@@ -113,13 +124,13 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
                 SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, options)?;
+                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, &options)?;
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, options)?;
+                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, &options)?;
                 },
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, options)?;
+                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, &options)?;
                 },
             }
         }
@@ -141,14 +152,14 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
                 SpawnObject::Gate(gateinfo) => {
                     let texture = gateinfo.get_texture()?;
                     if door.borrow().door_unit.direction % 2 == 1 {
-                        draw_object_at(&mut canvas, &WithCustomTexture{ inner: gateinfo.clone(), custom_texture: rotate90(&texture) }, x, z, options)?;
+                        draw_object_at(&mut canvas, &WithCustomTexture{ inner: gateinfo.clone(), custom_texture: rotate90(&texture) }, x, z, &options)?;
                     }
                     else {
-                        draw_object_at(&mut canvas, gateinfo, x, z, options)?;
+                        draw_object_at(&mut canvas, gateinfo, x, z, &options)?;
                     }
                 }
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, x, z, options)?;
+                    draw_object_at(&mut canvas, spawn_object, x, z, &options)?;
                 },
             }
         }
@@ -157,7 +168,7 @@ pub fn render_layout(layout: &Layout, options: &RenderOptions) -> Result<RgbaIma
     Ok(canvas)
 }
 
-pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<RgbaImage, RenderError> {
+pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, RenderError> {
     let mut canvas_header = RgbaImage::from_pixel(1060, 310, [220,220,220,255].into());
 
     // Sublevel name
@@ -403,7 +414,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
     base_x += (RENDER_SCALE * 8) as i64 + maptile_margin;
 
     for unit in rooms {
-        let unit_texture = unit.get_texture()?;
+        let mut unit_texture = unit.get_texture()?;
         if base_x + unit_texture.width() as i64 + maptile_margin > canvas_maptiles.width() as i64 {
             base_x = maptile_margin;
             base_y = max_y + maptile_margin;
@@ -420,16 +431,23 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
             );
         }
 
-        overlay(&mut canvas_maptiles, &unit_texture, base_x, base_y);
-        draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
-        overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
-
-        for waypoint in unit.waypoints.iter() {
-            let wp_x = (waypoint.x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
-            let wp_z = (waypoint.z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
-
-            let wp_img = circle(3, [0,0,0,255].into());
-            overlay(&mut canvas_maptiles, &wp_img, base_x + wp_x - (wp_img.width() / 2) as i64, base_y + wp_z - (wp_img.height() / 2) as i64)
+        if !options.dont_draw_waypoints {
+            for waypoint in unit.waypoints.iter() {
+                let wp_x = (waypoint.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
+                let wp_z = (waypoint.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
+                let wp_img_radius = (waypoint.r * COORD_FACTOR).log2() * 3.0;
+    
+                let wp_img = circle(wp_img_radius as u32, WAYPOINT_COLOR.into());
+                overlay(&mut unit_texture, &wp_img, wp_x as i64 - (wp_img.width() / 2) as i64, wp_z as i64 - (wp_img.height() / 2) as i64);
+    
+                for link in waypoint.links.iter() {
+                    let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
+                    let dest_x = (dest_wp.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
+                    let dest_z = (dest_wp.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
+                    // Waypoints point from dest to source, so these coords are backwards
+                    draw_arrow_line(&mut unit_texture, dest_x, dest_z, wp_x, wp_z, CARRY_PATH_COLOR.into());
+                }
+            }
         }
 
         for spawnpoint in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
@@ -447,8 +465,12 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, _options: RenderOptions) -> Result<R
                 _ => circle(5, [255,0,0,255].into()),
             };
 
-            overlay(&mut canvas_maptiles, &sp_img, base_x + sp_x - (sp_img.width() / 2) as i64 , base_y + sp_z - (sp_img.height() / 2) as i64);
+            overlay(&mut unit_texture, &sp_img, sp_x - (sp_img.width() / 2) as i64 , sp_z - (sp_img.height() / 2) as i64);
         }
+
+        overlay(&mut canvas_maptiles, &unit_texture, base_x, base_y);
+        draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
+        overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
         
         max_y = max(max_y, base_y + unit_texture.height() as i64);
         base_x += unit_texture.width() as i64 + maptile_margin;
@@ -513,8 +535,78 @@ fn draw_border(canvas: &mut RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
     }
 }
 
+fn draw_arrow_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut y2: f32, color: Rgba<u8>) {
+    let steep = (y2 - y1).abs() > (x2 - x1).abs();
+    if (steep && y1 > y2) || (!steep && x1 > x2) {
+        (x1, x2) = (x2, x1);
+        (y1, y2) = (y2, y1);
+    }
+    // Shorten the line slightly to make room for the arrow at the end
+    if steep {
+        let slope = (x2 - x1) / (y2 - y1);
+        y1 += slope.cos() * 6.0;
+        y2 -= slope.cos() * 6.0;
+        x1 += slope.sin() * 6.0;
+        x2 -= slope.sin() * 6.0;
+
+        // Draw an arrow at each end
+        draw_line(canvas, x2 - (slope + PI / 8.0).sin() * 8.0, y2 - (slope + PI / 8.0).cos() * 8.0, x2, y2, color);
+        draw_line(canvas, x2 - (slope - PI / 8.0).sin() * 8.0, y2 - (slope - PI / 8.0).cos() * 8.0, x2, y2, color);
+    }
+    else {
+        let slope = (y2 - y1) / (x2 - x1);
+        x1 += slope.cos() * 6.0;
+        x2 -= slope.cos() * 6.0;
+        y1 += slope.sin() * 6.0;
+        y2 -= slope.sin() * 6.0;
+
+        // Draw an arrow at each end
+        draw_line(canvas, x2 - (slope + PI / 8.0).cos() * 8.0, y2 - (slope + PI / 8.0).sin() * 8.0, x2, y2, color);
+        draw_line(canvas, x2 - (slope - PI / 8.0).cos() * 8.0, y2 - (slope - PI / 8.0).sin() * 8.0, x2, y2, color);
+    }
+
+    // Draw main line
+    draw_line(canvas, x1, y1, x2, y2, color);
+}
+
+fn draw_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut y2: f32, color: Rgba<u8>) {
+    let steep = (y2 - y1).abs() > (x2 - x1).abs();
+
+    if (steep && y1 > y2) || (!steep && x1 > x2) {
+        (x1, x2) = (x2, x1);
+        (y1, y2) = (y2, y1);
+    }
+
+    if steep {
+        let slope = (x2 - x1) / (y2 - y1);
+
+        for y in (y1.round() as u32)..(y2.round() as u32) {
+            let true_y = y as f32 + 0.5;
+            let true_x = x1 + (slope * (true_y - y1));
+            try_blend(canvas, true_x.round() as u32, true_y.round() as u32, color);
+        }
+    }
+    else {
+        let slope = (y2 - y1) / (x2 - x1);
+
+        for x in (x1.round() as u32)..(x2.round() as u32) {
+            let true_x = x as f32 + 0.5;
+            let true_y = y1 + (slope * (true_x - x1));
+            try_blend(canvas, true_x.round() as u32, true_y.round() as u32, color);
+        }
+    }
+}
+
+/// Blends the pixel at the given coordinates, if they are in bounds. Otherwise
+/// does nothing.
+fn try_blend(canvas: &mut RgbaImage, x: u32, y: u32, color: Rgba<u8>) {
+    if let Some(pix) = canvas.get_pixel_mut_checked(x, y) {
+        pix.blend(&color);
+    }
+}
+
 // x and z are world coordinates, not image or map unit coordinates
-fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, options: &RenderOptions) -> Result<(), AssetError> {
+fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, options: &LayoutRenderOptions) -> Result<(), AssetError> {
     let mut texture = obj.get_texture()?;
 
     // Modifiers to be applied before ('under') the main texture, or to the texture itself

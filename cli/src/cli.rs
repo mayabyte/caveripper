@@ -1,4 +1,4 @@
-use caveripper::{parse_seed, sublevel::Sublevel, query::Query, layout::render::RenderOptions};
+use caveripper::{parse_seed, sublevel::Sublevel, query::Query, layout::render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -38,7 +38,7 @@ pub enum Commands {
         seed: u32,
 
         #[clap(flatten)]
-        render_options: RenderOptions,
+        render_options: LayoutRenderOptions,
     },
 
     /// Display a particular sublevel's CaveInfo.
@@ -58,6 +58,9 @@ pub enum Commands {
             help = "Only show text instead of rendering an image"
         )]
         text: bool,
+
+        #[clap(flatten)]
+        render_options: CaveinfoRenderOptions,
     },
 
     /// Search for a seed matching a specified condition.
