@@ -243,7 +243,7 @@ impl TryFrom<[Section<'_>; 5]> for CaveInfo {
             raw_sections;
 
         let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let cave_unit_definition_path = format!("assets/units/{}", &cave_unit_definition_file_name);
+        let cave_unit_definition_path = format!("assets/pikmin2/user/Mukki/mapunits/units/{}", &cave_unit_definition_file_name);
         let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)?;
         let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
             .expect("Couldn't parse Cave Unit Definition file!");
@@ -442,7 +442,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
         };
 
         // Cave Unit Layout File (spawn points)
-        let mut spawnpoints = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/layout.txt", unit_folder_name)) {
+        let mut spawnpoints = match ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/layout.txt", unit_folder_name)) {
             Ok(cave_unit_layout_file_txt) => {
                 let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
                     .expect("Couldn't parse cave unit layout file!").1;
@@ -452,7 +452,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
         };
 
         // Waterboxes file
-        let waterboxes = match ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/waterbox.txt", unit_folder_name)) {
+        let waterboxes = match ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/waterbox.txt", unit_folder_name)) {
             Ok(waterboxes_file_txt) => {
                 parse_waterboxes_file(&waterboxes_file_txt).unwrap_or_else(|_| panic!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
             },
@@ -460,7 +460,7 @@ impl TryFrom<Section<'_>> for CaveUnit {
         };
 
         // route.txt file (Waypoints)
-        let waypoints_file_txt = ASSETS.get_txt_file(&format!("assets/arc/{}/texts.d/route.txt", unit_folder_name))?;
+        let waypoints_file_txt = ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/route.txt", unit_folder_name))?;
         let waypoints = parse_waypoints_file(&waypoints_file_txt)
             .map_err(|e| CaveInfoError::ParseFileError(format!("Couldn't parse routes.txt for {}: {}", unit_folder_name, e)))?.1;
 

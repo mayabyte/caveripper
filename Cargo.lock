@@ -35,6 +35,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -50,6 +56,26 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "binread"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "258d2d861723c05ad02956cae4878ceddb5e05b0dc2841ca73a3479ab7a46f4d"
+dependencies = [
+ "binread_derive",
+]
+
+[[package]]
+name = "binread_derive"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d63ec80ac459fd10ae68854c26ee1c5ab5ac93866dba8f8a95cabbfeaa79b284"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "bit_field"
@@ -185,11 +211,15 @@ dependencies = [
  "caveripper",
  "clap 3.2.15",
  "crossbeam",
+ "encoding_rs",
+ "gc-gcm",
+ "image",
  "indicatif",
  "log",
  "rand",
  "rayon",
  "simple_logger",
+ "yaz0",
 ]
 
 [[package]]
@@ -452,15 +482,24 @@ dependencies = [
 
 [[package]]
 name = "futures-core"
-version = "0.3.21"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c09fd04b7e4073ac7156a9539b57a484a8ea920f79c7c675d05d289ab6110d3"
+checksum = "4e5aa3de05362c3fb88de6531e6296e85cde7739cccad4b9dfeeb7f6ebce56bf"
 
 [[package]]
 name = "futures-sink"
-version = "0.3.21"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21163e139fa306126e6eedaf49ecdb4588f939600f0b1e770f4205ee4b7fa868"
+checksum = "21b20ba5a92e727ba30e72834706623d94ac93a725410b6a6b6fbc1b07f7ba56"
+
+[[package]]
+name = "gc-gcm"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec95395d932f3dee9fd9094caa8df4b41ee30f80df8163da744d894732259f80"
+dependencies = [
+ "binread",
+]
 
 [[package]]
 name = "getrandom"
@@ -1344,3 +1383,14 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "yaz0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29c578bd702f600fb30b486ab767007cd17f5fad99a40fb943821a53de12b7ae"
+dependencies = [
+ "arrayvec",
+ "byteorder",
+ "thiserror",
+]

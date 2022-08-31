@@ -14,6 +14,10 @@ rand = "0.8"
 log = "0.4"
 crossbeam = "0.8.2"
 atty = "0.2"
+yaz0 = "0.3"
+gc-gcm = "0.10"
+encoding_rs = "0.8.31"
+image = "0.24"
 caveripper = {path="../caveripper"}
 
 [[bin]]

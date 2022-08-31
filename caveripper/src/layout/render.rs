@@ -256,7 +256,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                             .expect("Teki carrying unknown or invalid treasure!");
 
                         let carried_treasure_icon = resize(
-                            &*ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?,
+                            &*ASSETS.get_img(&format!("assets/pikmin2/user/Matoba/resulttex/us/arc/{}/texture.png", carrying))?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
                         overlay(&mut canvas_header, &carried_treasure_icon, base_x + 18, base_y + 14);
@@ -653,7 +653,7 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
             },
             TextureModifier::Carrying(carrying) => {
                 let carried_treasure_icon = resize(
-                    &*ASSETS.get_img(&format!("assets/resulttex/us/arc.d/{}/texture.bti.png", carrying))?,
+                    &*ASSETS.get_img(&format!("assets/pikmin2/user/Matoba/resulttex/us/arc/{}/texture.png", carrying))?,
                     24, 24, FilterType::Lanczos3
                 );
                 overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
@@ -744,7 +744,7 @@ impl Textured for TekiInfo {
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             },
             None => {
-                let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", &self.internal_name.to_ascii_lowercase());
+                let filename = format!("assets/pikmin2/user/Matoba/enemytex/arc/{}/texture.png", &self.internal_name.to_ascii_lowercase());
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             }
         }
@@ -780,7 +780,7 @@ impl Textured for CapInfo {
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             },
             None => {
-                let filename = format!("assets/enemytex/arc.d/{}/texture.bti.png", self.internal_name);
+                let filename = format!("assets/pikmin2/user/Matoba/enemytex/arc/{}/texture.png", self.internal_name);
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             }
         }
@@ -807,7 +807,7 @@ impl Textured for CapInfo {
 impl Textured for ItemInfo {
     fn get_texture(&self) -> Result<RgbaImage, AssetError> {
         // TODO: fix US region being hardcoded here.
-        let filename = format!("assets/resulttex/us/arc.d/{}/texture.bti.png", self.internal_name);
+        let filename = format!("assets/pikmin2/user/Matoba/resulttex/us/arc/{}/texture.png", self.internal_name);
         Ok(ASSETS.get_img(&filename)?.to_owned())
     }
 
@@ -885,7 +885,7 @@ impl Textured for SpawnObject {
 
 impl Textured for CaveUnit {
     fn get_texture(&self) -> Result<RgbaImage, AssetError> {
-        let filename = format!("assets/arc/{}/arc.d/texture.bti.png", &self.unit_folder_name);
+        let filename = format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/arc/texture.png", &self.unit_folder_name);
         let mut img = ASSETS.get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.

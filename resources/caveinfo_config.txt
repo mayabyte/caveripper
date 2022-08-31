@@ -1,14 +1,14 @@
-Emergence Cave, tutorial_1.txt, EC
-Subterranean Complex, tutorial_2.txt, SCx, stc
-Frontier Cavern, tutorial_3.txt, FC
-Hole of Beasts, forest_1.txt, HoB,
-White Flower Garden, forest_2.txt, WFG
-Bulblax Kingdom, forest_3.txt, BK
-Snagret Hole, forest_4.txt, SH
-Citadel of Spiders, yakushima_1.txt, CoS
-Glutton's Kitchen, yakushima_2.txt, GK
-Shower Room, yakushima_3.txt, SR,
-Submerged Castle, yakushima_4.txt, SC, smc
-Cavern of Chaos, last_1.txt, CoC
-Hole of Heroes, last_2.txt, HoH
-Dream Den, last_3.txt, DD
+pikmin2, Emergence Cave, tutorial_1.txt, EC
+pikmin2, Subterranean Complex, tutorial_2.txt, SCx, stc
+pikmin2, Frontier Cavern, tutorial_3.txt, FC
+pikmin2, Hole of Beasts, forest_1.txt, HoB,
+pikmin2, White Flower Garden, forest_2.txt, WFG
+pikmin2, Bulblax Kingdom, forest_3.txt, BK
+pikmin2, Snagret Hole, forest_4.txt, SH
+pikmin2, Citadel of Spiders, yakushima_1.txt, CoS
+pikmin2, Glutton's Kitchen, yakushima_2.txt, GK
+pikmin2, Shower Room, yakushima_3.txt, SR,
+pikmin2, Submerged Castle, yakushima_4.txt, SC, smc
+pikmin2, Cavern of Chaos, last_1.txt, CoC
+pikmin2, Hole of Heroes, last_2.txt, HoH
+pikmin2, Dream Den, last_3.txt, DD

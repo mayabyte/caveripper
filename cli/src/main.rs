@@ -1,8 +1,13 @@
 mod cli;
+mod extract;
+mod rarc;
+mod bti;
+mod util;
 
 use atty::Stream;
 use cli::*;
 use clap::Parser;
+use extract::extract_iso;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
@@ -115,7 +120,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                         println!("{:#010X}", seed);
                     });
             }
-        }
+        },
+        Commands::Extract { iso_path, game_name } => {
+            let progress_bar = ProgressBar::new_spinner()
+                .with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
+            extract_iso(&game_name, iso_path, &progress_bar)?;
+            progress_bar.finish_and_clear();
+            println!("🍞 Done extracting ISO '{}'.", game_name);
+        },
     }
 
     Ok(())

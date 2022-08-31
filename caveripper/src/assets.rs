@@ -46,12 +46,12 @@ impl AssetManager {
         };
 
         let treasures = SHIFT_JIS.decode(
-            read(mgr.base_path.join("assets/cfg/pelletlist_us.d/otakara_config.txt"))
+            read(mgr.base_path.join("assets/pikmin2/user/Abe/Pellet/us/pelletlist_us/otakara_config.txt"))
             .expect("Couldn't find otakara_config.txt!")
             .as_slice()
         ).0.into_owned();
         let ek_treasures = SHIFT_JIS.decode(
-            read(mgr.base_path.join("assets/cfg/pelletlist_us.d/item_config.txt"))
+            read(mgr.base_path.join("assets/pikmin2/user/Abe/Pellet/us/pelletlist_us/item_config.txt"))
             .expect("Couldn't find item_config.txt!")
             .as_slice()
         ).0.into_owned();
@@ -61,14 +61,14 @@ impl AssetManager {
         treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
         mgr.treasures = treasures;
 
-        let teki: Vec<String> = read_dir(mgr.base_path.join("assets/enemytex/arc.d")).expect("Couldn't read enemytex directory!")
+        let teki: Vec<String> = read_dir(mgr.base_path.join("assets/pikmin2/user/Yamashita/enemytex/arc")).expect("Couldn't read enemytex directory!")
             .filter_map(Result::ok)
             .filter(|dir_entry| dir_entry.path().is_dir())
             .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
             .collect();
         mgr.teki = teki;
 
-        let rooms: Vec<String> = read_dir(mgr.base_path.join("assets/arc")).expect("Couldn't read arc directory!")
+        let rooms: Vec<String> = read_dir(mgr.base_path.join("assets/pikmin2/user/Mukki/mapunits/arc")).expect("Couldn't read arc directory!")
             .filter_map(Result::ok)
             .filter(|dir_entry| dir_entry.path().is_dir())
             .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
@@ -80,10 +80,10 @@ impl AssetManager {
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
                 CaveConfig {
+                    game: data.remove(0),
                     full_name: data.remove(0),
                     caveinfo_filename: data.remove(0),
                     shortened_names: data,
-                    romhack: None,
                 }
             })
             .collect();
@@ -170,7 +170,7 @@ impl AssetManager {
     /// resultant FloorInfo structs in the cache.
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), AssetError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
-        let caveinfo_filename = format!("assets/caveinfo/{}", cave.caveinfo_filename);
+        let caveinfo_filename = format!("assets/pikmin2/user/Mukki/mapunits/caveinfo/{}", cave.caveinfo_filename);
         let caveinfo_txt = self.get_txt_file(&caveinfo_filename)?;
         let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
         for mut caveinfo in caveinfos.into_iter() {
@@ -189,10 +189,10 @@ impl AssetManager {
 /// and caveinfo filename.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct CaveConfig {
+    pub game: String,  // Indicates either the vanilla game or a romhack
     pub full_name: String,
     pub shortened_names: Vec<String>,
     pub caveinfo_filename: String,
-    pub romhack: Option<String>,
 }
 
 pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {

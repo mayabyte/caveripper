@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use caveripper::{parse_seed, sublevel::Sublevel, query::Query, layout::render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
@@ -130,6 +132,23 @@ pub enum Commands {
             long_help = SEED_FILE_HELP,
         )]
         file: Option<String>,
+    },
+
+    /// Extracts a game ISO interactively.
+    #[clap(
+        arg_required_else_help = true,
+    )]
+    Extract {
+        #[clap(
+            help = "The ISO file to extract."
+        )]
+        iso_path: PathBuf,
+
+        #[clap(
+            help = "The name for this ISO.",
+            default_value = "pikmin2" 
+        )]
+        game_name: String,
     }
 }
 
