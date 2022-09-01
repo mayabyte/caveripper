@@ -93,30 +93,12 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let radar_image = map_unit.get_texture()?.clone();
+        let mut radar_image = map_unit.get_texture()?.clone();
 
         // Copy the pixels of the radar image to the buffer
         let img_x = map_unit.x as i64 * GRID_FACTOR;
         let img_z = map_unit.z as i64 * GRID_FACTOR;
         overlay(&mut canvas, &radar_image, img_x, img_z);
-
-        for waterbox in map_unit.unit.waterboxes.iter() {
-            let (x1, z1, x2, z2) = match map_unit.unit.rotation {
-                0 => (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2),
-                1 => (-waterbox.z2, waterbox.x1, -waterbox.x1, waterbox.x2),
-                2 => (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1),
-                3 => (waterbox.z1, -waterbox.x2, waterbox.z2, -waterbox.x1),
-                _ => return Err(RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed)),
-            };
-            let x1 = x1 * COORD_FACTOR;
-            let z1 = z1 * COORD_FACTOR;
-            let x2 = x2 * COORD_FACTOR;
-            let z2 = z2 * COORD_FACTOR;
-            let w = (map_unit.unit.width as i64 * GRID_FACTOR) as f32 / 2.0;
-            let h = (map_unit.unit.height as i64 * GRID_FACTOR) as f32 / 2.0;
-            let square = RgbaImage::from_pixel((x2 - x1) as u32, (z2 - z1) as u32, [0, 100, 230, 50].into());
-            overlay(&mut canvas, &square, img_x as i64 + (x1 + w) as i64, img_z as i64 + (z1 + h) as i64);
-        }
     }
 
     // Draw a map unit grid, if enabled
@@ -895,12 +877,30 @@ impl Textured for CaveUnit {
             img = rotate90(&img);
         }
 
-        let img = resize(
+        img = resize(
             &img,
             img.width() * RENDER_SCALE, 
             img.height() * RENDER_SCALE, 
             FilterType::Nearest
         );
+
+        for waterbox in self.waterboxes.iter() {
+            let (x1, z1, x2, z2) = match self.rotation {
+                0 => (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2),
+                1 => (-waterbox.z2, waterbox.x1, -waterbox.x1, waterbox.x2),
+                2 => (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1),
+                3 => (waterbox.z1, -waterbox.x2, waterbox.z2, -waterbox.x1),
+                _ => return Err(AssetError::CaveInfoError("Invalid rotation".into())),
+            };
+            let x1 = x1 * COORD_FACTOR;
+            let z1 = z1 * COORD_FACTOR;
+            let x2 = x2 * COORD_FACTOR;
+            let z2 = z2 * COORD_FACTOR;
+            let w = (self.width as i64 * GRID_FACTOR) as f32 / 2.0;
+            let h = (self.height as i64 * GRID_FACTOR) as f32 / 2.0;
+            let square = RgbaImage::from_pixel((x2 - x1) as u32, (z2 - z1) as u32, [0, 100, 230, 50].into());
+            overlay(&mut img, &square, (x1 + w) as i64, (z1 + h) as i64);
+        }
 
         Ok(img)
     }
