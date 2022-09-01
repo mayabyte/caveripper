@@ -744,7 +744,7 @@ impl Textured for TekiInfo {
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             },
             None => {
-                let filename = format!("assets/pikmin2/user/Matoba/enemytex/arc/{}/texture.png", &self.internal_name.to_ascii_lowercase());
+                let filename = format!("assets/pikmin2/user/Yamashita/enemytex/arc/{}/texture.png", &self.internal_name.to_ascii_lowercase());
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             }
         }
@@ -780,7 +780,7 @@ impl Textured for CapInfo {
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             },
             None => {
-                let filename = format!("assets/pikmin2/user/Matoba/enemytex/arc/{}/texture.png", self.internal_name);
+                let filename = format!("assets/pikmin2/user/Yamashita/enemytex/arc/{}/texture.png", self.internal_name);
                 Ok(ASSETS.get_img(&filename)?.to_owned())
             }
         }

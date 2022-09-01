@@ -47,10 +47,10 @@ impl BtiImage {
                 4  => decode_rgb565_block(img_data, offset, block_size),
                 5  => decode_rgb5a3_block(img_data, offset, block_size),
                 6  => decode_rgba32_block(img_data, offset),
-                7  => decode_c4_block(img_data, offset, block_size, &colors),
-                8  => decode_c8_block(img_data, offset, block_size, &colors),
-                9  => decode_c14x2_block(img_data, offset, block_size, &colors),
-                10 => decode_cmpr_block(img_data, offset),
+                8  => decode_c4_block(img_data, offset, block_size, &colors),
+                9  => decode_c8_block(img_data, offset, block_size, &colors),
+                10  => decode_c14x2_block(img_data, offset, block_size, &colors),
+                11 => decode_cmpr_block(img_data, offset),
                 _ => panic!("Unknown image format {}", format),
             };
 
@@ -87,7 +87,7 @@ const BLOCK_DATA_SIZE: [u16; 11] = [32, 32, 32, 32, 32, 32, 64, 32, 32, 32, 32];
 
 fn decode_palettes(palette_data: &[u8], palette_format: u8, num_colors: u16, img_format: u8) -> Vec<Color> {
     // Only these 3 formats use palettes
-    if ![7,8,9].contains(&img_format) {
+    if ![8,9,10].contains(&img_format) {
         return vec![];
     }
 
@@ -199,10 +199,10 @@ fn decode_rgb5a3_block(img_data: &[u8], offset: usize, block_data_size: usize) -
 const fn rgb5a3_to_color(c: u16) -> Color {
     if c & 0x8000 == 0 {
         [
-            swizzle_3_to_8(((c >> 12) & 0x7) as u8),
             swizzle_4_to_8(((c >> 8) & 0xF) as u8),
             swizzle_4_to_8(((c >> 4) & 0xF) as u8),
             swizzle_4_to_8((c & 0xF) as u8),
+            swizzle_3_to_8(((c >> 12) & 0x7) as u8),
         ]
     }
     else {
