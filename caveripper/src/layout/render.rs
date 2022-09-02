@@ -93,7 +93,7 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let mut radar_image = map_unit.get_texture()?.clone();
+        let radar_image = map_unit.get_texture()?.clone();
 
         // Copy the pixels of the radar image to the buffer
         let img_x = map_unit.x as i64 * GRID_FACTOR;
@@ -245,17 +245,23 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
                         // Treasure value/carry text
                         let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
+                        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
+
                         let sidetext_x = base_x + texture.width() as i64 + 5;
+                        let text_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
+                        if sidetext_x + text_width > canvas_header.width() as i64 {
+                            let header_width = canvas_header.width() as i64;
+                            expand_canvas(&mut canvas_header, (sidetext_x + text_width - header_width) as u32, 0, Some([220,220,220,255].into()));
+                        }
+
                         overlay(&mut canvas_header, &poko_icon, sidetext_x, base_y + 4);
                         overlay(&mut canvas_header, &value_text,
                             sidetext_x + poko_icon.width() as i64 + 3,
                             base_y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
                         );
 
-                        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
                         overlay(&mut canvas_header, &carriers_text, sidetext_x, base_y + poko_icon.height() as i64 + 2);
 
-                        let text_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
                         base_x += text_width;
                         extra_width += text_width;
                     },
