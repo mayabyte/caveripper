@@ -16,7 +16,7 @@ use nom::{
         alpha1, char, digit1, hex_digit1, line_ending, multispace0, multispace1, not_line_ending, space0, space1,
     },
     combinator::{into, opt, success, value, recognize},
-    multi::{count, many1},
+    multi::{count, many1, many0},
     sequence::{delimited, preceded, tuple},
     IResult, number::{complete::float},
 };
@@ -188,6 +188,7 @@ impl InfoLine<'_> {
 // **********************************************
 
 fn section(caveinfo_txt: &str) -> IResult<&str, Section> {
+    let (caveinfo_txt, _) = many0(line_ending)(caveinfo_txt)?;  // Skip blank lines if present.
     let (caveinfo_txt, _) = line_comment(caveinfo_txt)?;
     into(delimited(char('{'), many1(info_line), tag("}\r\n")))(caveinfo_txt)
 }

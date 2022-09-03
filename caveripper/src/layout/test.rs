@@ -16,7 +16,8 @@ fn test_collision() {
     assert!(!boxes_overlap(0, 0, 5, 7, 5, 5, 5, 5))
 }
 
-#[test]
+//#[test]
+#[allow(dead_code)]
 fn test_slugs() {
     let num_layouts = 100;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);

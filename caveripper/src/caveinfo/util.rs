@@ -6,12 +6,12 @@ use crate::caveinfo::CaveUnit;
 pub fn sort_cave_units(mut unsorted: Vec<CaveUnit>) -> Vec<CaveUnit> {
     // This is kinda like Bubble Sort, except it compares the entire
     // remaining list to the current element rather than just the next elem.
-    let mut i = 0;
-    while i < unsorted.len() {
-        let mut j = i+1;
-        while j < unsorted.len() {
-            if unsorted[i] > unsorted[j] {
-                let current = unsorted.remove(i);
+    let mut i: isize = 0;
+    while i < unsorted.len() as isize {
+        let mut j = i + 1;
+        while j < unsorted.len() as isize {
+            if unsorted[i as usize] > unsorted[j as usize] {
+                let current = unsorted.remove(i as usize);
                 unsorted.push(current);
                 i -= 1;
                 break;

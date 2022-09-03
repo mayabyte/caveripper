@@ -82,6 +82,7 @@ impl AssetManager {
                 CaveConfig {
                     game: data.remove(0),
                     full_name: data.remove(0),
+                    is_challenge_mode: data.remove(0).parse().expect("Invalid cave_config file!"),
                     caveinfo_filename: data.remove(0),
                     shortened_names: data,
                 }
@@ -185,12 +186,12 @@ impl AssetManager {
     }
 }
 
-/// Metadata about a cave, including its full name, possible shortened names,
-/// and caveinfo filename.
+/// Metadata about a cave. Defined in resources/cave_config.txt
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct CaveConfig {
     pub game: String,  // Indicates either the vanilla game or a romhack
     pub full_name: String,
+    pub is_challenge_mode: bool,
     pub shortened_names: Vec<String>,
     pub caveinfo_filename: String,
 }
@@ -213,7 +214,12 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
     }
 }
 
-static ALL_VANILLA_CAVES: [&str; 14] = ["ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", "dd"];
+static ALL_VANILLA_CAVES: [&str; 44] = [
+    "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", 
+    "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm", 
+    "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str", 
+    "bg", "cop", "bd", "snr", "er"
+];
 
 #[derive(Clone, Debug)]
 pub struct Treasure {

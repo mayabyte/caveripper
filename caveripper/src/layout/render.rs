@@ -45,7 +45,7 @@ const fn group_color(group: u32) -> [u8; 4] {
         5 => [133, 133, 133, 255], // Seam Teki
         6 => [59, 148, 90, 255],   // Plants
         7 => [230, 50, 86, 255],   // Ship spawns
-        8 => [89, 6, 138, 255],   // Special teki
+        8 => [89, 6, 138, 255],    // Special teki
         9 => [45, 173, 167, 255],  // Fake capteki / hallway spawnpoint group
         _ => panic!("Invalid teki group in tekiinfo"),
     }
@@ -178,7 +178,16 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         metadata_icons.push(resize(&SpawnObject::Hole(caveinfo.exit_plugged).get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
     }
     if caveinfo.is_final_floor || caveinfo.has_geyser {
-        metadata_icons.push(resize(&SpawnObject::Geyser.get_texture()?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
+        metadata_icons.push(
+            resize(
+                &SpawnObject::Geyser(
+                    caveinfo.is_challenge_mode() && caveinfo.is_final_floor
+                ).get_texture()?, 
+                CAVEINFO_ICON_SIZE, 
+                CAVEINFO_ICON_SIZE, 
+                FilterType::Lanczos3
+            )
+        );
     }
     let num_gates = caveinfo.max_gates;
     if num_gates > 0 {
@@ -317,10 +326,29 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
         overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
 
-        base_x = sidetext_x + max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64);
+        let extra_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64);
+
+        if caveinfo.is_challenge_mode() {
+            let subtext_color = group_color(2).into();
+            let treasure_subtext = format!("x{}", treasureinfo.min_amount);
+            let treasure_subtext_texture = render_text(&treasure_subtext, 24.0, subtext_color, None);
+            overlay(
+                &mut canvas_header, 
+                &treasure_subtext_texture, 
+                x + (CAVEINFO_ICON_SIZE as i64 / 2) - (treasure_subtext_texture.width() as i64 / 2) + (extra_width / 2),
+                y + CAVEINFO_ICON_SIZE as i64 - 12
+            );
+        }
+
+        base_x = sidetext_x + extra_width;
     }
 
     base_y += treasure_header.height() as i64;
+
+    // Make room for treasure number text
+    if caveinfo.is_challenge_mode() {
+        base_y += CAVEINFO_MARGIN;
+    }
 
     // Capteki section
     let capteki_color = group_color(9).into();
@@ -844,9 +872,23 @@ impl Textured for SpawnObject {
                     Ok(ASSETS.get_custom_img("PLUGGED_HOLE")?.to_owned())
                 })
             },
-            SpawnObject::Geyser => {
-                let filename = "resources/enemytex_special/Geyser_icon.png";
-                Ok(ASSETS.get_img(filename)?.to_owned())
+            SpawnObject::Geyser(plugged) => {
+                ASSETS.get_custom_img("PLUGGED_GEYSER").map(|i| i.to_owned()).or_else(|_| {
+                    let filename = "resources/enemytex_special/Geyser_icon.png";
+                    let mut hole_icon = ASSETS.get_img(filename)?.clone();
+                    if *plugged {
+                        let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
+                        let plug_icon = resize(
+                            &*ASSETS.get_img(plug_filename)?,
+                            hole_icon.width(), 
+                            hole_icon.height(), 
+                            FilterType::Lanczos3,
+                        );
+                        overlay(&mut hole_icon, &plug_icon, 0, 0);
+                    }
+                    ASSETS.cache_img("PLUGGED_GEYSER", hole_icon);
+                    Ok(ASSETS.get_custom_img("PLUGGED_GEYSER")?.to_owned())
+                })
             },
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
@@ -860,7 +902,7 @@ impl Textured for SpawnObject {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture_modifiers(),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture_modifiers(),
             SpawnObject::Item(iteminfo) => iteminfo.get_texture_modifiers(),
-            SpawnObject::Hole(_) | SpawnObject::Geyser => {
+            SpawnObject::Hole(_) | SpawnObject::Geyser(_) => {
                 vec![TextureModifier::QuickGlance(QUICKGLANCE_EXIT_COLOR.into())]
             },
             SpawnObject::Ship => {

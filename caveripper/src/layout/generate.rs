@@ -67,6 +67,8 @@ impl LayoutBuilder {
     /// implementation; a more optimized one will follow.
     fn _generate(mut self, caveinfo: &CaveInfo) -> Layout {
         info!("Generating layout for {} {:#010X}...", caveinfo.name(), self.starting_seed);
+        let is_challenge_mode = caveinfo.is_challenge_mode();
+
         // ** mapUnitsInitialSorting ** //
         // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L644
 
@@ -608,10 +610,12 @@ impl LayoutBuilder {
 
         // Place the exit hole and/or geyser, as applicable.
         if !caveinfo.is_final_floor {
-            self.place_hole(SpawnObject::Hole(caveinfo.exit_plugged));
+            self.place_hole(SpawnObject::Hole(caveinfo.exit_plugged), is_challenge_mode);
         }
         if caveinfo.is_final_floor || caveinfo.has_geyser {
-            self.place_hole(SpawnObject::Geyser);
+            self.place_hole(
+                SpawnObject::Geyser(is_challenge_mode && caveinfo.is_final_floor),
+                is_challenge_mode);
         }
 
         // Place door hazards, AKA 'seam teki' (Enemy Group 5)
@@ -956,12 +960,17 @@ impl LayoutBuilder {
                             .flat_map(|spawnpoint| spawnpoint.contains.iter())
                             .filter(|spawn_object| matches!(spawn_object, SpawnObject::Item(_)))
                             .count();
+                        let num_treasure_spawnpoints = map_unit.spawnpoints.iter().filter(|sp| sp.spawnpoint_unit.group == 2).count();
                         for spawnpoint in map_unit.spawnpoints.iter_mut() {
                             if spawnpoint.spawnpoint_unit.group != 2 || !spawnpoint.contains.is_empty() {
                                 continue;
                             }
 
-                            let effective_treasure_score = (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32;
+                            let effective_treasure_score = if is_challenge_mode {
+                                1 + map_unit.total_score / num_treasure_spawnpoints as u32
+                            } else {
+                                (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32
+                            };
                             spawnpoint.treasure_score = effective_treasure_score;
                             spawnpoints.push(spawnpoint);
                             spawnpoint_weights.push(effective_treasure_score);
@@ -975,7 +984,11 @@ impl LayoutBuilder {
                             continue;
                         }
 
-                        let effective_treasure_score = 1 + map_unit.total_score;
+                        let effective_treasure_score = if is_challenge_mode {
+                            1 + map_unit.total_score * 10
+                        } else { 
+                            1 + map_unit.total_score 
+                        };
                         spawnpoint.treasure_score = effective_treasure_score;
                         spawnpoints.push(spawnpoint);
                         spawnpoint_weights.push(effective_treasure_score);
@@ -985,13 +998,17 @@ impl LayoutBuilder {
                 // Choose which spot to spawn the treasure at
                 let mut chosen_spot = None;
                 if !spawnpoints.is_empty() {
-                    let max_weight = *spawnpoint_weights.iter().max().unwrap();
-                    let mut max_spawnpoints: Vec<_> = spawnpoints.iter_mut()
-                        .zip(spawnpoint_weights)
-                        .filter(|(_, w)| *w == max_weight)
-                        .map(|(sp, _)| sp)
-                        .collect();
-                    chosen_spot = Some(max_spawnpoints.remove(self.rng.rand_int(max_spawnpoints.len() as u32) as usize));
+                    if is_challenge_mode {
+                        chosen_spot = Some(&mut spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()]);
+                    } else {
+                        let max_weight = *spawnpoint_weights.iter().max().unwrap();
+                        let mut max_spawnpoints: Vec<_> = spawnpoints.iter_mut()
+                            .zip(spawnpoint_weights)
+                            .filter(|(_, w)| *w == max_weight)
+                            .map(|(sp, _)| sp)
+                            .collect();
+                        chosen_spot = Some(max_spawnpoints.remove(self.rng.rand_int(max_spawnpoints.len() as u32) as usize));
+                    }
                 }
 
                 // Choose which treasure to spawn.
@@ -1041,7 +1058,7 @@ impl LayoutBuilder {
                     .expect("Alcove does not have Alcove Spawn Point!");
                 if spawnpoint.contains.iter().any(|spawn_object| {
                     matches!(spawn_object, SpawnObject::CapTeki(teki, _) if teki.is_candypop() || teki.is_falling())
-                    || matches!(spawn_object, SpawnObject::Hole(_) | SpawnObject::Geyser)
+                    || matches!(spawn_object, SpawnObject::Hole(_) | SpawnObject::Geyser(_))
                 })
                 {
                     continue;
@@ -1228,7 +1245,7 @@ impl LayoutBuilder {
         }
     }
 
-    fn place_hole(&mut self, to_place: SpawnObject) {
+    fn place_hole(&mut self, to_place: SpawnObject, is_challenge_mode: bool) {
         // Get a list of applicable spawn points (group 4 or 9)
         let mut hole_spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
         
@@ -1250,12 +1267,11 @@ impl LayoutBuilder {
                     continue;
                 }
                 // Hole Score of this unit is the smallest of its Door Scores.
-                // let score = unit.doors.iter()
-                //     .map(|door| door.borrow().door_score.unwrap())
-                //     .min()
-                //     // Some units have zero doors, so we default to 0 if that's the case.
-                //     .unwrap_or_default();
-                let score = unit.total_score;
+                let score = if is_challenge_mode {
+                    pikmin_math::sqrt(unit.total_score as f32) as u32 + 10
+                } else {
+                    unit.total_score
+                };
 
                 for mut spawnpoint in unit.spawnpoints.iter_mut() {
                     if !spawnpoint.contains.is_empty() {
@@ -1271,26 +1287,34 @@ impl LayoutBuilder {
             }
         }
 
-        // Only consider the spots with the highest score
-        let max_hole_score = hole_spawnpoints.iter()
-            .filter(|sp| sp.contains.is_empty())
-            .map(|sp| sp.hole_score)
-            .max()
-            .unwrap_or_else(|| panic!("{} {:#010X}", self.cave_name, self.starting_seed));
+        
+        let hole_location = if is_challenge_mode {
+            let weights = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect_vec();
+            hole_spawnpoints.remove(self.rng.rand_index_weight(weights.as_slice()).unwrap())
+        }
+        else {
+            // Only consider the spots with the highest score
+            let max_hole_score = hole_spawnpoints.iter()
+                .filter(|sp| sp.contains.is_empty())
+                .map(|sp| sp.hole_score)
+                .max()
+                .unwrap_or_else(|| panic!("{} {:#010X}", self.cave_name, self.starting_seed));
 
-        let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
-            .filter(|sp| sp.hole_score == max_hole_score)
-            .filter(|sp| sp.contains.is_empty())
-            .collect::<Vec<_>>();
+            let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
+                .filter(|sp| sp.hole_score == max_hole_score)
+                .filter(|sp| sp.contains.is_empty())
+                .collect::<Vec<_>>();
 
-        let hole_location = candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize);
+            candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize)
+        };
+        
 
         match to_place {
             SpawnObject::Hole(_) => {
                 self.placed_exit_hole = Some(hole_location.to_owned());
                 debug!("Placed Exit Hole at ({}, {}).", hole_location.x, hole_location.z);
             },
-            SpawnObject::Geyser => {
+            SpawnObject::Geyser(_) => {
                 self.placed_exit_geyser = Some(hole_location.to_owned());
                 debug!("Placed Exit Geyser at ({}, {}).", hole_location.x, hole_location.z);
             },
@@ -1323,7 +1347,7 @@ impl LayoutBuilder {
                 .any(|so| {
                     match so {
                         SpawnObject::CapTeki(capteki, _) if !capteki.is_falling() => true,
-                        SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser => true,
+                        SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser(_) => true,
                         _ => false,
                     }
                 })

@@ -1,14 +1,44 @@
-pikmin2, Emergence Cave, tutorial_1.txt, EC
-pikmin2, Subterranean Complex, tutorial_2.txt, SCx, stc
-pikmin2, Frontier Cavern, tutorial_3.txt, FC
-pikmin2, Hole of Beasts, forest_1.txt, HoB,
-pikmin2, White Flower Garden, forest_2.txt, WFG
-pikmin2, Bulblax Kingdom, forest_3.txt, BK
-pikmin2, Snagret Hole, forest_4.txt, SH
-pikmin2, Citadel of Spiders, yakushima_1.txt, CoS
-pikmin2, Glutton's Kitchen, yakushima_2.txt, GK
-pikmin2, Shower Room, yakushima_3.txt, SR,
-pikmin2, Submerged Castle, yakushima_4.txt, SC, smc
-pikmin2, Cavern of Chaos, last_1.txt, CoC
-pikmin2, Hole of Heroes, last_2.txt, HoH
-pikmin2, Dream Den, last_3.txt, DD
+pikmin2,    Emergence Cave,        false,  tutorial_1.txt,                  EC
+pikmin2,    Subterranean Complex,  false,  tutorial_2.txt,                  SCx, stc
+pikmin2,    Frontier Cavern,       false,  tutorial_3.txt,                  FC
+pikmin2,    Hole of Beasts,        false,  forest_1.txt,                    HoB,
+pikmin2,    White Flower Garden,   false,  forest_2.txt,                    WFG
+pikmin2,    Bulblax Kingdom,       false,  forest_3.txt,                    BK
+pikmin2,    Snagret Hole,          false,  forest_4.txt,                    SH
+pikmin2,    Citadel of Spiders,    false,  yakushima_1.txt,                 CoS
+pikmin2,    Glutton's Kitchen,     false,  yakushima_2.txt,                 GK
+pikmin2,    Shower Room,           false,  yakushima_3.txt,                 SR,
+pikmin2,    Submerged Castle,      false,  yakushima_4.txt,                 SC, smc
+pikmin2,    Cavern of Chaos,       false,  last_1.txt,                      CoC
+pikmin2,    Hole of Heroes,        false,  last_2.txt,                      HoH
+pikmin2,    Dream Den,             false,  last_3.txt,                      DD
+pikmin2,    Explorer's Cave,       true,   ch_ABEM_tutorial.txt,            EC, exc
+pikmin2,    Novice Training,       true,   ch_NARI_07whitepurple.txt,       NT
+pikmin2,    Lost Toy Box,          true,   ch_NARI_03toy.txt,               LTB
+pikmin2,    Creator's Garden,      true,   ch_NARI_01kusachi.txt,           CG
+pikmin2,    Green Hole,            true,   ch_ABEM_LeafChappy.txt,          GH
+pikmin2,    Hot House,             true,   ch_NARI_05start3easy.txt,        HH
+pikmin2,    Brawny Abyss,          true,   ch_MUKI_metal.txt,               BA
+pikmin2,    Red Chasm,             true,   ch_MAT_limited_time.txt,         RC
+pikmin2,    Trampled Garden,       true,   ch_MAT_t_hunter_hana.txt,        TG
+pikmin2,    Twilight Garden,       true,   ch_MUKI_damagumo.txt,            TG, twg, tlg
+pikmin2,    Cryptic Cavern,        true,   ch_MAT_t_hunter_enemy.txt,       CC
+pikmin2,    Concrete Maze,         true,   ch_MAT_conc_cave.txt,            CM
+pikmin2,    Collector's Room,      true,   ch_NARI_04series.txt,            CR
+pikmin2,    Dweevil Nest,          true,   ch_MAT_t_hunter_otakara.txt,     DN
+pikmin2,    Cavernous Abyss,       true,   ch_MUKI_bigfoot.txt,             CA
+pikmin2,    Snack Pit,             true,   ch_MIYA_oopan.txt,               SP
+pikmin2,    Three Color Training,  true,   ch_MAT_yellow_purple_white.txt,  TCT
+pikmin2,    Hazard Training,       true,   ch_MUKI_redblue.txt,             HT
+pikmin2,    Cave of Snarls,        true,   ch_NARI_08tobasare.txt,          CoS, csn, cosn
+pikmin2,    Giant's Bath,          true,   ch_NARI_02tile.txt,              GB, tgb
+pikmin2,    Rumbling Grotto,       true,   ch_MAT_crawler.txt,              RG
+pikmin2,    Subterranean Lair,     true,   ch_MAT_route_rover.txt,          SL, stl
+pikmin2,    Hidden Garden,         true,   ch_MUKI_enemyzero.txt,           HG
+pikmin2,    Abduction Den,         true,   ch_NARI_09suikomi.txt,           AD
+pikmin2,    Secret Testing Range,  true,   ch_MUKI_houdai.txt,              STR
+pikmin2,    Breeding Ground,       true,   ch_NARI_06start3hard.txt,        BG
+pikmin2,    Cave of Pain,          true,   ch_MAT_flier.txt,                CoP, cp
+pikmin2,    Bully Den,             true,   ch_MIYA_trap.txt,                BD
+pikmin2,    Sniper Room,           true,   ch_MUKI_bombing.txt,             SR, snr
+pikmin2,    Emperor's Realm,       true,   ch_MUKI_king.txt,                ER

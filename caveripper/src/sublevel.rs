@@ -33,6 +33,10 @@ impl Sublevel {
     pub fn long_name(&self) -> String {
         format!("{} {}", self.cfg.full_name, self.floor)
     }
+
+    pub fn is_challenge_mode(&self) -> bool {
+        self.cfg.is_challenge_mode
+    }
 }
 
 static DIGIT: OnceCell<Regex> = OnceCell::new();
@@ -40,11 +44,13 @@ static CHAR: OnceCell<Regex> = OnceCell::new();
 
 impl TryFrom<&str> for Sublevel {
     type Error = SublevelError;
+
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value_lower = value.to_ascii_lowercase();
-        let cave = CHAR.get_or_init(|| Regex::new(r"([[:alpha:]]+)").unwrap()).find(&value_lower)
+        let cave = CHAR.get_or_init(|| Regex::new(r"([[[:alpha:]]\s']+)").unwrap()).find(&value_lower)
             .ok_or(SublevelError::MissingCaveName)?
-            .as_str();
+            .as_str()
+            .trim();
         let floor: usize = DIGIT.get_or_init(|| Regex::new(r"(\d+)").unwrap()).find(&value_lower)
             .ok_or(SublevelError::MissingFloorNumber)?
             .as_str()

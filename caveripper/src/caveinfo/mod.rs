@@ -73,6 +73,10 @@ impl CaveInfo {
         floors.last_mut().unwrap().is_final_floor = true;
         Ok(floors)
     }
+
+    pub fn is_challenge_mode(&self) -> bool {
+        self.sublevel.as_ref().expect("Missing sublevel!").is_challenge_mode()
+    }
 }
 
 impl Display for CaveInfo {

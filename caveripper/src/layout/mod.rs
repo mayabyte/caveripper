@@ -89,7 +89,7 @@ impl Layout {
                                 spawnpoint.z as i32,
                             ));
                         },
-                        SpawnObject::Geyser => {
+                        SpawnObject::Geyser(_) => {
                             spawn_object_slugs.push(format!("geyser,x{}z{};",
                                 spawnpoint.x as i32,
                                 spawnpoint.z as i32,
@@ -279,7 +279,7 @@ pub enum SpawnObject {
     Item(ItemInfo),
     Gate(GateInfo),
     Hole(bool), // Plugged or not
-    Geyser,
+    Geyser(bool), // Plugged or not
     Ship
 }
 
@@ -291,7 +291,7 @@ impl SpawnObject {
             SpawnObject::Item(info) => &info.internal_name,
             SpawnObject::Gate(_) => "gate",
             SpawnObject::Hole(_) => "hole",
-            SpawnObject::Geyser => "geyser",
+            SpawnObject::Geyser(_) => "geyser",
             SpawnObject::Ship => "ship",
         }
     }
