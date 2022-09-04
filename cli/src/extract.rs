@@ -1,6 +1,6 @@
 /// File extraction from Pikmin 2 & romhack ISOs.
 
-use std::{error::Error, path::{Path, PathBuf}, fs::{create_dir_all, self, File}, io::{BufReader, Read, Seek, SeekFrom, Cursor}};
+use std::{path::{Path, PathBuf}, fs::{create_dir_all, self, File}, io::{BufReader, Read, Seek, SeekFrom, Cursor}, error::Error};
 use gc_gcm::{GcmFile, DirEntry};
 use indicatif::ProgressBar;
 use yaz0::Yaz0Archive;
@@ -35,7 +35,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: &str, iso_path: P, progress: &Prog
     progress.set_message("Reading ISO file system");
     progress.inc(1);
 
-    let iso = GcmFile::open(&iso_path).map_err(|e| format!("Error opening ISO file: {:?}", e))?;
+    let iso = GcmFile::open(&iso_path).map_err(|_| "Couldn't parse ISO!")?;
     let mut iso_reader = BufReader::new(File::open(&iso_path)?);
     let all_files = traverse_filesystem(&iso);
 
@@ -67,7 +67,14 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: &str, iso_path: P, progress: &Prog
 
         if f.name.ends_with(".szs") {
             path.push(f.name.strip_suffix(".szs").unwrap());
-            let arc = Yaz0Archive::new(Cursor::new(data.as_slice()))?.decompress()?;
+            
+            let arc = if &data[..4] == b"Yaz0" {
+                Yaz0Archive::new(Cursor::new(data.as_slice()))?.decompress()?
+            }
+            else {
+                data
+            };
+            
             let rarc = Rarc::new(arc.as_slice()).unwrap();
             for (sub_path, file_data) in rarc.files() {
                 let mut decompressed_file_path = path.clone();

@@ -6,7 +6,7 @@ mod test;
 use std::{cell::RefCell, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
 
-use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, pikmin_math};
+use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, pikmin_math, sublevel::Sublevel};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -16,6 +16,7 @@ use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo
 /// and treasure.
 #[derive(Debug, Clone)]
 pub struct Layout {
+    pub sublevel: Sublevel,
     pub starting_seed: u32,
     pub cave_name: String,
     pub map_units: Vec<PlacedMapUnit>,

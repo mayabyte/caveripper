@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::{read_to_string, read_dir, read};
 use std::path::{Path, PathBuf};
 use encoding_rs::SHIFT_JIS;
@@ -11,7 +12,7 @@ use crate::caveinfo::CaveInfo;
 use crate::errors::{AssetError, SublevelError};
 use crate::sublevel::Sublevel;
 
-pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new("."));
+pub static ASSETS: Lazy<AssetManager> = Lazy::new(|| AssetManager::new("assets"));
 
 pub struct AssetManager {
     base_path: PathBuf,
@@ -45,37 +46,7 @@ impl AssetManager {
             rooms: Vec::new(),
         };
 
-        let treasures = SHIFT_JIS.decode(
-            read(mgr.base_path.join("assets/pikmin2/user/Abe/Pellet/us/pelletlist_us/otakara_config.txt"))
-            .expect("Couldn't find otakara_config.txt!")
-            .as_slice()
-        ).0.into_owned();
-        let ek_treasures = SHIFT_JIS.decode(
-            read(mgr.base_path.join("assets/pikmin2/user/Abe/Pellet/us/pelletlist_us/item_config.txt"))
-            .expect("Couldn't find item_config.txt!")
-            .as_slice()
-        ).0.into_owned();
-
-        let mut treasures = parse_treasure_config(&treasures);
-        treasures.append(&mut parse_treasure_config(&ek_treasures));
-        treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
-        mgr.treasures = treasures;
-
-        let teki: Vec<String> = read_dir(mgr.base_path.join("assets/pikmin2/user/Yamashita/enemytex/arc")).expect("Couldn't read enemytex directory!")
-            .filter_map(Result::ok)
-            .filter(|dir_entry| dir_entry.path().is_dir())
-            .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
-            .collect();
-        mgr.teki = teki;
-
-        let rooms: Vec<String> = read_dir(mgr.base_path.join("assets/pikmin2/user/Mukki/mapunits/arc")).expect("Couldn't read arc directory!")
-            .filter_map(Result::ok)
-            .filter(|dir_entry| dir_entry.path().is_dir())
-            .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
-            .collect();
-        mgr.rooms = rooms;
-
-        let cave_cfg: Vec<CaveConfig> = read_to_string(mgr.base_path.join("resources/caveinfo_config.txt")).unwrap()
+        let cave_cfg: Vec<CaveConfig> = read_to_string("resources/caveinfo_config.txt").unwrap()
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
@@ -90,30 +61,69 @@ impl AssetManager {
             .collect();
         mgr.cave_cfg = cave_cfg;
 
+        let all_games: HashSet<&str> = mgr.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect();
+        for game in all_games.into_iter() {
+            if !mgr.base_path.join(game).is_dir() {
+                info!("No files found for game {}; skipping.", game);
+                continue;
+            }
+
+            let treasures = SHIFT_JIS.decode(
+                read(mgr.base_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/otakara_config.txt"))
+                .expect("Couldn't find otakara_config.txt!")
+                .as_slice()
+            ).0.into_owned();
+            let ek_treasures = SHIFT_JIS.decode(
+                read(mgr.base_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/item_config.txt"))
+                .expect("Couldn't find item_config.txt!")
+                .as_slice()
+            ).0.into_owned();
+    
+            let mut treasures = parse_treasure_config(&treasures);
+            treasures.append(&mut parse_treasure_config(&ek_treasures));
+            treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
+            mgr.treasures = treasures;
+    
+            let teki: Vec<String> = read_dir(mgr.base_path.join(game).join("user/Yamashita/enemytex/arc")).expect("Couldn't read enemytex directory!")
+                .filter_map(Result::ok)
+                .filter(|dir_entry| dir_entry.path().is_dir())
+                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
+                .collect();
+            mgr.teki = teki;
+    
+            let rooms: Vec<String> = read_dir(mgr.base_path.join(game).join("user/Mukki/mapunits/arc")).expect("Couldn't read arc directory!")
+                .filter_map(Result::ok)
+                .filter(|dir_entry| dir_entry.path().is_dir())
+                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
+                .collect();
+            mgr.rooms = rooms;
+        }
+
         mgr
     }
 
-    pub fn get_txt_file(&self, path: &str) -> Result<String, AssetError> {
-        if !self.txt_cache.contains_key(path) {
-            info!("Loading {}...", path);
-            let data = read(self.base_path.join(path))
-                .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
-            if path.starts_with("assets") {
-                self.txt_cache.insert(path.to_string(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
+    pub fn get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<String, AssetError> {
+        let p_str: String = path.as_ref().to_string_lossy().into();
+        if !self.txt_cache.contains_key(&p_str) {
+            info!("Loading {}...", &p_str);
+            if path.as_ref().starts_with("resources") {
+                let data = read(path).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
+                self.txt_cache.insert(p_str.clone(), String::from_utf8(data).map_err(|_| AssetError::DecodingError(p_str.clone()))?);
             }
-            else if path.starts_with("resources") {
-                self.txt_cache.insert(path.to_string(), String::from_utf8(data).map_err(|_| AssetError::DecodingError(path.to_string()))?);
+            else {
+                let data = read(self.base_path.join(path)).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
+                self.txt_cache.insert(p_str.clone(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
             }
         }
         Ok(
-            self.txt_cache.get(path)
-            .ok_or_else(|| AssetError::CacheError(path.to_string()))?
-            .clone()
+            self.txt_cache.get(&p_str)
+                .ok_or(AssetError::CacheError(p_str))?
+                .clone()
         )
     }
 
     pub fn get_caveinfo(&self, sublevel: &Sublevel) -> Result<CaveInfo, AssetError> {
-        if !self.caveinfo_cache.contains_key(sublevel) {
+        if !self.caveinfo_cache.contains_key(sublevel) || sublevel.cfg.game.eq_ignore_ascii_case("caveinfo") {
             self.load_caveinfo(&sublevel.cfg)?;
         }
         Ok(
@@ -123,17 +133,21 @@ impl AssetManager {
         )
     }
 
-    pub fn get_img(&self, path: &str) -> Result<Ref<String, RgbaImage>, AssetError> {
-        if !self.img_cache.contains_key(path) {
-            info!("Loading image {}...", path);
-            let data = read(self.base_path.join(path))
-                .map_err(|e| AssetError::IoError(path.to_string(), e.kind()))?;
-            let img = image::load_from_memory(data.as_slice())
-                .map_err(|_| AssetError::DecodingError(path.to_string()))?
+    pub fn get_img<P: AsRef<Path>>(&self, path: P) -> Result<Ref<String, RgbaImage>, AssetError> {
+        let p_str: String = path.as_ref().to_string_lossy().into();
+        let path: PathBuf = if path.as_ref().starts_with("resources") { 
+            path.as_ref().into() 
+        } else { 
+            self.base_path.join(path) 
+        };
+        if !self.img_cache.contains_key(&p_str) {
+            info!("Loading image {}...", &p_str);
+            let data = read(&path).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
+            let img = image::load_from_memory(data.as_slice()).map_err(|_| AssetError::DecodingError(p_str.clone()))?
                 .into_rgba8();
-            self.img_cache.insert(path.to_string(), img);
+            self.img_cache.insert(p_str.clone(), img);
         }
-        self.img_cache.get(path).ok_or_else(|| AssetError::DecodingError(path.to_string()))
+        self.img_cache.get(&p_str).ok_or(AssetError::DecodingError(p_str))
     }
 
     pub fn get_custom_img(&self, key: &str) -> Result<Ref<String, RgbaImage>, AssetError> {
@@ -148,7 +162,7 @@ impl AssetManager {
     /// Most useful for testing and benchmarking purposes.
     pub fn preload_vanilla_caveinfo(&self) -> Result<(), AssetError> {
         for cave in ALL_VANILLA_CAVES {
-            self.load_caveinfo(self.find_cave_cfg(cave).unwrap())?;
+            self.load_caveinfo(self.find_cave_cfg(cave, Some("pikmin2"), false).unwrap())?;
         }
         Ok(())
     }
@@ -159,26 +173,30 @@ impl AssetManager {
         self.caveinfo_cache.clone()
     }
 
-    pub(crate) fn find_cave_cfg(&self, name: &str) -> Option<&CaveConfig> {
+    pub(crate) fn find_cave_cfg(&self, name: &str, game: Option<&str>, force_challenge_mode: bool) -> Result<&CaveConfig, SublevelError> {
         self.cave_cfg.iter()
+            .filter(|cfg| {
+                game.map(|game_name| cfg.game.eq_ignore_ascii_case(game_name)).unwrap_or(true) && (!force_challenge_mode || cfg.is_challenge_mode)
+            })
             .find(|cfg| {
                 cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n))
-                || cfg.full_name.eq_ignore_ascii_case(name)
+                || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
             })
+            .ok_or_else(|| SublevelError::UnrecognizedSublevel(name.to_string()))
     }
 
-    /// Loads and parses a caveinfo file, then stores the
-    /// resultant FloorInfo structs in the cache.
+    /// Loads, parses, and stores a CaveInfo file
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), AssetError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
-        let caveinfo_filename = format!("assets/pikmin2/user/Mukki/mapunits/caveinfo/{}", cave.caveinfo_filename);
-        let caveinfo_txt = self.get_txt_file(&caveinfo_filename)?;
-        let caveinfos = CaveInfo::parse_from(&caveinfo_txt)?;
+        let caveinfo_txt = self.get_txt_file(&cave.get_caveinfo_path())?;
+        let caveinfos = CaveInfo::parse_from(&caveinfo_txt, cave)
+            .map_err(|e| AssetError::CaveInfoError(cave.get_caveinfo_path().to_string_lossy().to_string(), Box::new(e)))?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
-            caveinfo.sublevel = Some(sublevel.clone());
-            if !self.caveinfo_cache.contains_key(&sublevel) {
-                self.caveinfo_cache.insert(sublevel, caveinfo);
+            caveinfo.sublevel = sublevel.clone();
+            
+            if self.caveinfo_cache.insert(sublevel, caveinfo).is_some() {
+                info!("Replaced CaveInfo {} in cache", cave.caveinfo_filename);
             }
         }
 
@@ -194,6 +212,17 @@ pub struct CaveConfig {
     pub is_challenge_mode: bool,
     pub shortened_names: Vec<String>,
     pub caveinfo_filename: String,
+}
+
+impl CaveConfig {
+    pub(crate) fn get_caveinfo_path(&self) -> PathBuf {
+        if self.game.eq_ignore_ascii_case("caveinfo") {
+            PathBuf::from(&self.caveinfo_filename)
+        }
+        else {
+            PathBuf::from(&self.game).join("user/Mukki/mapunits/caveinfo").join(&self.caveinfo_filename)
+        }
+    }
 }
 
 pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {

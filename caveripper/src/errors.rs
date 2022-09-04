@@ -1,6 +1,7 @@
 use thiserror::Error;
 use std::{fmt::Debug, num::{ParseIntError, ParseFloatError}, io};
 
+
 #[derive(Debug, Error, Clone)]
 pub enum SublevelError {
     #[error("Couldn't find cave name in input string")]
@@ -11,12 +12,18 @@ pub enum SublevelError {
 
     #[error("Unrecognized sublevel {0}")]
     UnrecognizedSublevel(String),
+
+    #[error("Invalid sublevel string {0}")]
+    InvalidSublevelString(String),
+
+    #[error("Parsing error: {0}")]
+    ParseError(String),
 }
 
 #[derive(Debug, Error, Clone)]
 pub enum AssetError {
     #[error("Failed to load an asset for {0}")]
-    SublevelError(SublevelError),
+    SublevelError(#[from] SublevelError),
 
     #[error("Error during file IO for '{0}': {1}")]
     IoError(String, io::ErrorKind),
@@ -27,20 +34,11 @@ pub enum AssetError {
     #[error("Failed to decode file '{0}'")]
     DecodingError(String),
 
-    #[error("Failed to parse CaveInfo: '{0}'")]
-    CaveInfoError(String),
-}
+    #[error("Failed to parse CaveInfo file {0}: '{1}'")]
+    CaveInfoError(String, Box<CaveInfoError>),
 
-impl From<CaveInfoError> for AssetError {
-    fn from(e: CaveInfoError) -> Self {
-        AssetError::CaveInfoError(e.to_string())
-    }
-}
-
-impl From<SublevelError> for AssetError {
-    fn from(e: SublevelError) -> Self {
-        AssetError::SublevelError(e)
-    }
+    #[error("Files for game '{0}' have not been extracted!")]
+    MissingGameError(String),
 }
 
 #[derive(Debug, Error, Clone)]
@@ -87,11 +85,11 @@ pub enum CaveInfoError {
     #[error("Couldn't find file '{0}'")]
     MissingFileError(String),
 
-    #[error("Failed to parse file '{0}'")]
-    ParseFileError(String),
-
     #[error("Error loading asset during parsing: {0}")]
-    AssetError(AssetError),
+    AssetError(Box<AssetError>),
+
+    #[error("Nom Error: {0}")]
+    NomError(String),
 }
 
 impl From<ParseIntError> for CaveInfoError {
@@ -108,7 +106,7 @@ impl From<ParseFloatError> for CaveInfoError {
 
 impl From<AssetError> for CaveInfoError {
     fn from(e: AssetError) -> Self {
-        CaveInfoError::AssetError(e)
+        CaveInfoError::AssetError(Box::new(e))
     }
 }
 

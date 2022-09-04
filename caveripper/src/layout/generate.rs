@@ -1101,6 +1101,7 @@ impl LayoutBuilder {
 
         // Done!
         Layout {
+            sublevel: caveinfo.sublevel.clone(),
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
             map_units: self.map_units.into_iter().collect(),

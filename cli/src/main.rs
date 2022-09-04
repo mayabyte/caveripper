@@ -11,7 +11,7 @@ use extract::extract_iso;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
-use std::{error::Error, fs::read_to_string, io::stdin, time::{Instant, Duration}};
+use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}, error::Error};
 use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, render_caveinfo}}, search::find_matching_layouts_parallel, parse_seed};
 use simple_logger::SimpleLogger;
 

@@ -7,7 +7,7 @@ use crate::{
         Waterbox, Waypoint
     },
     errors::CaveInfoError,
-    assets::{ASSETS, Treasure},
+    assets::{ASSETS, Treasure, CaveConfig}, sublevel::Sublevel,
 };
 use nom::{
     branch::alt,
@@ -18,12 +18,12 @@ use nom::{
     combinator::{into, opt, success, value, recognize},
     multi::{count, many1, many0},
     sequence::{delimited, preceded, tuple},
-    IResult, number::{complete::float},
+    IResult as IResult, number::{complete::float},
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::str::FromStr;
+use std::{str::FromStr, path::PathBuf};
 
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
@@ -68,13 +68,12 @@ pub(super) fn parse_cave_unit_definition(
 }
 
 fn parse_cave_unit_layout_file(cave_unit_layout_file_txt: &str) -> IResult<&str, Vec<Section>> {
-    // Skip the first line, which is just a comment containing "BaseGen file"
-    let (cave_unit_layout_file_txt, ()) = skip_lines(cave_unit_layout_file_txt, 1)?;
+    // Skip the first two lines, which are just a comment containing "BaseGen file"
+    // and the number of sections. The game ignores this number however, so we just
+    // parse all present sections.
+    let (cave_unit_layout_file_txt, ()) = skip_lines(cave_unit_layout_file_txt, 2)?;
 
-    let (rest, (num_gens_str, _, _)) = tuple((digit1, multispace1, line_comment))(cave_unit_layout_file_txt)?;
-    let num_gens = num_gens_str.parse().expect("Couldn't parse num gens from Cave Unit Layout File!");
-
-    count(section, num_gens)(rest)
+    many1(section)(cave_unit_layout_file_txt)
 }
 
 fn parse_waterboxes_file(waterboxes_file_txt: &str) -> IResult<&str, Vec<Waterbox>> {
@@ -237,44 +236,43 @@ fn waterbox_line(input: &str) -> IResult<&str, Waterbox> {
 //    Parsing Sections into main CaveInfo structs
 // **************************************************
 
-impl TryFrom<[Section<'_>; 5]> for CaveInfo {
-    type Error = CaveInfoError;
-    fn try_from(raw_sections: [Section<'_>; 5]) -> Result<CaveInfo, CaveInfoError> {
-        let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
-            raw_sections;
 
-        let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-        let cave_unit_definition_path = format!("assets/pikmin2/user/Mukki/mapunits/units/{}", &cave_unit_definition_file_name);
-        let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)?;
-        let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
-            .expect("Couldn't parse Cave Unit Definition file!");
+pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConfig) -> Result<CaveInfo, CaveInfoError> {
+    let [floorinfo_section, tekiinfo_section, iteminfo_section, gateinfo_section, capinfo_section] =
+        raw_sections;
 
-        Ok(CaveInfo {
-            sublevel: None,
-            floor_num: floorinfo_section.get_tag("000")?,
-            max_main_objects: floorinfo_section.get_tag("002")?,
-            max_treasures: floorinfo_section.get_tag("003")?,
-            max_gates: floorinfo_section.get_tag("004")?,
-            num_rooms: floorinfo_section.get_tag("005")?,
-            corridor_probability: floorinfo_section.get_tag("006")?,
-            cap_probability: floorinfo_section.get_tag::<f32>("014")? / 100f32,
-            has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
-            exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
-            cave_units: expand_rotations(
-                sort_cave_units(
-                    cave_unit_sections
-                        .into_iter()
-                        .map(TryInto::try_into)
-                        .collect::<Result<Vec<_>, _>>()?
-                )
-            ),
-            teki_info: tekiinfo_section.try_into()?,
-            item_info: iteminfo_section.try_into()?,
-            gate_info: gateinfo_section.try_into()?,
-            cap_info: capinfo_section.try_into()?,
-            is_final_floor: false,
-        })
-    }
+    let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
+    let cave_unit_definition_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/units").join(cave_unit_definition_file_name);
+    let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)?;
+    let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
+        .expect("Couldn't parse Cave Unit Definition file!");
+
+    let floor_num: usize = floorinfo_section.get_tag("000")?;
+    Ok(CaveInfo {
+        sublevel: Sublevel { cfg: cave.clone(), floor: floor_num + 1 },
+        floor_num: floor_num as u32,
+        max_main_objects: floorinfo_section.get_tag("002")?,
+        max_treasures: floorinfo_section.get_tag("003")?,
+        max_gates: floorinfo_section.get_tag("004")?,
+        num_rooms: floorinfo_section.get_tag("005")?,
+        corridor_probability: floorinfo_section.get_tag("006")?,
+        cap_probability: floorinfo_section.get_tag::<f32>("014")? / 100f32,
+        has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
+        exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
+        cave_units: expand_rotations(
+            sort_cave_units(
+                cave_unit_sections
+                    .into_iter()
+                    .map(|s| try_parse_caveunit(s, cave))
+                    .collect::<Result<Vec<_>, _>>()?
+            )
+        ),
+        teki_info: tekiinfo_section.try_into()?,
+        item_info: iteminfo_section.try_into()?,
+        gate_info: gateinfo_section.try_into()?,
+        cap_info: capinfo_section.try_into()?,
+        is_final_floor: false,
+    })
 }
 
 impl TryFrom<Section<'_>> for Vec<TekiInfo> {
@@ -414,90 +412,93 @@ impl TryFrom<Section<'_>> for Vec<CapInfo> {
     }
 }
 
-impl TryFrom<Section<'_>> for CaveUnit {
-    type Error = CaveInfoError;
-    fn try_from(section: Section) -> Result<CaveUnit, CaveInfoError> {
-        let unit_folder_name = section.get_line(1)?.get_line_item(0)?.to_string();
-        let width = section.get_line(2)?.get_line_item(0)?.parse()?;
-        let height = section.get_line(2)?.get_line_item(1)?.parse()?;
-        let room_type = section
-            .get_line(3)?
-            .get_line_item(0)?
-            .parse::<usize>()?
-            .into();
-        let num_doors = section.get_line(5)?.get_line_item(0)?.parse()?;
 
-        // DoorUnits
-        let doors = if num_doors > 0 {
-            let num_lines_per_door_unit = (section.lines.len() - 6) / num_doors;
-            section.lines[6..]
-                .chunks(num_lines_per_door_unit)
-                .map(
-                    |doorunit_lines: &[InfoLine]| -> Result<DoorUnit, CaveInfoError> {
-                        doorunit_lines.try_into()
-                    },
-                )
-                .collect::<Result<Vec<_>, _>>()?
-        } else {
-            vec![]
-        };
+fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, CaveInfoError> {
+    let unit_folder_name = section.get_line(1)?.get_line_item(0)?.to_string();
+    let width = section.get_line(2)?.get_line_item(0)?.parse()?;
+    let height = section.get_line(2)?.get_line_item(1)?.parse()?;
+    let room_type = section
+        .get_line(3)?
+        .get_line_item(0)?
+        .parse::<usize>()?
+        .into();
+    let num_doors = section.get_line(5)?.get_line_item(0)?.parse()?;
 
-        // Cave Unit Layout File (spawn points)
-        let mut spawnpoints = match ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/layout.txt", unit_folder_name)) {
-            Ok(cave_unit_layout_file_txt) => {
-                let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
-                    .expect("Couldn't parse cave unit layout file!").1;
-                spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
-            },
-            Err(_) => Vec::new(),
-        };
+    // DoorUnits
+    let doors = if num_doors > 0 {
+        let num_lines_per_door_unit = (section.lines.len() - 6) / num_doors;
+        section.lines[6..]
+            .chunks(num_lines_per_door_unit)
+            .map(
+                |doorunit_lines: &[InfoLine]| -> Result<DoorUnit, CaveInfoError> {
+                    doorunit_lines.try_into()
+                },
+            )
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        vec![]
+    };
 
-        // Waterboxes file
-        let waterboxes = match ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/waterbox.txt", unit_folder_name)) {
-            Ok(waterboxes_file_txt) => {
-                parse_waterboxes_file(&waterboxes_file_txt).unwrap_or_else(|_| panic!("Couldn't parse waterbox.txt for {}!", unit_folder_name)).1
-            },
-            Err(_) => Vec::new(),
-        };
+    // Cave Unit Layout File (spawn points)
+    let layoutfile_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/layout.txt");
+    let mut spawnpoints = match ASSETS.get_txt_file(&layoutfile_path) {
+        Ok(cave_unit_layout_file_txt) => {
+            let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
+                .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse cave unit layout file '{}': {}", &layoutfile_path.to_string_lossy(), e)))?.1;
+            spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
+        },
+        Err(_) => Vec::new(),
+    };
 
-        // route.txt file (Waypoints)
-        let waypoints_file_txt = ASSETS.get_txt_file(&format!("assets/pikmin2/user/Mukki/mapunits/arc/{}/texts/route.txt", unit_folder_name))?;
-        let waypoints = parse_waypoints_file(&waypoints_file_txt)
-            .map_err(|e| CaveInfoError::ParseFileError(format!("Couldn't parse routes.txt for {}: {}", unit_folder_name, e)))?.1;
+    // Waterboxes file
+    let waterboxes = match ASSETS.get_txt_file(
+        &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/waterbox.txt")
+    ) {
+        Ok(waterboxes_file_txt) => {
+            parse_waterboxes_file(&waterboxes_file_txt)
+                .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse waterbox file for '{}': {}", &layoutfile_path.to_string_lossy(), e)))?.1
+        },
+        Err(_) => Vec::new(),
+    };
 
-        // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
-        // present in Caveinfo files but the generation algorithm acts as if they're there,
-        // so adding them here is a simplification.
-        // Group 9 is a special group specifically for these 'fake' hole/geyser spawnpoints.
-        // It does not appear in the game code or on the TKB.
-        if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item")) || room_type == RoomType::Hallway {
-            spawnpoints.push(
-                SpawnPoint {
-                    group: 9,
-                    pos_x: 0.0,
-                    pos_y: 0.0,
-                    pos_z: 0.0,
-                    angle_degrees: 0.0,
-                    radius: 0.0,
-                    min_num: 1,
-                    max_num: 1
-                }
-            );
-        }
+    // route.txt file (Waypoints)
+    let waypoints_file_txt = ASSETS.get_txt_file(
+        &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/route.txt"))?;
+    let waypoints = parse_waypoints_file(&waypoints_file_txt)
+        .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse routes.txt for {}: {}", &unit_folder_name, e)))?.1;
 
-        Ok(CaveUnit {
-            unit_folder_name,
-            width,
-            height,
-            room_type,
-            num_doors,
-            doors,
-            rotation: 0,
-            spawnpoints,
-            waterboxes,
-            waypoints,
-        })
+    // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
+    // present in Caveinfo files but the generation algorithm acts as if they're there,
+    // so adding them here is a simplification.
+    // Group 9 is a special group specifically for these 'fake' hole/geyser spawnpoints.
+    // It does not appear in the game code or on the TKB.
+    if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item")) || room_type == RoomType::Hallway {
+        spawnpoints.push(
+            SpawnPoint {
+                group: 9,
+                pos_x: 0.0,
+                pos_y: 0.0,
+                pos_z: 0.0,
+                angle_degrees: 0.0,
+                radius: 0.0,
+                min_num: 1,
+                max_num: 1
+            }
+        );
     }
+
+    Ok(CaveUnit {
+        unit_folder_name,
+        width,
+        height,
+        room_type,
+        num_doors,
+        doors,
+        rotation: 0,
+        spawnpoints,
+        waterboxes,
+        waypoints,
+    })
 }
 
 impl TryFrom<&[InfoLine<'_>]> for DoorUnit {

@@ -14,8 +14,8 @@ mod parse;
 use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use nom::Finish;
 use parse::parse_caveinfo;
-
-use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::Treasure};
+use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::{Treasure, CaveConfig}};
+use self::parse::try_parse_caveinfo;
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -25,7 +25,7 @@ use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, a
 /// generate one sublevel.
 #[derive(Debug, Clone)]
 pub struct CaveInfo {
-    pub sublevel: Option<Sublevel>,  // Not part of the CaveInfo file, just for debugging and logging purposes.
+    pub sublevel: Sublevel,  // Not part of the file format
     pub floor_num: u32, // 0-indexed
     pub max_main_objects: u32,
     pub max_treasures: u32,
@@ -58,24 +58,24 @@ impl CaveInfo {
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        self.sublevel.as_ref().expect("No cave name found!").short_name()
+        self.sublevel.short_name()
     }
 
-    pub fn parse_from(caveinfo_txt: &str) -> Result<Vec<CaveInfo>, CaveInfoError> {
+    pub fn parse_from(caveinfo_txt: &str, cave: &CaveConfig) -> Result<Vec<CaveInfo>, CaveInfoError> {
         let floor_chunks = parse_caveinfo(caveinfo_txt)
             .finish()
-            .map_err(|e| CaveInfoError::ParseFileError(e.to_string()))?
+            .map_err(|e| CaveInfoError::NomError(e.to_string()))?
             .1;
         let mut floors = floor_chunks
             .into_iter()
-            .map(TryInto::try_into)
+            .map(|c| try_parse_caveinfo(c, cave))
             .collect::<Result<Vec<CaveInfo>, _>>()?;
         floors.last_mut().unwrap().is_final_floor = true;
         Ok(floors)
     }
 
     pub fn is_challenge_mode(&self) -> bool {
-        self.sublevel.as_ref().expect("Missing sublevel!").is_challenge_mode()
+        self.sublevel.is_challenge_mode()
     }
 }
 

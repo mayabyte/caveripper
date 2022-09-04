@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use crate::errors::SublevelError;
 use crate::assets::{ASSETS, CaveConfig};
+use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
 
@@ -25,8 +28,14 @@ impl Sublevel {
     }
 
     /// Constructs the short cave name of this sublevel, e.g. "SCx3" with no hyphen.
+    /// For challenge mode sublevels, this forwards to the normalized_name implementation.
     pub fn short_name(&self) -> String {
-        format!("{}{}", self.cfg.shortened_names.first().unwrap(), self.floor)
+        if self.cfg.shortened_names.first().unwrap().ends_with(|c: char| c.is_numeric()) {
+            self.normalized_name()
+        }
+        else {
+            format!("{}{}", self.cfg.shortened_names.first().unwrap(), self.floor)
+        }
     }
 
     /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
@@ -40,33 +49,94 @@ impl Sublevel {
 }
 
 static DIGIT: OnceCell<Regex> = OnceCell::new();
-static CHAR: OnceCell<Regex> = OnceCell::new();
+static WORDS: OnceCell<Regex> = OnceCell::new();
+static SUBLEVEL_COMPONENT: OnceCell<Regex> = OnceCell::new();
 
 impl TryFrom<&str> for Sublevel {
     type Error = SublevelError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value_lower = value.to_ascii_lowercase();
-        let cave = CHAR.get_or_init(|| Regex::new(r"([[[:alpha:]]\s']+)").unwrap()).find(&value_lower)
-            .ok_or(SublevelError::MissingCaveName)?
-            .as_str()
-            .trim();
-        let floor: usize = DIGIT.get_or_init(|| Regex::new(r"(\d+)").unwrap()).find(&value_lower)
-            .ok_or(SublevelError::MissingFloorNumber)?
-            .as_str()
-            .parse().unwrap();
+    /// sr4
+    /// sr-4
+    /// ch24-4
+    /// ch-sr4
+    /// Sniper Room 4
+    /// pikmin2:cm-sr4
+    /// pikmin2:sr4
+    /// pikmin2:sr-4
+    /// caveinfo:caveinfofile.txt-unitfile.txt-1
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
 
-        let cfg = ASSETS.find_cave_cfg(cave);
-        if let Some(cfg) = cfg {
-            Ok(Sublevel {
-                cfg: cfg.clone(),
-                floor
-            })
-        }
-        else {
-            Err(SublevelError::UnrecognizedSublevel(value.to_string()))
+        let (game, input) = input.split_once(':')
+            .map(|(game, rest)| (Some(game.trim().to_ascii_lowercase()), rest.to_ascii_lowercase()))
+            .unwrap_or_else(|| (None, input.to_ascii_lowercase()));
+
+        let components = component_re.find_iter(&input)
+            .map(|c| c.as_str().trim())
+            .collect_vec();
+
+        match *components.as_slice() {
+            // Short sublevel specifier (e.g. "SH6") or full name specifier (e.g. "Snagret Hole 6")
+            [c1] => {
+                let (name, floor) = from_short_specifier(c1)?;
+                Ok(Sublevel {
+                    cfg: ASSETS.find_cave_cfg(name, game.as_deref(), false)?.clone(),
+                    floor
+                })
+            },
+
+            // Short sublevel specifier with explicit Challenge Mode qualifier
+            [c1, c2] if c1 == "ch" || c1 == "cm" => {
+                let (name, floor) = from_short_specifier(c2)?;
+                Ok(Sublevel {
+                    cfg: ASSETS.find_cave_cfg(name, game.as_deref(), true)?.clone(),
+                    floor
+                })
+            },
+
+            // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
+            [c1, c2] => {
+                let floor = c2.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+
+                Ok(Sublevel {
+                    cfg: ASSETS.find_cave_cfg(c1.trim(), game.as_deref(), false)?.clone(), 
+                    floor
+                })
+            },
+
+            // Direct mode caveinfo+unitfile specifier
+            [caveinfo_path, _unitfile_path, floor] if game.contains(&"caveinfo") => {
+                let floor = floor.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+                Ok(Sublevel {
+                    cfg: CaveConfig { 
+                        game: "caveinfo".into(), 
+                        full_name: format!("[Direct] {}", caveinfo_path), 
+                        is_challenge_mode: caveinfo_path.starts_with("ch"), 
+                        shortened_names: vec!["direct".to_string()], 
+                        caveinfo_filename: caveinfo_path.into() 
+                    },
+                    floor
+                })
+            },
+
+            _ => Err(SublevelError::ParseError(format!("\"{}\": Too many dashes in input.", input)))
         }
     }
+}
+
+fn from_short_specifier(input: &str) -> Result<(&str, usize), SublevelError> {
+    let words_re = WORDS.get_or_init(|| Regex::new(r"([[[:alpha:]]\s'_]+)").unwrap());
+    let number_re = DIGIT.get_or_init(|| Regex::new(r"(\d+)").unwrap());
+
+    let cave_name = words_re.find(input)
+        .ok_or(SublevelError::MissingCaveName)?
+        .as_str().trim();
+    let floor = number_re.find(input)
+        .ok_or(SublevelError::MissingFloorNumber)?
+        .as_str().trim().parse()
+        .map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+    
+    Ok((cave_name, floor))
 }
 
 impl Ord for Sublevel {
