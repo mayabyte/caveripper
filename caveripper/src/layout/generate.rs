@@ -7,14 +7,14 @@ use crate::{pikmin_math::{PikminRng, self}, caveinfo::{CaveUnit, CaveInfo, RoomT
 
 use super::{PlacedMapUnit, PlacedSpawnPoint, Layout, boxes_overlap};
 
-pub struct LayoutBuilder {
+pub struct LayoutBuilder<'a> {
     rng: PikminRng,
     starting_seed: u32,
     cave_name: String,
-    map_units: Vec<PlacedMapUnit>,
-    cap_queue: Vec<CaveUnit>,
-    room_queue: Vec<CaveUnit>,
-    corridor_queue: Vec<CaveUnit>,
+    map_units: Vec<PlacedMapUnit<'a>>,
+    cap_queue: Vec<&'a CaveUnit>,
+    room_queue: Vec<&'a CaveUnit>,
+    corridor_queue: Vec<&'a CaveUnit>,
     allocated_enemy_slots_by_group: [u32; 10],
     enemy_weight_sum_by_group: [u32; 10],
     num_slots_used_for_min: u32,
@@ -26,13 +26,13 @@ pub struct LayoutBuilder {
     placed_teki: u32,
     map_has_diameter_36: bool,
     marked_open_doors_as_caps: bool,
-    placed_start_point: Option<PlacedSpawnPoint>,
-    placed_exit_hole: Option<PlacedSpawnPoint>,
-    placed_exit_geyser: Option<PlacedSpawnPoint>,
+    placed_start_point: Option<PlacedSpawnPoint<'a>>,
+    placed_exit_hole: Option<PlacedSpawnPoint<'a>>,
+    placed_exit_geyser: Option<PlacedSpawnPoint<'a>>,
 }
 
-impl LayoutBuilder {
-    pub fn generate(seed: u32, caveinfo: &CaveInfo) -> Layout {
+impl<'a> LayoutBuilder<'a> {
+    pub fn generate(seed: u32, caveinfo: &'a CaveInfo) -> Layout<'a> {
         let builder = LayoutBuilder {
             rng: PikminRng::new(seed),
             starting_seed: seed,
@@ -65,7 +65,7 @@ impl LayoutBuilder {
     /// This implementation follows CaveGen's as closely as possible, even
     /// when that results in non-idiomatic Rust code. It is my 'reference'
     /// implementation; a more optimized one will follow.
-    fn _generate(mut self, caveinfo: &CaveInfo) -> Layout {
+    fn _generate(mut self, caveinfo: &'a CaveInfo) -> Layout<'a> {
         info!("Generating layout for {} {:#010X}...", caveinfo.name(), self.starting_seed);
         let is_challenge_mode = caveinfo.is_challenge_mode();
 
@@ -73,7 +73,7 @@ impl LayoutBuilder {
         // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L644
 
         // Separate out different unit types
-        for unit in caveinfo.cave_units.clone().into_iter() {
+        for unit in caveinfo.cave_units.iter() {
             match unit.room_type {
                 RoomType::DeadEnd => self.cap_queue.push(unit),
                 RoomType::Room => self.room_queue.push(unit),
@@ -115,10 +115,9 @@ impl LayoutBuilder {
         // Pick the first room in the queue that has a 'start' spawnpoint (for the ship pod)
         // and place it as the first room.
         let start_map_unit = self.room_queue.iter().find(|room| room.has_start_spawnpoint())
-            .expect("No room with start spawnpoint found.")
-            .clone();
+            .expect("No room with start spawnpoint found.");
         debug!("Placing starting map unit of type '{}'", start_map_unit.unit_folder_name);
-        self.place_map_unit(PlacedMapUnit::new(&start_map_unit, 0, 0), true);
+        self.place_map_unit(PlacedMapUnit::new(start_map_unit, 0, 0), true);
 
 
         // Keep placing map units until all doors have been closed
@@ -184,6 +183,7 @@ impl LayoutBuilder {
                     // Create a list of 'hallway' units (corridors with exactly 2 doors)
                     let mut hallway_queue: Vec<&CaveUnit> = self.corridor_queue.iter()
                         .filter(|corridor| corridor.width == 1 && corridor.height == 1 && corridor.num_doors == 2)
+                        .cloned()
                         .collect();
                     self.rng.rand_swaps(&mut hallway_queue);
 
@@ -657,7 +657,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 5, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0))));
+                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0))));
                     chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
                     self.placed_teki += 1;
                     debug!(
@@ -704,7 +704,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 8, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 8 at ({}, {}).",
@@ -748,7 +748,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 1, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' in Group 1 at ({}, {}).",
@@ -834,7 +834,7 @@ impl LayoutBuilder {
                         let initial_x_offset = angle.sin() * radius;
                         let initial_z_offset = angle.cos() * radius;
 
-                        to_spawn.push(SpawnObject::Teki(teki_to_spawn.clone(), (initial_x_offset, initial_z_offset)));
+                        to_spawn.push(SpawnObject::Teki(teki_to_spawn, (initial_x_offset, initial_z_offset)));
                         num_spawned += 1;
                         self.placed_teki += 1;
                     }
@@ -930,7 +930,7 @@ impl LayoutBuilder {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 6, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn.clone(), (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
                     self.placed_teki += 1;
                     debug!(
                         "Placed Plant-Group Teki \'{}\' at ({}, {}).",
@@ -1016,7 +1016,7 @@ impl LayoutBuilder {
                 let chosen_treasure = choose_rand_item(&self.rng as *const _, caveinfo, num_spawned);
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
-                    chosen_spot.contains.push(SpawnObject::Item(chosen_treasure.clone()));
+                    chosen_spot.contains.push(SpawnObject::Item(chosen_treasure));
                     debug!("Placed treasure \"{}\" at ({}, {}) - score {}.", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z, chosen_spot.treasure_score);
                 }
             }
@@ -1040,7 +1040,7 @@ impl LayoutBuilder {
                 }
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, false) {
-                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
@@ -1066,7 +1066,7 @@ impl LayoutBuilder {
                 
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
-                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn.clone(), num_to_spawn));
+                    spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
                     num_spawned += num_to_spawn;
                     debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
                 }
@@ -1094,7 +1094,7 @@ impl LayoutBuilder {
                 let spawn_spot = self.get_gate_spawn_spot();
 
                 if let (Some(gate_to_spawn), Some(spawn_spot)) = (gate_to_spawn, spawn_spot) {
-                    spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn.clone())));
+                    spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn)));
                 }
             }
         }
@@ -1246,7 +1246,7 @@ impl LayoutBuilder {
         }
     }
 
-    fn place_hole(&mut self, to_place: SpawnObject, is_challenge_mode: bool) {
+    fn place_hole(&mut self, to_place: SpawnObject<'a>, is_challenge_mode: bool) {
         // Get a list of applicable spawn points (group 4 or 9)
         let mut hole_spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
         
@@ -1332,7 +1332,7 @@ impl LayoutBuilder {
     /// 3. Between rooms at low door scores again, with a slightly different weighting.
     /// 4. Randomly among all remaining open doors.
     /// Gates do not replace other Seam Teki.
-    fn get_gate_spawn_spot(&self) -> Option<Rc<RefCell<PlacedDoor>>> {
+    fn get_gate_spawn_spot(&self) -> Option<Rc<RefCell<PlacedDoor<'a>>>> {
         let mut spawnpoints = Vec::new();
         let mut spawnpoint_weights = Vec::new();
 
@@ -1480,7 +1480,7 @@ impl LayoutBuilder {
         None
     }
 
-    fn get_adjacent_door(&self, door: Rc<RefCell<PlacedDoor>>) -> Rc<RefCell<PlacedDoor>> {
+    fn get_adjacent_door(&self, door: Rc<RefCell<PlacedDoor<'a>>>) -> Rc<RefCell<PlacedDoor<'a>>> {
         door.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap()
     }
 
@@ -1492,7 +1492,7 @@ impl LayoutBuilder {
         }
     }
 
-    fn place_map_unit(&mut self, unit: PlacedMapUnit, checks: bool) {
+    fn place_map_unit(&mut self, unit: PlacedMapUnit<'a>, checks: bool) {
         self.map_units.push(unit);
         self.recalculate_door_parents();
 
@@ -1581,7 +1581,7 @@ impl LayoutBuilder {
         }
     }
 
-    fn open_doors(&self) -> Vec<Rc<RefCell<PlacedDoor>>> {
+    fn open_doors(&self) -> Vec<Rc<RefCell<PlacedDoor<'a>>>> {
         self.map_units.iter()
             .flat_map(|unit| unit.doors.iter().cloned())
             .filter(|door| door.borrow().adjacent_door.is_none())
@@ -1629,7 +1629,7 @@ impl LayoutBuilder {
 
     /// Attempts to place a new map unit connected to destination_door, if it fits.
     /// Returns true if the map unit was successfully placed, otherwise returns false.
-    fn try_place_unit_at(&self, destination_door: Rc<RefCell<PlacedDoor>>, new_unit: &CaveUnit, door_index: usize) -> Option<PlacedMapUnit> {
+    fn try_place_unit_at(&self, destination_door: Rc<RefCell<PlacedDoor<'a>>>, new_unit: &'a CaveUnit, door_index: usize) -> Option<PlacedMapUnit<'a>> {
         // Ensure doors are facing each other
         if !destination_door.borrow().door_unit.facing(&new_unit.doors[door_index]) {
             return None;

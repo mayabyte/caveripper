@@ -7,7 +7,7 @@ use crate::{
         Waterbox, Waypoint
     },
     errors::CaveInfoError,
-    assets::{ASSETS, Treasure, CaveConfig}, sublevel::Sublevel,
+    assets::{AssetManager, Treasure, CaveConfig}, sublevel::Sublevel,
 };
 use nom::{
     branch::alt,
@@ -243,8 +243,8 @@ pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConf
 
     let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
     let cave_unit_definition_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/units").join(cave_unit_definition_file_name);
-    let cave_unit_definition_text = ASSETS.get_txt_file(&cave_unit_definition_path)?;
-    let (_, cave_unit_sections) = parse_cave_unit_definition(&cave_unit_definition_text)
+    let cave_unit_definition_text = AssetManager::get_txt_file(&cave_unit_definition_path)?;
+    let (_, cave_unit_sections) = parse_cave_unit_definition(cave_unit_definition_text)
         .expect("Couldn't parse Cave Unit Definition file!");
 
     let floor_num: usize = floorinfo_section.get_tag("000")?;
@@ -441,9 +441,9 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
 
     // Cave Unit Layout File (spawn points)
     let layoutfile_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/layout.txt");
-    let mut spawnpoints = match ASSETS.get_txt_file(&layoutfile_path) {
+    let mut spawnpoints = match AssetManager::get_txt_file(&layoutfile_path) {
         Ok(cave_unit_layout_file_txt) => {
-            let spawnpoints_sections = parse_cave_unit_layout_file(&cave_unit_layout_file_txt)
+            let spawnpoints_sections = parse_cave_unit_layout_file(cave_unit_layout_file_txt)
                 .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse cave unit layout file '{}': {}", &layoutfile_path.to_string_lossy(), e)))?.1;
             spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
         },
@@ -451,20 +451,20 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
     };
 
     // Waterboxes file
-    let waterboxes = match ASSETS.get_txt_file(
+    let waterboxes = match AssetManager::get_txt_file(
         &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/waterbox.txt")
     ) {
         Ok(waterboxes_file_txt) => {
-            parse_waterboxes_file(&waterboxes_file_txt)
+            parse_waterboxes_file(waterboxes_file_txt)
                 .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse waterbox file for '{}': {}", &layoutfile_path.to_string_lossy(), e)))?.1
         },
         Err(_) => Vec::new(),
     };
 
     // route.txt file (Waypoints)
-    let waypoints_file_txt = ASSETS.get_txt_file(
+    let waypoints_file_txt = AssetManager::get_txt_file(
         &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/route.txt"))?;
-    let waypoints = parse_waypoints_file(&waypoints_file_txt)
+    let waypoints = parse_waypoints_file(waypoints_file_txt)
         .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse routes.txt for {}: {}", &unit_folder_name, e)))?.1;
 
     // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
@@ -582,7 +582,7 @@ fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>,
     // Some teki have an 'F' at the beginning of their name, indicating that they're
     // fixed in place (e.g. tower groink on scx7). Remove this if it's present.
     if let Some(candidate) = combined_name.strip_prefix('F') {
-        if ASSETS.teki.iter().any(|teki| candidate.to_ascii_lowercase().starts_with(teki)) {
+        if AssetManager::teki_list().expect("No teki list!").iter().any(|teki| candidate.to_ascii_lowercase().starts_with(teki)) {
             combined_name = candidate;
         }
     }
@@ -598,7 +598,10 @@ fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>,
     // loading time so it shouldn't affect performance where it matters.
     if combined_name.contains('_') {
         let combined_name_lower = combined_name.to_ascii_lowercase(); 
-        for (teki, treasure) in ASSETS.teki.iter().cartesian_product(ASSETS.treasures.iter()) {
+        for (teki, treasure) in AssetManager::teki_list().expect("No teki list!")
+            .iter()
+            .cartesian_product(AssetManager::treasure_list().expect("No treasure list!").iter()) 
+        {
             // Check full string equality rather than prefix/suffix because
             // some treasure names are suffixes of others.
             if format!("{}_{}", teki, treasure.internal_name) == combined_name_lower {

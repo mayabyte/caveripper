@@ -18,12 +18,18 @@ pub enum SublevelError {
 
     #[error("Parsing error: {0}")]
     ParseError(String),
+
+    #[error(transparent)]
+    AssetError(#[from] Box<AssetError>),
 }
 
 #[derive(Debug, Error, Clone)]
 pub enum AssetError {
-    #[error("Failed to load an asset for {0}")]
-    SublevelError(#[from] SublevelError),
+    #[error("Asset manager has not been initialized!")]
+    Uninitialized,
+
+    #[error(transparent)]
+    SublevelError(#[from] Box<SublevelError>),
 
     #[error("Error during file IO for '{0}': {1}")]
     IoError(String, io::ErrorKind),
@@ -60,6 +66,9 @@ pub enum SearchConditionError {
 
     #[error("Invalid argument passed to search clause: {0}")]
     InvalidArgument(String),
+
+    #[error(transparent)]
+    AssetError(#[from] AssetError),
 }
 
 #[derive(Debug, Clone, Error)]

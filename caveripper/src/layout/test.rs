@@ -3,7 +3,7 @@ use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rayon::prelude::*;
 use std::process::Command;
 
-use crate::assets::ASSETS;
+use crate::assets::AssetManager;
 use crate::layout::boxes_overlap;
 use crate::layout::Layout;
 use crate::sublevel::Sublevel;
@@ -19,17 +19,18 @@ fn test_collision() {
 //#[test]
 #[allow(dead_code)]
 fn test_slugs() {
+    AssetManager::init("../assets", "..");
+
     let num_layouts = 100;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    ASSETS.preload_vanilla_caveinfo()
-        .expect("Failed to load caveinfo!");
-    let all_sublevels = ASSETS.all_sublevels();
+    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
 
     let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
         .map(|_| {
             let seed = rng.gen();
             let sublevel = all_sublevels.iter()
-                .map(|e| e.key().clone())
+                .map(|e| e.0.clone())
                 .sorted()
                 .nth(rng.gen_range(0..all_sublevels.len()))
                 .unwrap();
@@ -39,7 +40,7 @@ fn test_slugs() {
 
     let results: Vec<(u32, Sublevel, bool, String, String)> = tests.into_par_iter()
         .map(|(seed, sublevel)| {
-            let caveripper_slug: String = Layout::generate(seed, all_sublevels.get(&sublevel).unwrap().value()).slug();
+            let caveripper_slug: String = Layout::generate(seed, all_sublevels.get(&sublevel).unwrap()).slug();
 
             let jhawk_cavegen_slug: String = Command::new("java")
                 .arg("-jar")
@@ -77,16 +78,18 @@ fn test_slugs() {
 
 #[test]
 fn test_render() {
+    AssetManager::init("../assets", "..");
+
     let num_layouts = 1_000;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    ASSETS.preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
-    let all_sublevels = ASSETS.all_sublevels();
+    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
 
     let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
         .map(|_| {
             let seed = rng.gen();
             let sublevel = all_sublevels.iter()
-                .map(|e| e.key().clone())
+                .map(|e| e.0.clone())
                 .sorted()
                 .nth(rng.gen_range(0..all_sublevels.len()))
                 .unwrap();
@@ -95,7 +98,7 @@ fn test_render() {
         .collect();
 
     let failures = tests.into_par_iter().filter(|(seed, sublevel)| {
-        let layout = Layout::generate(*seed, all_sublevels.get(sublevel).as_ref().unwrap());
+        let layout = Layout::generate(*seed, all_sublevels.get(sublevel).unwrap());
         if let Err(cause) = render_layout(&layout, LayoutRenderOptions::default()) {
             println!("({}, {:#010X}) {}", sublevel.short_name(), seed, cause);
             true

@@ -12,10 +12,24 @@ use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}, error::Error};
-use caveripper::{assets::ASSETS, layout::{Layout, render::{render_layout, save_image, render_caveinfo}}, search::find_matching_layouts_parallel, parse_seed};
+use caveripper::{
+    assets::AssetManager, 
+    layout::{
+        Layout, 
+        render::{
+            render_layout, 
+            save_image, 
+            render_caveinfo
+        }
+    }, 
+    search::find_matching_layouts_parallel, 
+    parse_seed
+};
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    AssetManager::init("assets", ".");
+
     let args = Cli::parse();
     match args.verbosity {
         1 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
@@ -27,8 +41,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Run the desired command.
     match args.subcommand {
         Commands::Generate { sublevel, seed, render_options } => {
-            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
-            let layout = Layout::generate(seed, &caveinfo);
+            let caveinfo = AssetManager::get_caveinfo(&sublevel)?;
+            let layout = Layout::generate(seed, caveinfo);
             let _ = std::fs::create_dir("output");
             save_image(
                 &render_layout(&layout, render_options)?,
@@ -37,14 +51,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("🍞 Saved layout image as \"output/{}_{:#010X}.png\"", layout.cave_name, layout.starting_seed);
         },
         Commands::Caveinfo { sublevel, text, render_options } => {
-            let caveinfo = ASSETS.get_caveinfo(&sublevel)?;
+            let caveinfo = AssetManager::get_caveinfo(&sublevel)?;
             if text {
                 println!("{}", caveinfo);
             }
             else {
                 let _ = std::fs::create_dir("output");
                 save_image(
-                    &render_caveinfo(&caveinfo, render_options)?,
+                    &render_caveinfo(caveinfo, render_options)?,
                     format!("output/{}_Caveinfo.png", caveinfo.name())
                 )?;
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());

@@ -8,7 +8,7 @@ use nom::{
     branch::alt, bytes::complete::tag, multi::many1, combinator::recognize, IResult
 };
 
-use crate::{errors::SearchConditionError, layout::Layout, caveinfo::{RoomType, CaveUnit}, assets::ASSETS, sublevel::Sublevel};
+use crate::{errors::SearchConditionError, layout::Layout, caveinfo::{RoomType, CaveUnit}, assets::AssetManager, sublevel::Sublevel};
 
 #[derive(Clone, Debug)]
 pub struct Query {
@@ -42,8 +42,8 @@ pub struct QueryClause {
 
 impl QueryClause {
     pub fn matches(&self, seed: u32) -> bool {
-        let caveinfo = ASSETS.get_caveinfo(&self.sublevel).unwrap();
-        let layout = Layout::generate(seed, &caveinfo);
+        let caveinfo = AssetManager::get_caveinfo(&self.sublevel).unwrap();
+        let layout = Layout::generate(seed, caveinfo);
         self.querykind.matches(&layout)
     }
 }
@@ -65,7 +65,7 @@ pub enum QueryKind {
 
 impl QueryKind {
     /// Checks whether the given layout matches the query condition.
-    pub fn matches(&self, layout: &Layout) -> bool {
+    pub fn matches<'a>(&self, layout: &'a Layout<'a>) -> bool {
         match self { 
             QueryKind::CountEntity { name, relationship, amount } => {
                 let entity_count = layout.get_spawn_objects()
@@ -75,13 +75,13 @@ impl QueryKind {
             },
             QueryKind::CountRoom { room_matcher, relationship, amount } => {
                 let unit_count = layout.map_units.iter()
-                    .filter(|unit| room_matcher.matches(&unit.unit))
+                    .filter(|unit| room_matcher.matches(unit.unit))
                     .count();
                 unit_count.cmp(amount) == *relationship
             },
             QueryKind::EntityInRoom { entity_name, room_matcher } => {
                 layout.map_units.iter()
-                    .filter(|unit| room_matcher.matches(&unit.unit))
+                    .filter(|unit| room_matcher.matches(unit.unit))
                     .any(|unit| {
                         unit.spawnpoints.iter()
                             .any(|sp| {
@@ -125,8 +125,8 @@ impl TryFrom<&str> for Query {
             if let Ok((rest, (obj, relationship_char, amount))) = compare_cmd(remaining_text) {
                 remaining_text = rest;
                 let relationship = char_to_ordering(relationship_char);
-                if ASSETS.teki.contains(&obj.to_ascii_lowercase()) 
-                    || ASSETS.treasures.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(obj)) 
+                if AssetManager::teki_list()?.contains(&obj.to_ascii_lowercase()) 
+                    || AssetManager::treasure_list()?.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(obj)) 
                     || obj.eq_ignore_ascii_case("gate") 
                 {
                     clauses.push(QueryClause {
@@ -138,7 +138,7 @@ impl TryFrom<&str> for Query {
                         }
                     });
                 }
-                else if ASSETS.rooms.contains(&obj.to_ascii_lowercase()) 
+                else if AssetManager::room_list()?.contains(&obj.to_ascii_lowercase()) 
                     || ["room", "cap", "alcove", "hall", "hallway"].contains(&obj.to_ascii_lowercase().as_str()) 
                 {
                     clauses.push(QueryClause {

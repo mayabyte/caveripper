@@ -15,19 +15,19 @@ use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo
 /// the set-seed mod) and specify exact positions for every tile, teki,
 /// and treasure.
 #[derive(Debug, Clone)]
-pub struct Layout {
+pub struct Layout<'a> {
     pub sublevel: Sublevel,
     pub starting_seed: u32,
     pub cave_name: String,
-    pub map_units: Vec<PlacedMapUnit>,
+    pub map_units: Vec<PlacedMapUnit<'a>>,
 }
 
-impl Layout {
-    pub fn generate(seed: u32, caveinfo: &CaveInfo) -> Layout {
+impl<'a> Layout<'a> {
+    pub fn generate(seed: u32, caveinfo: &'a CaveInfo) -> Layout<'a> {
         LayoutBuilder::generate(seed, caveinfo)
     }
 
-    pub fn get_spawn_objects(&self) -> impl Iterator<Item=&SpawnObject> {
+    pub fn get_spawn_objects(&'a self) -> impl Iterator<Item=&'a SpawnObject> {
         self.map_units.iter()
             .flat_map(|unit| unit.spawnpoints.iter().flat_map(|spawnpoint| spawnpoint.contains.iter()))
     }
@@ -147,18 +147,18 @@ impl Layout {
 
 
 #[derive(Debug, Clone)]
-pub struct PlacedMapUnit {
-    pub unit: CaveUnit,
+pub struct PlacedMapUnit<'a> {
+    pub unit: &'a CaveUnit,
     pub x: i32,
     pub z: i32,
-    pub doors: Vec<Rc<RefCell<PlacedDoor>>>,
-    pub spawnpoints: Vec<PlacedSpawnPoint>,
+    pub doors: Vec<Rc<RefCell<PlacedDoor<'a>>>>,
+    pub spawnpoints: Vec<PlacedSpawnPoint<'a>>,
     pub teki_score: u32,
     pub total_score: u32,
 }
 
-impl PlacedMapUnit {
-    pub fn new(unit: &CaveUnit, x: i32, z: i32) -> PlacedMapUnit {
+impl<'a> PlacedMapUnit<'a> {
+    pub fn new(unit: &'a CaveUnit, x: i32, z: i32) -> PlacedMapUnit<'a> {
         let doors = unit.doors.iter()
             .map(|door| {
                 // Adjust door positions depending on room rotation
@@ -173,7 +173,7 @@ impl PlacedMapUnit {
                     PlacedDoor {
                         x: door_x,
                         z: door_z,
-                        door_unit: door.clone(),
+                        door_unit: door,
                         parent_idx: None,
                         marked_as_cap: false,
                         adjacent_door: None,
@@ -202,7 +202,7 @@ impl PlacedMapUnit {
                     x: actual_x,
                     z: actual_z,
                     angle: actual_angle,
-                    spawnpoint_unit: sp.clone(),
+                    spawnpoint_unit: sp,
                     hole_score: 0,
                     treasure_score: 0,
                     contains: vec![],
@@ -211,7 +211,7 @@ impl PlacedMapUnit {
             .collect();
 
         PlacedMapUnit {
-            unit: unit.clone(),
+            unit,
             x, z,
             doors,
             spawnpoints,
@@ -227,19 +227,19 @@ impl PlacedMapUnit {
 
 
 #[derive(Debug)]
-pub struct PlacedDoor {
+pub struct PlacedDoor<'a> {
     pub x: i32,
     pub z: i32,
-    pub door_unit: DoorUnit,
+    pub door_unit: &'a DoorUnit,
     pub parent_idx: Option<usize>,
     pub marked_as_cap: bool,
-    pub adjacent_door: Option<Weak<RefCell<PlacedDoor>>>,
+    pub adjacent_door: Option<Weak<RefCell<PlacedDoor<'a>>>>,
     pub door_score: Option<u32>,
     pub seam_teki_score: u32,
-    pub seam_spawnpoint: Rc<Option<SpawnObject>>,
+    pub seam_spawnpoint: Rc<Option<SpawnObject<'a>>>,
 }
 
-impl PlacedDoor {
+impl<'a> PlacedDoor<'a> {
     pub fn facing(&self, other: &PlacedDoor) -> bool {
         (self.door_unit.direction as i32 - other.door_unit.direction as i32).abs() == 2
     }
@@ -251,17 +251,17 @@ impl PlacedDoor {
 
 
 #[derive(Debug, Clone)]
-pub struct PlacedSpawnPoint {
-    pub spawnpoint_unit: SpawnPoint,
+pub struct PlacedSpawnPoint<'a> {
+    pub spawnpoint_unit: &'a SpawnPoint,
     pub x: f32,
     pub z: f32,
     pub angle: f32,
     pub hole_score: u32,
     pub treasure_score: u32,
-    pub contains: Vec<SpawnObject>,
+    pub contains: Vec<SpawnObject<'a>>,
 }
 
-impl PlacedSpawnPoint {
+impl<'a> PlacedSpawnPoint<'a> {
     fn dist(&self, other: &PlacedSpawnPoint) -> f32 {
         let dx = self.x - other.x;
         let dz = self.z - other.z;
@@ -274,17 +274,17 @@ impl PlacedSpawnPoint {
 
 /// Any object that can be placed in a SpawnPoint.
 #[derive(Debug, Clone)]
-pub enum SpawnObject {
-    Teki(TekiInfo, (f32, f32)), // Teki, offset from spawnpoint
-    CapTeki(CapInfo, u32), // Cap Teki, num_spawned
-    Item(ItemInfo),
-    Gate(GateInfo),
+pub enum SpawnObject<'a> {
+    Teki(&'a TekiInfo, (f32, f32)), // Teki, offset from spawnpoint
+    CapTeki(&'a CapInfo, u32), // Cap Teki, num_spawned
+    Item(&'a ItemInfo),
+    Gate(&'a GateInfo),
     Hole(bool), // Plugged or not
     Geyser(bool), // Plugged or not
     Ship
 }
 
-impl SpawnObject {
+impl<'a> SpawnObject<'a> {
     pub fn name(&self) -> &str {
         match self {
             SpawnObject::Teki(info, _) => &info.internal_name,

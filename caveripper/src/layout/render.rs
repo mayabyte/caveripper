@@ -1,10 +1,11 @@
+use std::borrow::Cow;
 use std::cmp::max;
 use std::f32::consts::PI;
 use std::fs::read;
 use std::path::{Path, PathBuf};
 
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
-use crate::assets::{ASSETS, get_special_texture_name};
+use crate::assets::{AssetManager, get_special_texture_name};
 use crate::errors::{RenderError, AssetError};
 use super::{Layout, SpawnObject, PlacedMapUnit};
 use clap::Args;
@@ -93,12 +94,12 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game)?.clone();
+        let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game)?;
 
         // Copy the pixels of the radar image to the buffer
         let img_x = map_unit.x as i64 * GRID_FACTOR;
         let img_z = map_unit.z as i64 * GRID_FACTOR;
-        overlay(&mut canvas, &radar_image, img_x, img_z);
+        overlay(&mut canvas, radar_image, img_x, img_z);
     }
 
     // Draw a map unit grid, if enabled
@@ -150,7 +151,7 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
                     if door.borrow().door_unit.direction % 2 == 1 {
                         draw_object_at(
                             &mut canvas, 
-                            &WithCustomTexture{ inner: gateinfo.clone(), custom_texture: rotate90(&texture) }, 
+                            &WithCustomTexture{ inner: gateinfo, custom_texture: rotate90(texture) }, 
                             x, z, &layout.sublevel.cfg.game, &options
                         )?;
                     }
@@ -177,14 +178,18 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
     let mut metadata_icons = Vec::new();
-    metadata_icons.push(resize(&SpawnObject::Ship.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
+    metadata_icons.push(resize(SpawnObject::Ship.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
     if !caveinfo.is_final_floor {
-        metadata_icons.push(resize(&SpawnObject::Hole(caveinfo.exit_plugged).get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
+        metadata_icons.push(
+            resize(
+                SpawnObject::Hole(caveinfo.exit_plugged).get_texture(&caveinfo.sublevel.cfg.game)?, 
+                CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3)
+            );
     }
     if caveinfo.is_final_floor || caveinfo.has_geyser {
         metadata_icons.push(
             resize(
-                &SpawnObject::Geyser(
+                SpawnObject::Geyser(
                     caveinfo.is_challenge_mode() && caveinfo.is_final_floor
                 ).get_texture(&caveinfo.sublevel.cfg.game)?, 
                 CAVEINFO_ICON_SIZE, 
@@ -196,7 +201,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     let num_gates = caveinfo.max_gates;
     if num_gates > 0 {
         let gate_icon = resize(
-            &SpawnObject::Gate(caveinfo.gate_info[0].clone()).get_texture(&caveinfo.sublevel.cfg.game)?, 
+            SpawnObject::Gate(caveinfo.gate_info.get(0).unwrap()).get_texture(&caveinfo.sublevel.cfg.game)?, 
             CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let num_txt = render_text(&format!("x{}", num_gates), 24.0, [20, 20, 20, 255].into(), None);
         let mut final_gate_icon = RgbaImage::new(CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE);
@@ -214,7 +219,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         );
     }
 
-    let poko_icon = resize(&*ASSETS.get_img("resources/enemytex_special/Poko_icon.png")?, 16, 19, FilterType::Lanczos3);
+    let poko_icon = resize(AssetManager::get_img("resources/enemytex_special/Poko_icon.png")?, 16, 19, FilterType::Lanczos3);
 
     // Teki section
     let mut base_y =  64 + CAVEINFO_MARGIN * 2;
@@ -225,7 +230,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     for group in [8, 1, 0, 6, 5] {
         for tekiinfo in caveinfo.teki_group(group) {
-            let texture = resize(&tekiinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+            let texture = resize(tekiinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
 
             // If we overflow the width of the image, wrap to the next line.
             if base_x + CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN > canvas_header.width() as i64 {
@@ -243,17 +248,17 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                 match modifier {
                     TextureModifier::Falling => {
                         let falling_icon_texture = resize(
-                            &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
+                            AssetManager::get_img("resources/enemytex_special/falling_icon.png")?,
                             24, 24, FilterType::Nearest
                         );
                         overlay(&mut canvas_header, &falling_icon_texture, base_x - 8, base_y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
-                        let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
+                        let treasure = AssetManager::treasure_list()?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
                             .expect("Teki carrying unknown or invalid treasure!");
 
                         let carried_treasure_icon = resize(
-                            &*ASSETS.get_img(
+                            AssetManager::get_img(
                                 &PathBuf::from(&caveinfo.sublevel.cfg.game).join("user/Matoba/resulttex/us/arc").join(carrying).join("texture.png")
                             )?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
@@ -315,10 +320,10 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     
     let mut base_x = treasure_header.width() as i64 + CAVEINFO_MARGIN;
     for treasureinfo in caveinfo.item_info.iter() {
-        let treasure = ASSETS.treasures.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
+        let treasure = AssetManager::treasure_list()?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
             .expect("Unknown or invalid treasure!");
 
-        let treasure_texture = resize(&treasureinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+        let treasure_texture = resize(treasureinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let x = base_x + CAVEINFO_MARGIN * 4;
         let y = base_y + CAVEINFO_MARGIN + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &treasure_texture, x, y);
@@ -363,7 +368,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     let capteki_header = render_text("Cap Teki", 48.0, capteki_color, None);
     overlay(&mut canvas_header, &capteki_header, CAVEINFO_MARGIN * 2, base_y);
     for (i, capinfo) in caveinfo.cap_info.iter().enumerate() {
-        let texture = resize(&capinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+        let texture = resize(capinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let x = (CAVEINFO_MARGIN * 5) + capteki_header.width() as i64 + i as i64 * (CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN * 2);
         let y = base_y + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &texture, x, y);
@@ -371,7 +376,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         for modifier in capinfo.get_texture_modifiers().iter() {
             if let TextureModifier::Falling = modifier {
                 let falling_icon_texture = resize(
-                    &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
+                    AssetManager::get_img("resources/enemytex_special/falling_icon.png")?,
                     24, 24, FilterType::Nearest
                 );
                 overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
@@ -432,7 +437,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             );
         }
 
-        overlay(&mut canvas_maptiles, &unit_texture, base_x, y);
+        overlay(&mut canvas_maptiles, unit_texture, base_x, y);
         draw_border(
             &mut canvas_maptiles, 
             base_x as u32, 
@@ -446,7 +451,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
 
             let sp_img = match spawnpoint.group {
-                6 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/leaf_icon.png").unwrap().clone(), 10, 10, FilterType::Lanczos3), group_color(6).into()),
+                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png")?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
                 9 => circle(5, group_color(9).into()),
                 _ => circle(5, [255,0,0,255].into()),
             };
@@ -458,7 +463,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     base_x += (RENDER_SCALE * 8) as i64 + maptile_margin;
 
     for unit in rooms {
-        let mut unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?;
+        let mut unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?.clone();
         if base_x + unit_texture.width() as i64 + maptile_margin > canvas_maptiles.width() as i64 {
             base_x = maptile_margin;
             base_y = max_y + maptile_margin;
@@ -501,11 +506,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             let sp_img = match spawnpoint.group {
                 0 => circle((spawnpoint.radius * COORD_FACTOR) as u32, group_color(0).into()),
                 1 => circle(5, group_color(1).into()),
-                2 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/duck.png").unwrap().clone(), 14, 14, FilterType::Lanczos3), group_color(2).into()), // treasure
-                4 => resize(&ASSETS.get_img("resources/enemytex_special/cave_white.png").unwrap().clone(), 18, 18, FilterType::Lanczos3),
-                6 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/leaf_icon.png").unwrap().clone(), 10, 10, FilterType::Lanczos3), group_color(6).into()),
-                7 => resize(&ASSETS.get_img("resources/enemytex_special/ship.png").unwrap().clone(), 16, 16, FilterType::Lanczos3),
-                8 => colorize(&resize(&ASSETS.get_img("resources/enemytex_special/star.png").unwrap().clone(), 16, 16, FilterType::Lanczos3), group_color(8).into()),
+                2 => colorize(resize(AssetManager::get_img("resources/enemytex_special/duck.png")?, 14, 14, FilterType::Lanczos3), group_color(2).into()), // treasure
+                4 => resize(AssetManager::get_img("resources/enemytex_special/cave_white.png")?, 18, 18, FilterType::Lanczos3),
+                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png")?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
+                7 => resize(AssetManager::get_img("resources/enemytex_special/ship.png")?, 16, 16, FilterType::Lanczos3),
+                8 => colorize(resize(AssetManager::get_img("resources/enemytex_special/star.png")?, 16, 16, FilterType::Lanczos3), group_color(8).into()),
                 _ => circle(5, [255,0,0,255].into()),
             };
 
@@ -537,8 +542,7 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Re
     Ok(())
 }
 
-fn colorize(img: &RgbaImage, color: Rgba<u8>) -> RgbaImage {
-    let mut img = img.clone();
+fn colorize(mut img: RgbaImage, color: Rgba<u8>) -> RgbaImage {
     img.enumerate_pixels_mut().for_each(|px| {
         px.2.0[0] = color.0[0];
         px.2.0[1] = color.0[1];
@@ -637,7 +641,7 @@ fn try_blend(canvas: &mut RgbaImage, x: u32, y: u32, color: Rgba<u8>) {
 
 // x and z are world coordinates, not image or map unit coordinates
 fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, game: &str, options: &LayoutRenderOptions) -> Result<(), AssetError> {
-    let mut texture = obj.get_texture(game)?;
+    let mut texture = Cow::Borrowed(obj.get_texture(game)?);
 
     // Modifiers to be applied before ('under') the main texture, or to the texture itself
     for modifier in obj.get_texture_modifiers().iter() {
@@ -653,7 +657,7 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
                 );
             },
             TextureModifier::Scale(xsize, zsize) => {
-                texture = resize(&texture, *xsize, *zsize, FilterType::Lanczos3);
+                *texture.to_mut() = resize(&*texture, *xsize, *zsize, FilterType::Lanczos3);
             },
             _ => {}
         }
@@ -663,21 +667,21 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
     let img_z = ((z * COORD_FACTOR ) - (texture.height() as f32 / 2.0)) as i64;
 
     // Draw the main texture
-    overlay(image_buffer, &texture, img_x, img_z);
+    overlay(image_buffer, &*texture, img_x, img_z);
 
     // Modifiers to be applied after ('above') the main texture
     for modifier in obj.get_texture_modifiers().iter() {
         match modifier {
             TextureModifier::Falling => {
                 let falling_icon_texture = resize(
-                    &*ASSETS.get_img("resources/enemytex_special/falling_icon.png")?,
+                    AssetManager::get_img("resources/enemytex_special/falling_icon.png")?,
                     18, 18, FilterType::Lanczos3
                 );
                 overlay(image_buffer, &falling_icon_texture, img_x - 5, img_z);
             },
             TextureModifier::Carrying(carrying) => {
                 let carried_treasure_icon = resize(
-                    &*ASSETS.get_img(&PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(carrying).join("texture.png"))?,
+                    AssetManager::get_img(&PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(carrying).join("texture.png"))?,
                     24, 24, FilterType::Lanczos3
                 );
                 overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
@@ -746,12 +750,21 @@ enum TextureModifier {
 }
 
 trait Textured {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError>;
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError>;
     fn get_texture_modifiers(&self) -> Vec<TextureModifier>;
 }
 
-impl Textured for PlacedMapUnit {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+impl<T: Textured> Textured for &T {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+        (*self).get_texture(game)
+    }
+    fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
+        (*self).get_texture_modifiers()
+    }
+}
+
+impl Textured for PlacedMapUnit<'_> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         self.unit.get_texture(game)
     }
 
@@ -761,15 +774,15 @@ impl Textured for PlacedMapUnit {
 }
 
 impl Textured for TekiInfo {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
                 let filename = format!("resources/enemytex_special/{}", special_name);
-                Ok(ASSETS.get_img(&filename)?.to_owned())
+                AssetManager::get_img(&filename)
             },
             None => {
                 let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
-                Ok(ASSETS.get_img(&filename)?.to_owned())
+                AssetManager::get_img(&filename)
             }
         }
     }
@@ -779,8 +792,8 @@ impl Textured for TekiInfo {
         if self.spawn_method.is_some() {
             modifiers.push(TextureModifier::Falling);
         }
-        if let Some(carrying) = self.carrying.clone() {
-            modifiers.push(TextureModifier::Carrying(carrying.internal_name));
+        if let Some(carrying) = self.carrying.as_ref() {
+            modifiers.push(TextureModifier::Carrying(carrying.internal_name.clone()));
             modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into()));
         }
         match self.internal_name.to_ascii_lowercase().as_str() {
@@ -795,17 +808,17 @@ impl Textured for TekiInfo {
 }
 
 impl Textured for CapInfo {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         // We don't consider the possibility of treasures spawning in CapInfo here since that
         // is never done in the vanilla game. May need to fix in the future for romhack support.
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
                 let filename = format!("resources/enemytex_special/{}", special_name);
-                Ok(ASSETS.get_img(&filename)?.to_owned())
+                AssetManager::get_img(&filename)
             },
             None => {
                 let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name).join("texture.png");
-                Ok(ASSETS.get_img(&filename)?.to_owned())
+                AssetManager::get_img(&filename)
             }
         }
     }
@@ -829,10 +842,10 @@ impl Textured for CapInfo {
 }
 
 impl Textured for ItemInfo {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         // TODO: fix US region being hardcoded here.
         let filename = PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(&self.internal_name).join("texture.png");
-        Ok(ASSETS.get_img(&filename)?.to_owned())
+        AssetManager::get_img(&filename)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -844,9 +857,9 @@ impl Textured for ItemInfo {
 }
 
 impl Textured for GateInfo {
-    fn get_texture(&self, _game: &str) -> Result<RgbaImage, AssetError> {
+    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, AssetError> {
         let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
-        Ok(ASSETS.get_img(filename)?.to_owned())
+        AssetManager::get_img(filename)
     }
     
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -855,52 +868,51 @@ impl Textured for GateInfo {
     }
 }
 
-impl Textured for SpawnObject {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+impl Textured for SpawnObject<'_> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         match self {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture(game),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture(game),
             SpawnObject::Item(iteminfo) => iteminfo.get_texture(game),
             SpawnObject::Gate(gateinfo) => gateinfo.get_texture(game),
             SpawnObject::Hole(plugged) => {
-                ASSETS.get_custom_img("PLUGGED_HOLE").map(|i| i.to_owned()).or_else(|_| {
+                AssetManager::get_or_store_img("PLUGGED_HOLE".to_string(), || {
                     let filename = "resources/enemytex_special/Cave_icon.png";
-                    let mut hole_icon = ASSETS.get_img(filename)?.clone();
+                    let mut hole_icon = AssetManager::get_img(filename)?.clone();
                     if *plugged {
                         let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
                         let plug_icon = resize(
-                            &*ASSETS.get_img(plug_filename)?,
+                            AssetManager::get_img(plug_filename)?,
                             hole_icon.width(), 
                             hole_icon.height(), 
                             FilterType::Lanczos3,
                         );
                         overlay(&mut hole_icon, &plug_icon, 0, 0);
                     }
-                    ASSETS.cache_img("PLUGGED_HOLE", hole_icon);
-                    Ok(ASSETS.get_custom_img("PLUGGED_HOLE")?.to_owned())
+                    
+                    Ok(hole_icon)
                 })
             },
             SpawnObject::Geyser(plugged) => {
-                ASSETS.get_custom_img("PLUGGED_GEYSER").map(|i| i.to_owned()).or_else(|_| {
+                AssetManager::get_or_store_img("PLUGGED_GEYSER".to_string(), || {
                     let filename = "resources/enemytex_special/Geyser_icon.png";
-                    let mut hole_icon = ASSETS.get_img(filename)?.clone();
+                    let mut hole_icon = AssetManager::get_img(filename)?.clone();
                     if *plugged {
                         let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
                         let plug_icon = resize(
-                            &*ASSETS.get_img(plug_filename)?,
+                            AssetManager::get_img(plug_filename)?,
                             hole_icon.width(), 
                             hole_icon.height(), 
                             FilterType::Lanczos3,
                         );
                         overlay(&mut hole_icon, &plug_icon, 0, 0);
                     }
-                    ASSETS.cache_img("PLUGGED_GEYSER", hole_icon);
-                    Ok(ASSETS.get_custom_img("PLUGGED_GEYSER")?.to_owned())
+                    Ok(hole_icon)
                 })
             },
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
-                Ok(ASSETS.get_img(filename)?.to_owned())
+                AssetManager::get_img(filename)
             }
         }
     }
@@ -922,9 +934,9 @@ impl Textured for SpawnObject {
 }
 
 impl Textured for CaveUnit {
-    fn get_texture(&self, game: &str) -> Result<RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         let filename = PathBuf::from(game).join("user/Mukki/mapunits/arc").join(&self.unit_folder_name).join("arc/texture.png");
-        let mut img = ASSETS.get_img(&filename)?.to_owned();
+        let mut img = AssetManager::get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
         brighten_in_place(&mut img, 75);
@@ -958,7 +970,7 @@ impl Textured for CaveUnit {
             overlay(&mut img, &square, (x1 + w) as i64, (z1 + h) as i64);
         }
 
-        Ok(img)
+        AssetManager::get_or_store_img(format!("{}_r{}_prerendered", filename.to_string_lossy(), self.rotation), Box::new(|| Ok(img)))
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -973,8 +985,8 @@ struct WithCustomTexture<T: Textured> {
 }
 
 impl<T: Textured> Textured for WithCustomTexture<T> {
-    fn get_texture(&self, _game: &str) -> Result<RgbaImage, AssetError> {
-        Ok(self.custom_texture.clone())
+    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, AssetError> {
+        Ok(&self.custom_texture)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {

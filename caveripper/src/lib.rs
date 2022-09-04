@@ -1,6 +1,7 @@
 #![feature(slice_as_chunks)]
 #![feature(option_result_contains)]
 #![feature(let_else)]
+#![feature(map_try_insert)]
 
 pub mod caveinfo;
 pub mod layout;
@@ -10,6 +11,7 @@ pub mod sublevel;
 pub mod query;
 pub mod search;
 pub mod errors;
+mod pinmap;
 
 pub fn parse_seed(src: &str) -> Result<u32, errors::SeedError> {
     let trimmed = src.strip_prefix("0x").unwrap_or(src);

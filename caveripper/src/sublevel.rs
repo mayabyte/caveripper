@@ -1,10 +1,13 @@
 use std::str::FromStr;
 
 use crate::errors::SublevelError;
-use crate::assets::{ASSETS, CaveConfig};
+use crate::assets::{AssetManager, CaveConfig};
 use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
+
+
+pub static DIRECT_MODE_TAG: &str = "caveinfo";
 
 /// Uniquely represents a sublevel and handles parsing to and from strings
 /// for sublevel specifiers.
@@ -80,7 +83,7 @@ impl TryFrom<&str> for Sublevel {
             [c1] => {
                 let (name, floor) = from_short_specifier(c1)?;
                 Ok(Sublevel {
-                    cfg: ASSETS.find_cave_cfg(name, game.as_deref(), false)?.clone(),
+                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), false).map_err(Box::new)?.clone(),
                     floor
                 })
             },
@@ -89,7 +92,7 @@ impl TryFrom<&str> for Sublevel {
             [c1, c2] if c1 == "ch" || c1 == "cm" => {
                 let (name, floor) = from_short_specifier(c2)?;
                 Ok(Sublevel {
-                    cfg: ASSETS.find_cave_cfg(name, game.as_deref(), true)?.clone(),
+                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), true).map_err(Box::new)?.clone(),
                     floor
                 })
             },
@@ -99,17 +102,17 @@ impl TryFrom<&str> for Sublevel {
                 let floor = c2.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
 
                 Ok(Sublevel {
-                    cfg: ASSETS.find_cave_cfg(c1.trim(), game.as_deref(), false)?.clone(), 
+                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false).map_err(Box::new)?.clone(), 
                     floor
                 })
             },
 
             // Direct mode caveinfo+unitfile specifier
-            [caveinfo_path, _unitfile_path, floor] if game.contains(&"caveinfo") => {
+            [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
                 let floor = floor.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
                 Ok(Sublevel {
                     cfg: CaveConfig { 
-                        game: "caveinfo".into(), 
+                        game: DIRECT_MODE_TAG.into(), 
                         full_name: format!("[Direct] {}", caveinfo_path), 
                         is_challenge_mode: caveinfo_path.starts_with("ch"), 
                         shortened_names: vec!["direct".to_string()], 

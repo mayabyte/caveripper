@@ -3,14 +3,16 @@ use itertools::Itertools;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use caveripper::{
     layout::Layout,
-    assets::ASSETS,
+    assets::AssetManager,
 };
 
 pub fn benchmark_layout_generation(c: &mut Criterion) {
+    AssetManager::init("assets", ".");
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    ASSETS.preload_vanilla_caveinfo()
+    AssetManager::preload_vanilla_caveinfo()
         .expect("Failed to load caveinfo!");
-    let all_sublevels = ASSETS.all_sublevels().into_iter().collect_vec();
+    let manager = AssetManager::all_sublevels().unwrap();
+    let all_sublevels = manager.iter().collect_vec();
 
     c.bench_function("layout generation (reference)", |b| {
         b.iter(|| {
