@@ -1,11 +1,17 @@
 use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
-
-use itertools::Itertools;
 use log::{debug, info};
-
-use crate::{pikmin_math::{PikminRng, self}, caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, layout::{PlacedDoor, SpawnObject}};
-
-use super::{PlacedMapUnit, PlacedSpawnPoint, Layout, boxes_overlap};
+use crate::{
+    pikmin_math::{PikminRng, self}, 
+    caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, 
+    layout::{
+        PlacedDoor, 
+        SpawnObject, 
+        PlacedMapUnit, 
+        PlacedSpawnPoint, 
+        Layout, 
+        boxes_overlap
+    },
+};
 
 pub struct LayoutBuilder<'a> {
     rng: PikminRng,
@@ -121,7 +127,7 @@ impl<'a> LayoutBuilder<'a> {
 
 
         // Keep placing map units until all doors have been closed
-        if !self.open_doors().is_empty() {
+        if self.open_doors().next().is_some() {
             let mut num_loops = 0;
             while num_loops <= 10000 {
                 num_loops += 1;
@@ -133,7 +139,7 @@ impl<'a> LayoutBuilder<'a> {
                     .count() < caveinfo.num_rooms as usize
                 {
                     // Choose a random door to attempt to add a room onto
-                    let open_doors = self.open_doors();
+                    let open_doors: Vec<_> = self.open_doors().collect();
                     let destination_door = open_doors[self.rng.rand_int(open_doors.len() as u32) as usize].clone();
 
                     // Calculate the corridor probability for this generation step
@@ -160,7 +166,7 @@ impl<'a> LayoutBuilder<'a> {
                         };
 
                         for map_unit in unit_queue.iter() {
-                            let mut door_priority = (0..map_unit.num_doors).collect_vec();
+                            let mut door_priority = (0..map_unit.num_doors).collect();
                             self.rng.rand_swaps(&mut door_priority);
 
                             // Try to attach the new room via each of its doors.
@@ -188,8 +194,7 @@ impl<'a> LayoutBuilder<'a> {
                     self.rng.rand_swaps(&mut hallway_queue);
 
                     // Hallway placement
-                    let open_doors = self.open_doors();
-                    'place_hallway: for open_door in open_doors.iter() {
+                    'place_hallway: for open_door in self.open_doors() {
                         if open_door.borrow().marked_as_cap {
                             continue;
                         }
@@ -199,7 +204,7 @@ impl<'a> LayoutBuilder<'a> {
                         // in front of the starting door.
                         let mut link_door = None;
                         let mut link_door_dist = i32::MAX;
-                        for candidate in open_doors.iter() {
+                        for candidate in self.open_doors() {
                             if open_door.borrow().parent_idx == candidate.borrow().parent_idx {
                                 continue;
                             }
@@ -330,7 +335,7 @@ impl<'a> LayoutBuilder<'a> {
                                 for map_unit in unit_queue {
                                     if map_unit.num_doors != num_doors { continue; }
 
-                                    let mut door_priority = (0..num_doors).collect_vec();
+                                    let mut door_priority = (0..num_doors).collect();
                                     self.rng.rand_swaps(&mut door_priority);
 
                                     for door_index in door_priority {
@@ -350,7 +355,7 @@ impl<'a> LayoutBuilder<'a> {
                     }
                 }
 
-                if !self.open_doors().is_empty() { continue; }
+                if self.open_doors().next().is_some() { continue; }
                 let mut cap_to_replace = None;
 
                 // changeCapToHallMapUnit //
@@ -444,7 +449,7 @@ impl<'a> LayoutBuilder<'a> {
                         self.place_map_unit(cap_to_replace, true);
                     }
                 }
-                if !self.open_doors().is_empty() { continue; }
+                if self.open_doors().next().is_some() { continue; }
 
                 // Look for instances of two 1x1 hallway units in a row and change them to
                 // single 2x1 hallway units.
@@ -1104,7 +1109,7 @@ impl<'a> LayoutBuilder<'a> {
             sublevel: caveinfo.sublevel.clone(),
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
-            map_units: self.map_units.into_iter().collect(),
+            map_units: self.map_units,
         }
     }
 
@@ -1290,7 +1295,7 @@ impl<'a> LayoutBuilder<'a> {
 
         
         let hole_location = if is_challenge_mode {
-            let weights = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect_vec();
+            let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect();
             hole_spawnpoints.remove(self.rng.rand_index_weight(weights.as_slice()).unwrap())
         }
         else {
@@ -1581,16 +1586,15 @@ impl<'a> LayoutBuilder<'a> {
         }
     }
 
-    fn open_doors(&self) -> Vec<Rc<RefCell<PlacedDoor<'a>>>> {
+    fn open_doors<'b>(&'b self) -> impl Iterator<Item=Rc<RefCell<PlacedDoor<'a>>>> + 'b {
         self.map_units.iter()
             .flat_map(|unit| unit.doors.iter().cloned())
             .filter(|door| door.borrow().adjacent_door.is_none())
-            .collect()
     }
 
     fn shuffle_corridor_priority(&mut self, caveinfo: &CaveInfo) {
         let max_num_doors_single_unit = caveinfo.max_num_doors_single_unit();
-        let num_open_doors = self.open_doors().len();
+        let num_open_doors = self.open_doors().count();
         let mut corridor_priority = Vec::new();
 
         // If few open doors, prioritize corridor units with many doors
@@ -1657,7 +1661,7 @@ impl<'a> LayoutBuilder<'a> {
         // facing straight into the outer wall of a placed room, which we don't want.
         for new_door in candidate_unit.doors.iter() {
             // If the door lines up with an existing door, we can move on.
-            if self.open_doors().iter().any(|open_door| new_door.borrow().lines_up_with(&open_door.borrow())) {
+            if self.open_doors().any(|open_door| new_door.borrow().lines_up_with(&open_door.borrow())) {
                 continue;
             }
 
