@@ -27,14 +27,17 @@ const GATE_SIZE: u32 = 8 * RENDER_SCALE;
 const TREASURE_SIZE: u32 = 36;
 const FALLING_CAP_TEKI_SIZE: u32 = 29;
 const QUICKGLANCE_CIRCLE_SCALE: f32 = 2.4;
-const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [245, 150, 0, 110];
-const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [10, 225, 100, 95];
+const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 110];
+const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 110];
 const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 80];
 const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
+const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
+const HEADER_BACKGROUND: [u8; 4] = [220,220,220,255];
+const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
 
@@ -57,20 +60,28 @@ const fn group_color(group: u32) -> [u8; 4] {
 #[clap(next_help_heading="Rendering options")]
 pub struct LayoutRenderOptions {
     /// Draw grid lines corresponding to map unit grid boundaries.
-    #[clap(long)]
+    #[clap(long, default_value_t=false, action=clap::ArgAction::Set)]
     pub draw_grid: bool,
 
     /// Draw highlight circles behind important objects in layouts.
-    #[clap(long, short='q', default_value_t=true)]
+    #[clap(long, short='q', default_value_t=true, action=clap::ArgAction::Set)]
     pub quickglance: bool,
 }
 
 #[derive(Default, Debug, Args)]
 #[clap(next_help_heading="Rendering options")]
 pub struct CaveinfoRenderOptions {
-    /// Disable rendering for pathing waypoints
-    #[clap(long)]
-    pub dont_draw_waypoints: bool,
+    /// Draw treasure values and carry weights.
+    #[clap(long, default_value_t=true, action=clap::ArgAction::Set)]
+    pub draw_treasure_info: bool,
+
+    /// Render pathing waypoints
+    #[clap(long, default_value_t=true, action=clap::ArgAction::Set)]
+    pub draw_waypoints: bool,
+
+    /// Render waypoint distances. Useful for calculating Distance Score.
+    #[clap(long, default_value_t=true, action=clap::ArgAction::Set)]
+    pub draw_waypoint_distances: bool,
 }
 
 
@@ -170,7 +181,7 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 }
 
 pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, RenderError> {
-    let mut canvas_header = RgbaImage::from_pixel(1060, 310, [220,220,220,255].into());
+    let mut canvas_header = RgbaImage::from_pixel(1060, 310, HEADER_BACKGROUND.into());
 
     // Sublevel name
     let sublevel_title = render_text(&caveinfo.sublevel.long_name(), 64.0, [0,0,0, 255].into(), None);
@@ -199,14 +210,16 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         );
     }
     let num_gates = caveinfo.max_gates;
-    if num_gates > 0 {
+    for gateinfo in caveinfo.gate_info.iter() {
         let gate_icon = resize(
-            SpawnObject::Gate(caveinfo.gate_info.get(0).unwrap()).get_texture(&caveinfo.sublevel.cfg.game)?, 
+            gateinfo.get_texture(&caveinfo.sublevel.cfg.game)?, 
             CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
-        let num_txt = render_text(&format!("x{}", num_gates), 24.0, [20, 20, 20, 255].into(), None);
+        let num_txt = render_small_text(&format!("x{}", num_gates), 19.0, [20, 20, 20, 255].into());
+        let hp_txt = render_small_text(&format!("{}HP", gateinfo.health as u32), 13.0, [20, 20, 20, 255].into());
         let mut final_gate_icon = RgbaImage::new(CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE);
-        overlay(&mut final_gate_icon, &gate_icon, 0, -8);
-        overlay(&mut final_gate_icon, &num_txt, CAVEINFO_ICON_SIZE as i64 / 2 - num_txt.width() as i64 / 2, CAVEINFO_ICON_SIZE as i64 - 32);
+        overlay(&mut final_gate_icon, &gate_icon, 0, -12);
+        overlay(&mut final_gate_icon, &hp_txt, CAVEINFO_ICON_SIZE as i64 / 2 - hp_txt.width() as i64 / 2, CAVEINFO_ICON_SIZE as i64 - 33);
+        overlay(&mut final_gate_icon, &num_txt, CAVEINFO_ICON_SIZE as i64 / 2 - num_txt.width() as i64 / 2, CAVEINFO_ICON_SIZE as i64 - 24);
         metadata_icons.push(final_gate_icon);
     }
 
@@ -266,33 +279,39 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                         overlay(&mut canvas_header, &carried_treasure_icon, base_x + 18, base_y + 14);
 
                         // Treasure value/carry text
-                        let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
-                        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
+                        if options.draw_treasure_info {
+                            let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
+                            let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
 
-                        let sidetext_x = base_x + texture.width() as i64 + 5;
-                        let text_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
-                        if sidetext_x + text_width > canvas_header.width() as i64 {
-                            let header_width = canvas_header.width() as i64;
-                            expand_canvas(&mut canvas_header, (sidetext_x + text_width - header_width) as u32, 0, Some([220,220,220,255].into()));
+                            let sidetext_x = base_x + texture.width() as i64 + 5;
+                            let text_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + CAVEINFO_MARGIN * 2;
+                            if sidetext_x + text_width > canvas_header.width() as i64 {
+                                let header_width = canvas_header.width() as i64;
+                                expand_canvas(&mut canvas_header, (sidetext_x + text_width - header_width) as u32, 0, Some([220,220,220,255].into()));
+                            }
+
+                            overlay(&mut canvas_header, &poko_icon, sidetext_x, base_y + 4);
+                            overlay(&mut canvas_header, &value_text,
+                                sidetext_x + poko_icon.width() as i64 + 3,
+                                base_y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
+                            );
+
+                            overlay(&mut canvas_header, &carriers_text, sidetext_x, base_y + poko_icon.height() as i64 + 2);
+
+                            base_x += text_width;
+                            extra_width += text_width;
                         }
-
-                        overlay(&mut canvas_header, &poko_icon, sidetext_x, base_y + 4);
-                        overlay(&mut canvas_header, &value_text,
-                            sidetext_x + poko_icon.width() as i64 + 3,
-                            base_y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
-                        );
-
-                        overlay(&mut canvas_header, &carriers_text, sidetext_x, base_y + poko_icon.height() as i64 + 2);
-
-                        base_x += text_width;
-                        extra_width += text_width;
                     },
                     _ => {}
                 }
             }
 
-            let teki_subtext = if tekiinfo.filler_distribution_weight > 0 {
+            
+            let teki_subtext = if tekiinfo.filler_distribution_weight > 0 && tekiinfo.minimum_amount > 0 {
                 format!("x{} w{}", tekiinfo.minimum_amount, tekiinfo.filler_distribution_weight)
+            }
+            else if tekiinfo.minimum_amount == 0 && tekiinfo.filler_distribution_weight > 0 {
+                format!("w{}", tekiinfo.filler_distribution_weight)
             }
             else {
                 format!("x{}", tekiinfo.minimum_amount)
@@ -328,19 +347,22 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         let y = base_y + CAVEINFO_MARGIN + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &treasure_texture, x, y);
 
-        let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
-        let sidetext_x = x + treasure_texture.width() as i64 + 2;
-        overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
-        overlay(&mut canvas_header, &value_text,
-            sidetext_x + poko_icon.width() as i64 + 3,
-            y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
-        );
-
-        let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
-        overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
-
-        let extra_width = max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64);
-
+        let mut extra_width = 0;
+        if options.draw_treasure_info {
+            let value_text = render_text(&format!("{}", treasure.value), 20.0, [20,20,20, 255].into(), None);
+            let sidetext_x = x + treasure_texture.width() as i64 + 2;
+            overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
+            overlay(&mut canvas_header, &value_text,
+                sidetext_x + poko_icon.width() as i64 + 3,
+                y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4
+            );
+    
+            let carriers_text = render_text(&format!("{}/{}", treasure.min_carry, treasure.max_carry), 20.0, [20, 20, 20, 255].into(), None);
+            overlay(&mut canvas_header, &carriers_text, sidetext_x, y + poko_icon.height() as i64 + 2);
+    
+            extra_width += max(poko_icon.width() as i64 + value_text.width() as i64, carriers_text.width() as i64) + 4;
+        }
+       
         if caveinfo.is_challenge_mode() {
             let subtext_color = group_color(2).into();
             let treasure_subtext = format!("x{}", treasureinfo.min_amount);
@@ -353,7 +375,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             );
         }
 
-        base_x = sidetext_x + extra_width;
+        base_x+= treasure_texture.width() as i64 + extra_width;
     }
 
     base_y += treasure_header.height() as i64;
@@ -383,8 +405,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             }
         }
 
-        let capteki_subtext = if capinfo.filler_distribution_weight > 0 {
+        let capteki_subtext = if capinfo.filler_distribution_weight > 0 && capinfo.minimum_amount > 0 {
             format!("x{} w{}", capinfo.minimum_amount, capinfo.filler_distribution_weight)
+        }
+        else if capinfo.minimum_amount == 0 && capinfo.filler_distribution_weight > 0 {
+            format!("w{}", capinfo.filler_distribution_weight)
         }
         else {
             format!("x{}", capinfo.minimum_amount)
@@ -397,7 +422,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     // Done with header section
     // Start Map Tile section
 
-    let mut canvas_maptiles = RgbaImage::from_pixel(canvas_header.width(), 200, [20, 20, 20, 255].into());
+    let mut canvas_maptiles = RgbaImage::from_pixel(canvas_header.width(), 200, MAPTILES_BACKGROUND.into());
 
     let maptiles_metadata_txt = render_text(
         &format!(
@@ -464,10 +489,18 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     for unit in rooms {
         let mut unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?.clone();
-        if base_x + unit_texture.width() as i64 + maptile_margin > canvas_maptiles.width() as i64 {
+        let total_width = base_x + unit_texture.width() as i64;
+        if total_width > canvas_maptiles.width() as i64 {
             base_x = maptile_margin;
             base_y = max_y + maptile_margin;
         }
+        else if total_width + maptile_margin > canvas_maptiles.width() as i64 {
+            // This next tile teeeechnically fits, so we just fudge it a little by expanding the width
+            let expand_by = (total_width + maptile_margin) as u32 - canvas_maptiles.width();
+            expand_canvas(&mut canvas_maptiles, expand_by, 0, Some(MAPTILES_BACKGROUND.into()));
+            expand_canvas(&mut canvas_header, expand_by, 0, Some(HEADER_BACKGROUND.into()));
+        }
+
         let unit_name_text = render_text(&unit.unit_folder_name, 14.0, [220,220,220,255].into(), Some(unit_texture.width()));
 
         if base_y + (unit_texture.height() + unit_name_text.height()) as i64 > canvas_maptiles.height() as i64 {
@@ -480,7 +513,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             );
         }
 
-        if !options.dont_draw_waypoints {
+        if options.draw_waypoints {
             for waypoint in unit.waypoints.iter() {
                 let wp_x = (waypoint.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
                 let wp_z = (waypoint.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
@@ -493,8 +526,20 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                     let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
                     let dest_x = (dest_wp.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
                     let dest_z = (dest_wp.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
-                    // Waypoints point from dest to source, so these coords are backwards
                     draw_arrow_line(&mut unit_texture, dest_x, dest_z, wp_x, wp_z, CARRY_PATH_COLOR.into());
+
+                    if options.draw_waypoint_distances {
+                        let distance_text = render_small_text(
+                            &format!("{}",waypoint.dist(dest_wp) as u32 / 10), 
+                            10.0, WAYPOINT_DIST_TXT_COLOR.into()
+                        );
+                        overlay(
+                            &mut unit_texture,
+                            &distance_text,
+                            (wp_x - (wp_x - dest_x) / 2.0) as i64 - (distance_text.width() / 2) as i64,
+                            (wp_z - (wp_z - dest_z) / 2.0) as i64  - (distance_text.height() / 2) as i64
+                        )
+                    }
                 }
             }
         }
@@ -575,7 +620,7 @@ fn draw_arrow_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32
         (x1, x2) = (x2, x1);
         (y1, y2) = (y2, y1);
     }
-    // Shorten the line slightly to make room for the arrow at the end
+    // Shorten the line slightly to make room for the arrows at the end
     if steep {
         let slope = (x2 - x1) / (y2 - y1);
         y1 += slope.cos() * 6.0;
@@ -586,6 +631,8 @@ fn draw_arrow_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32
         // Draw an arrow at each end
         draw_line(canvas, x2 - (slope + PI / 8.0).sin() * 8.0, y2 - (slope + PI / 8.0).cos() * 8.0, x2, y2, color);
         draw_line(canvas, x2 - (slope - PI / 8.0).sin() * 8.0, y2 - (slope - PI / 8.0).cos() * 8.0, x2, y2, color);
+        draw_line(canvas, x1 + (slope + PI / 8.0).sin() * 8.0, y1 + (slope + PI / 8.0).cos() * 8.0, x1, y1, color);
+        draw_line(canvas, x1 + (slope - PI / 8.0).sin() * 8.0, y1 + (slope - PI / 8.0).cos() * 8.0, x1, y1, color);
     }
     else {
         let slope = (y2 - y1) / (x2 - x1);
@@ -597,6 +644,8 @@ fn draw_arrow_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32
         // Draw an arrow at each end
         draw_line(canvas, x2 - (slope + PI / 8.0).cos() * 8.0, y2 - (slope + PI / 8.0).sin() * 8.0, x2, y2, color);
         draw_line(canvas, x2 - (slope - PI / 8.0).cos() * 8.0, y2 - (slope - PI / 8.0).sin() * 8.0, x2, y2, color);
+        draw_line(canvas, x1 + (slope + PI / 8.0).cos() * 8.0, y1 + (slope + PI / 8.0).sin() * 8.0, x1, y1, color);
+        draw_line(canvas, x1 + (slope - PI / 8.0).cos() * 8.0, y1 + (slope - PI / 8.0).sin() * 8.0, x1, y1, color);
     }
 
     // Draw main line
@@ -693,8 +742,12 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
     Ok(())
 }
 
-static FONT: Lazy<Font> = Lazy::new(|| {
+static BALOO_CHETTAN_SEMIBOLD: Lazy<Font> = Lazy::new(|| {
     let font_bytes = read("resources/BalooChettan2-SemiBold.ttf").expect("Missing font file!");
+    Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
+});
+static BALOO_CHETTAN_EXTRABOLD: Lazy<Font> = Lazy::new(|| {
+    let font_bytes = read("resources/BalooChettan2-ExtraBold.ttf").expect("Missing font file!");
     Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
 });
 
@@ -710,22 +763,70 @@ fn render_text(text: &str, size: f32, color: Rgba<u8>, max_width: Option<u32>) -
         wrap_style: WrapStyle::Letter,
         wrap_hard_breaks: true,
     });
-    layout.append(&[&*FONT], &TextStyle::new(text, size, 0));
+    layout.append(&[&*BALOO_CHETTAN_SEMIBOLD], &TextStyle::new(text, size, 0));
     let width = layout.glyphs().iter().map(|g| g.x as usize + g.width).max().unwrap_or(0);
     let mut img = RgbaImage::new(width as u32, layout.height() as u32);
 
     for glyph in layout.glyphs().iter() {
-        let (metrics, bitmap) = FONT.rasterize_config_subpixel(glyph.key);
+        let (metrics, bitmap) = BALOO_CHETTAN_SEMIBOLD.rasterize_config_subpixel(glyph.key);
         for (i, (cr, cg, cb)) in bitmap.into_iter().tuples().enumerate() {
             let x = (i % metrics.width) as i64 + glyph.x as i64;
             let y = (i / metrics.width) as i64 + glyph.y as i64;
             if x >= 0 && x < img.width() as i64 && y >= 0 && y < img.height() as i64 {
                 let coverage = (cr as f32 + cg as f32 + cb as f32) / 3.0;
-                img.put_pixel(x as u32, y as u32, [color.0[0].saturating_add(255-cr), color.0[1].saturating_add(255-cg), color.0[2].saturating_add(255-cb), coverage as u8].into());
+                img.put_pixel(
+                    x as u32, 
+                    y as u32, 
+                    [
+                        color.0[0].saturating_add(255-cr), 
+                        color.0[1].saturating_add(255-cg), 
+                        color.0[2].saturating_add(255-cb), 
+                        coverage as u8
+                    ].into()
+                );
             }
         }
     }
+    img
+}
 
+/// Renders text with settings more suited for very small font sizes
+/// (No subpixel rendering, bolder font)
+fn render_small_text(text: &str, size: f32, color: Rgba<u8>) -> RgbaImage {
+    let mut layout = FontLayout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
+    layout.reset(&LayoutSettings {
+        x: 0f32,
+        y: 0f32,
+        max_width: None,
+        max_height: None,
+        horizontal_align: HorizontalAlign::Left,
+        vertical_align: VerticalAlign::Top,
+        wrap_style: WrapStyle::Letter,
+        wrap_hard_breaks: true,
+    });
+    layout.append(&[&*BALOO_CHETTAN_EXTRABOLD], &TextStyle::new(text, size, 0));
+    let width = layout.glyphs().iter().map(|g| g.x as usize + g.width).max().unwrap_or(0);
+    let mut img = RgbaImage::new(width as u32, layout.height() as u32);
+
+    for glyph in layout.glyphs().iter() {
+        let (metrics, bitmap) = BALOO_CHETTAN_EXTRABOLD.rasterize_config(glyph.key);
+        for (i, v) in bitmap.into_iter().enumerate() {
+            let x = (i % metrics.width) as i64 + glyph.x as i64;
+            let y = (i / metrics.width) as i64 + glyph.y as i64;
+            if x >= 0 && x < img.width() as i64 && y >= 0 && y < img.height() as i64 {
+                img.put_pixel(
+                    x as u32, 
+                    y as u32, 
+                    [
+                        color.0[0].saturating_add(255-v), 
+                        color.0[1].saturating_add(255-v), 
+                        color.0[2].saturating_add(255-v), 
+                        v
+                    ].into()
+                );
+            }
+        }
+    }
     img
 }
 

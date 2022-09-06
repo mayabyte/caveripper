@@ -14,7 +14,7 @@ mod parse;
 use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use nom::Finish;
 use parse::parse_caveinfo;
-use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::{Treasure, CaveConfig}};
+use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::{Treasure, CaveConfig}, pikmin_math};
 use self::parse::try_parse_caveinfo;
 
 
@@ -319,6 +319,15 @@ pub struct Waypoint {
     pub r: f32,
     pub index: u32,
     pub links: Vec<u32>,
+}
+
+impl Waypoint {
+    pub fn dist(&self, other: &Waypoint) -> f32 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        let dz = self.z - other.z;
+        pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
+    }
 }
 
 
