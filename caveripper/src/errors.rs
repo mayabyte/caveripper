@@ -45,6 +45,9 @@ pub enum AssetError {
 
     #[error("Files for game '{0}' have not been extracted!")]
     MissingGameError(String),
+
+    #[error("CaveConfig failed to parse: {0}")]
+    CaveConfigError(String),
 }
 
 #[derive(Debug, Error, Clone)]

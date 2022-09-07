@@ -28,7 +28,7 @@ use caveripper::{
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    AssetManager::init("assets", ".");
+    AssetManager::init_global("assets", ".")?;
 
     let args = Cli::parse();
     match args.verbosity {

@@ -6,6 +6,8 @@ use std::process::Command;
 use crate::assets::AssetManager;
 use crate::layout::boxes_overlap;
 use crate::layout::Layout;
+use crate::layout::render::CaveinfoRenderOptions;
+use crate::layout::render::render_caveinfo;
 use crate::sublevel::Sublevel;
 
 use super::render::LayoutRenderOptions;
@@ -19,7 +21,7 @@ fn test_collision() {
 //#[test]
 #[allow(dead_code)]
 fn test_slugs() {
-    AssetManager::init("../assets", "..");
+    AssetManager::init_global("../assets", "..").unwrap();
 
     let num_layouts = 100;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
@@ -77,8 +79,8 @@ fn test_slugs() {
 }
 
 #[test]
-fn test_render() {
-    AssetManager::init("../assets", "..");
+fn test_render_layouts() {
+    AssetManager::init_global("../assets", "..").unwrap();
 
     let num_layouts = 1_000;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
@@ -110,4 +112,15 @@ fn test_render() {
     .count();
 
     assert!(failures == 0);
+}
+
+#[test]
+fn test_render_caveinfo() {
+    AssetManager::init_global("../assets", "..").unwrap();
+    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
+
+    all_sublevels.into_par_iter().panic_fuse().for_each(|(_, caveinfo)| {
+        render_caveinfo(&caveinfo, CaveinfoRenderOptions::default()).unwrap();
+    });
 }

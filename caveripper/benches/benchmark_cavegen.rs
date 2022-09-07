@@ -7,7 +7,7 @@ use caveripper::{
 };
 
 pub fn benchmark_layout_generation(c: &mut Criterion) {
-    AssetManager::init("assets", ".");
+    AssetManager::init_global("assets", ".").unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
     AssetManager::preload_vanilla_caveinfo()
         .expect("Failed to load caveinfo!");

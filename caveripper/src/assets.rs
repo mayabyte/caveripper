@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs::{read_to_string, read_dir, read};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use encoding_rs::SHIFT_JIS;
 use image::RgbaImage;
 use itertools::Itertools;
@@ -34,7 +35,13 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
-    pub fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) {
+    pub fn init_global(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<(), AssetError> {
+        let manager = AssetManager::init(asset_path, resources_loc)?;
+        ASSETS.get_or_init(|| manager);
+        Ok(())
+    }
+
+    fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<AssetManager, AssetError> {
         let mut manager = Self {
             asset_path: asset_path.as_ref().into(),
             resources_loc: resources_loc.as_ref().into(),
@@ -47,19 +54,20 @@ impl AssetManager {
             rooms: Vec::new(),
         };
 
-        let cave_cfg: Vec<CaveConfig> = read_to_string(resources_loc.as_ref().join("resources/caveinfo_config.txt")).unwrap()
+        let cave_cfg: Vec<CaveConfig> = read_to_string(resources_loc.as_ref().join("resources/caveinfo_config.txt"))
+            .map_err(|e| AssetError::CaveConfigError(e.to_string()))?
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
-                CaveConfig {
+                Ok(CaveConfig {
                     game: data.remove(0),
                     full_name: data.remove(0),
-                    is_challenge_mode: data.remove(0).parse().expect("Invalid cave_config file!"),
+                    is_challenge_mode: data.remove(0).parse().map_err(|e: <bool as FromStr>::Err| AssetError::CaveConfigError(e.to_string()))?,
                     caveinfo_filename: data.remove(0),
                     shortened_names: data,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, AssetError>>()?;
         manager.cave_cfg = cave_cfg;
 
         let all_games: HashSet<&str> = manager.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect();
@@ -69,14 +77,17 @@ impl AssetManager {
                 continue;
             }
 
+            let treasure_path = manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/otakara_config.txt");
+            let ek_treasure_path = manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/item_config.txt");
+
             let treasures = SHIFT_JIS.decode(
-                read(manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/otakara_config.txt"))
-                .expect("Couldn't find otakara_config.txt!")
+                read(&treasure_path)
+                .map_err(|e| AssetError::IoError(treasure_path.to_string_lossy().into(), e.kind()))?
                 .as_slice()
             ).0.into_owned();
             let ek_treasures = SHIFT_JIS.decode(
-                read(manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/item_config.txt"))
-                .expect("Couldn't find item_config.txt!")
+                read(&ek_treasure_path)
+                .map_err(|e| AssetError::IoError(ek_treasure_path.to_string_lossy().into(), e.kind()))?
                 .as_slice()
             ).0.into_owned();
     
@@ -85,14 +96,18 @@ impl AssetManager {
             treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
             manager.treasures = treasures;
     
-            let teki: Vec<String> = read_dir(manager.asset_path.join(game).join("user/Yamashita/enemytex/arc")).expect("Couldn't read enemytex directory!")
+            let teki_path = manager.asset_path.join(game).join("user/Yamashita/enemytex/arc");
+            let teki: Vec<String> = read_dir(&teki_path)
+                .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
                 .filter_map(Result::ok)
                 .filter(|dir_entry| dir_entry.path().is_dir())
                 .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
                 .collect();
             manager.teki = teki;
     
-            let rooms: Vec<String> = read_dir(manager.asset_path.join(game).join("user/Mukki/mapunits/arc")).expect("Couldn't read arc directory!")
+            let room_path = manager.asset_path.join(game).join("user/Mukki/mapunits/arc");
+            let rooms: Vec<String> = read_dir(&room_path)
+                .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
                 .filter_map(Result::ok)
                 .filter(|dir_entry| dir_entry.path().is_dir())
                 .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
@@ -100,7 +115,7 @@ impl AssetManager {
             manager.rooms = rooms;
         }
 
-        ASSETS.get_or_init(|| manager);
+        Ok(manager)
     }
 
     pub fn get_txt_file<P: AsRef<Path>>(path: P) -> Result<&'static str, AssetError> {
@@ -109,6 +124,18 @@ impl AssetManager {
 
     pub fn get_caveinfo(sublevel: &Sublevel) -> Result<&'static CaveInfo, AssetError> {
         ASSETS.get().ok_or(AssetError::Uninitialized)?._get_caveinfo(sublevel)
+    }
+
+    /// Get a file as raw bytes. Does not cache the file.
+    pub fn get_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, AssetError> {
+        let manager = ASSETS.get().ok_or(AssetError::Uninitialized)?;
+        if path.as_ref().starts_with("resources") {
+            read(manager.resources_loc.join(&path))
+        }
+        else {
+            read(manager.asset_path.join(&path))
+        }
+        .map_err(|e| AssetError::IoError(path.as_ref().to_string_lossy().to_string(), e.kind()))
     }
 
     pub fn get_img<P: AsRef<Path>>(path: P) -> Result<&'static RgbaImage, AssetError> {

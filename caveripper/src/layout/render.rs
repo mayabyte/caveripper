@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::cmp::max;
 use std::f32::consts::PI;
-use std::fs::read;
 use std::path::{Path, PathBuf};
 
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
@@ -60,12 +59,19 @@ const fn group_color(group: u32) -> [u8; 4] {
 #[clap(next_help_heading="Rendering options")]
 pub struct LayoutRenderOptions {
     /// Draw grid lines corresponding to map unit grid boundaries.
-    #[clap(long, default_value_t=false, action=clap::ArgAction::Set)]
+    #[clap(long)]
     pub draw_grid: bool,
 
     /// Draw highlight circles behind important objects in layouts.
     #[clap(long, short='q', default_value_t=true, action=clap::ArgAction::Set)]
     pub quickglance: bool,
+
+    /// Draw circles indicating gauge activation range around treasures.
+    /// The larger circle indicates when the gauge needle will start to go
+    /// up, and the smaller circle indicates when you'll start to get
+    /// audible gauge pings.
+    #[clap(long)]
+    pub draw_gauge_range: bool,
 }
 
 #[derive(Default, Debug, Args)]
@@ -444,11 +450,12 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         .filter(|unit| unit.rotation == 0)
         .filter(|unit| unit.room_type == RoomType::Room);
 
-    let caps = caveinfo.cave_units.iter()
+    let caps: Vec<_> = caveinfo.cave_units.iter()
         .filter(|unit| unit.rotation == 0)
-        .filter(|unit| unit.room_type == RoomType::DeadEnd);
+        .filter(|unit| unit.room_type == RoomType::DeadEnd)
+        .collect();
 
-    for (i, unit) in caps.enumerate() {
+    for (i, unit) in caps.iter().enumerate() {
         let unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?;
         let y = base_y + i as i64 * ((RENDER_SCALE * 8) as i64 + maptile_margin);
 
@@ -485,18 +492,27 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         }
     }
 
-    base_x += (RENDER_SCALE * 8) as i64 + maptile_margin;
+    if !caps.is_empty() {
+        base_x += (RENDER_SCALE * 8) as i64 + maptile_margin;
+    }
 
     for unit in rooms {
         let mut unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?.clone();
-        let total_width = base_x + unit_texture.width() as i64;
-        if total_width > canvas_maptiles.width() as i64 {
+
+        // If the unit is just too big, we have to expand the whole image
+        if unit_texture.width() + 2 > canvas_maptiles.width() {
+            let expand_by = (unit_texture.width() + (maptile_margin as u32 * 2) + 2) - canvas_maptiles.width();
+            expand_canvas(&mut canvas_maptiles, expand_by, 0, Some(MAPTILES_BACKGROUND.into()));
+            expand_canvas(&mut canvas_header, expand_by, 0, Some(HEADER_BACKGROUND.into()));
+        }
+        // Normal case: we just overran in this row
+        if base_x + unit_texture.width() as i64 + 2 > canvas_maptiles.width() as i64 {
             base_x = maptile_margin;
             base_y = max_y + maptile_margin;
         }
-        else if total_width + maptile_margin > canvas_maptiles.width() as i64 {
-            // This next tile teeeechnically fits, so we just fudge it a little by expanding the width
-            let expand_by = (total_width + maptile_margin) as u32 - canvas_maptiles.width();
+        // This next tile teeeechnically fits, so we just fudge it a little by expanding the width
+        else if base_x + unit_texture.width() as i64 + maptile_margin + 2 > canvas_maptiles.width() as i64 {
+            let expand_by = (base_x + maptile_margin) as u32 + unit_texture.width() - canvas_maptiles.width();
             expand_canvas(&mut canvas_maptiles, expand_by, 0, Some(MAPTILES_BACKGROUND.into()));
             expand_canvas(&mut canvas_header, expand_by, 0, Some(HEADER_BACKGROUND.into()));
         }
@@ -563,7 +579,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         }
 
         overlay(&mut canvas_maptiles, &unit_texture, base_x, base_y);
-        draw_border(&mut canvas_maptiles, base_x as u32, base_y as u32, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
+        draw_border(&mut canvas_maptiles, base_x as u32 - 1, base_y as u32 - 1, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
         overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
         
         max_y = max(max_y, base_y + unit_texture.height() as i64);
@@ -666,7 +682,7 @@ fn draw_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut 
         for y in (y1.round() as u32)..(y2.round() as u32) {
             let true_y = y as f32 + 0.5;
             let true_x = x1 + (slope * (true_y - y1));
-            try_blend(canvas, true_x.round() as u32, true_y.round() as u32, color);
+            try_blend(canvas, true_x.round() as i64, true_y.round() as i64, color);
         }
     }
     else {
@@ -675,16 +691,31 @@ fn draw_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut 
         for x in (x1.round() as u32)..(x2.round() as u32) {
             let true_x = x as f32 + 0.5;
             let true_y = y1 + (slope * (true_x - x1));
-            try_blend(canvas, true_x.round() as u32, true_y.round() as u32, color);
+            try_blend(canvas, true_x.round() as i64, true_y.round() as i64, color);
         }
+    }
+}
+
+fn draw_ring(canvas: &mut RgbaImage, x: f32, y: f32, r: f32, color: Rgba<u8>) {
+    for i in 0..=(r as i32) {
+        let offset = i as f32;
+        let height = (r.powi(2) - offset.powi(2)).sqrt();
+        try_blend(canvas, (x - offset) as i64, (y + height) as i64, color);
+        try_blend(canvas, (x - offset) as i64, (y - height) as i64, color);
+        try_blend(canvas, (x + offset) as i64, (y + height) as i64, color);
+        try_blend(canvas, (x + offset) as i64, (y - height) as i64, color);
+        try_blend(canvas, (x - height) as i64, (y + offset) as i64, color);
+        try_blend(canvas, (x - height) as i64, (y - offset) as i64, color);
+        try_blend(canvas, (x + height) as i64, (y + offset) as i64, color);
+        try_blend(canvas, (x + height) as i64, (y - offset) as i64, color);
     }
 }
 
 /// Blends the pixel at the given coordinates, if they are in bounds. Otherwise
 /// does nothing.
-fn try_blend(canvas: &mut RgbaImage, x: u32, y: u32, color: Rgba<u8>) {
-    if let Some(pix) = canvas.get_pixel_mut_checked(x, y) {
-        pix.blend(&color);
+fn try_blend(canvas: &mut RgbaImage, x: i64, y: i64, color: Rgba<u8>) {
+    if x > 0 && y > 0 && x < canvas.width() as i64 && y < canvas.height() as i64 {
+        canvas.get_pixel_mut(x as u32, y as u32).blend(&color);
     }
 }
 
@@ -713,7 +744,7 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
     }
 
     let img_x = ((x * COORD_FACTOR) - (texture.width() as f32 / 2.0)) as i64;
-    let img_z = ((z * COORD_FACTOR ) - (texture.height() as f32 / 2.0)) as i64;
+    let img_z = ((z * COORD_FACTOR) - (texture.height() as f32 / 2.0)) as i64;
 
     // Draw the main texture
     overlay(image_buffer, &*texture, img_x, img_z);
@@ -735,6 +766,12 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
                 );
                 overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
             },
+            TextureModifier::GaugeRing if options.draw_gauge_range => {
+                let radius1 = 775.0 * COORD_FACTOR;  // Radius at which the gauge needle starts to go up
+                let radius2 = 450.0 * COORD_FACTOR;  // Radius at which you start to get audible pings
+                draw_ring(image_buffer, x * COORD_FACTOR, z * COORD_FACTOR, radius1, [210,0,240,120].into());
+                draw_ring(image_buffer, x * COORD_FACTOR, z * COORD_FACTOR, radius2, [210,0,120,120].into());
+            },
             _ => {}
         }
     }
@@ -743,11 +780,11 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
 }
 
 static BALOO_CHETTAN_SEMIBOLD: Lazy<Font> = Lazy::new(|| {
-    let font_bytes = read("resources/BalooChettan2-SemiBold.ttf").expect("Missing font file!");
+    let font_bytes = AssetManager::get_bytes("resources/BalooChettan2-SemiBold.ttf").expect("Missing font file!");
     Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
 });
 static BALOO_CHETTAN_EXTRABOLD: Lazy<Font> = Lazy::new(|| {
-    let font_bytes = read("resources/BalooChettan2-ExtraBold.ttf").expect("Missing font file!");
+    let font_bytes = AssetManager::get_bytes("resources/BalooChettan2-ExtraBold.ttf").expect("Missing font file!");
     Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
 });
 
@@ -848,6 +885,7 @@ enum TextureModifier {
     Falling,
     Carrying(String),
     QuickGlance(Rgba<u8>),
+    GaugeRing,
 }
 
 trait Textured {
@@ -896,6 +934,7 @@ impl Textured for TekiInfo {
         if let Some(carrying) = self.carrying.as_ref() {
             modifiers.push(TextureModifier::Carrying(carrying.internal_name.clone()));
             modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into()));
+            modifiers.push(TextureModifier::GaugeRing);
         }
         match self.internal_name.to_ascii_lowercase().as_str() {
             "blackpom" /* Violet Candypop */ => modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_VIOLET_CANDYPOP_COLOR.into())),
@@ -952,7 +991,8 @@ impl Textured for ItemInfo {
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
         vec![
             TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into()), 
-            TextureModifier::Scale(TREASURE_SIZE, TREASURE_SIZE)
+            TextureModifier::Scale(TREASURE_SIZE, TREASURE_SIZE),
+            TextureModifier::GaugeRing,
         ]
     }
 }

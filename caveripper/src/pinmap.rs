@@ -1,5 +1,7 @@
 use std::{collections::HashMap, pin::Pin, hash::Hash, cell::UnsafeCell, sync::{RwLock, RwLockReadGuard}, borrow::Borrow};
 
+use rayon::prelude::IntoParallelIterator;
+
 /// Thread-safe, append-only HashMap that can provide immutable references to its 
 /// entries that don't block further additions to the map.
 #[derive(Debug)]
@@ -102,5 +104,33 @@ impl<'a, K: Eq + Hash, V> Iterator for PinMapIterator<'a, K, V> {
     type Item = <std::collections::hash_map::Iter<'a, K, V> as Iterator>::Item;
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
+    }
+}
+
+impl<'a, K: Eq + Hash, V> IntoIterator for &'a PinMap<K, V> {
+    type IntoIter = PinMapIterator<'a, K, Pin<Box<V>>>;
+    type Item = (&'a K, &'a Pin<Box<V>>);
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+// Owned iterator implementations follow (no safety guarantees to uphold)
+
+impl<K: Eq + Hash, V> IntoIterator for PinMap<K, V> {
+    type IntoIter = <HashMap<K, Pin<Box<V>>> as IntoIterator>::IntoIter;
+    type Item = <HashMap<K, Pin<Box<V>>> as IntoIterator>::Item;
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_inner().into_iter()
+    }
+}
+
+impl<K: Eq + Hash + Sync, V: Sync> IntoParallelIterator for PinMap<K, V> 
+where HashMap<K, Pin<Box<V>>>: IntoParallelIterator
+{
+    type Iter = <HashMap<K, Pin<Box<V>>> as IntoParallelIterator>::Iter;
+    type Item = <HashMap<K, Pin<Box<V>>> as IntoParallelIterator>::Item;
+    fn into_par_iter(self) -> Self::Iter {
+        self.inner.into_inner().into_par_iter()
     }
 }
