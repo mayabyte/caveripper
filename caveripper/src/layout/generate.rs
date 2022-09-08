@@ -1,5 +1,5 @@
 use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
-use log::{debug, warn};
+use log::debug;
 use crate::{
     pikmin_math::{PikminRng, self}, 
     caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, 
@@ -1292,6 +1292,9 @@ impl<'a> LayoutBuilder<'a> {
             }
         }
 
+        if hole_spawnpoints.is_empty() {
+            return;
+        }
         
         let hole_location = if is_challenge_mode {
             let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect();
@@ -1302,13 +1305,8 @@ impl<'a> LayoutBuilder<'a> {
             let max_hole_score = hole_spawnpoints.iter()
                 .filter(|sp| sp.contains.is_empty())
                 .map(|sp| sp.hole_score)
-                .max();
-            
-            if max_hole_score.is_none() {
-                warn!("No hole spawnpoints remaining, but tried to place an exit anyway. Skipping.");
-                return;
-            }
-            let max_hole_score = max_hole_score.unwrap();
+                .max()
+                .unwrap();
 
             let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
                 .filter(|sp| sp.hole_score == max_hole_score)
