@@ -2,6 +2,8 @@
 #![feature(option_result_contains)]
 #![feature(let_else)]
 #![feature(map_try_insert)]
+
+#![allow(stable_features)] // This feature is required to be able to build on NixOS for some reason.
 #![feature(let_chains)]
 
 pub mod caveinfo;

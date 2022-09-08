@@ -957,7 +957,7 @@ impl Textured for CapInfo {
                 AssetManager::get_img(&filename)
             },
             None => {
-                let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name).join("texture.png");
+                let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
                 AssetManager::get_img(&filename)
             }
         }
@@ -984,7 +984,7 @@ impl Textured for CapInfo {
 impl Textured for ItemInfo {
     fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         // TODO: fix US region being hardcoded here.
-        let filename = PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(&self.internal_name).join("texture.png");
+        let filename = PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
         AssetManager::get_img(&filename)
     }
 
