@@ -258,7 +258,7 @@ impl AssetManager {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
             caveinfo.sublevel = sublevel.clone();
             
-            if self.caveinfo_cache.insert(sublevel, caveinfo).is_ok() {
+            if self.caveinfo_cache.insert(sublevel, caveinfo).is_err() {
                 warn!("Tried to replace CaveInfo {} in cache. Caveinfo NOT updated.", cave.caveinfo_filename);
                 //info!("Replaced CaveInfo {} in cache", cave.caveinfo_filename);
             }

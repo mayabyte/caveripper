@@ -1,5 +1,5 @@
 use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
-use log::{debug, info};
+use log::debug;
 use crate::{
     pikmin_math::{PikminRng, self}, 
     caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, 
@@ -72,7 +72,6 @@ impl<'a> LayoutBuilder<'a> {
     /// when that results in non-idiomatic Rust code. It is my 'reference'
     /// implementation; a more optimized one will follow.
     fn _generate(mut self, caveinfo: &'a CaveInfo) -> Layout<'a> {
-        info!("Generating layout for {} {:#010X}...", caveinfo.name(), self.starting_seed);
         let is_challenge_mode = caveinfo.is_challenge_mode();
 
         // ** mapUnitsInitialSorting ** //
