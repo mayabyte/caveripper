@@ -2,6 +2,7 @@
 #![feature(option_result_contains)]
 #![feature(let_else)]
 #![feature(map_try_insert)]
+#![feature(let_chains)]
 
 pub mod caveinfo;
 pub mod layout;
