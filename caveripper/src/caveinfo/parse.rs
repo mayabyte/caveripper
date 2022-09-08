@@ -6,7 +6,7 @@ use crate::{
         DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, 
         Waterbox, Waypoint
     },
-    errors::CaveInfoError,
+    errors::{CaveInfoError},
     assets::{AssetManager, Treasure, CaveConfig}, sublevel::Sublevel,
 };
 use nom::{
@@ -18,12 +18,13 @@ use nom::{
     combinator::{into, opt, success, value, recognize},
     multi::{count, many1, many0},
     sequence::{delimited, preceded, tuple},
-    IResult as IResult, number::{complete::float},
+    number::{complete::float},
+    IResult as IResult,
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::{str::FromStr, path::PathBuf};
+use std::{str::FromStr, path::PathBuf, error::Error};
 
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
@@ -63,6 +64,9 @@ pub(super) fn parse_cave_unit_definition(
     let num_units: usize = num_units_str
         .parse()
         .expect("Couldn't parse num units from Cave Unit Definition File!");
+
+    // Skip lines until we get to the beginning of the first section.
+    let (rest, _) = value((), many0(is_not("{")))(rest)?;
 
     count(section, num_units)(rest)
 }
@@ -152,17 +156,18 @@ impl<'a> Section<'a> {
 
     /// Gets and parses the one useful value out of a tagged CaveInfo line.
     /// See https://pikmintkb.com/wiki/Cave_generation_parameters#FloorInfo
-    pub(super) fn get_tag<T: FromStr>(&self, tag: &str) -> Result<T, CaveInfoError> {
+    pub(super) fn get_tag<T: FromStr>(&self, tag: &str) -> Result<T, CaveInfoError> where <T as FromStr>::Err: Error {
         self.get_tagged_line(tag)
             .ok_or_else(|| CaveInfoError::NoSuchTag(tag.to_string()))?
             .get(1)
             .ok_or_else(|| CaveInfoError::MalformedTagLine(tag.to_string()))?
             .parse()
-            .map_err(|_| CaveInfoError::ParseValueError)
+            .map_err(|e: <T as FromStr>::Err| CaveInfoError::ParseValueError(e.to_string()))
     }
 
     pub(super) fn get_line(&self, index: usize) -> Result<&InfoLine, CaveInfoError> {
-        self.lines.get(index).ok_or(CaveInfoError::MalformedLine)
+        self.lines.get(index)
+            .ok_or_else(|| CaveInfoError::MalformedSection(format!("No line with index {}", index)))
     }
 }
 
@@ -178,7 +183,7 @@ impl InfoLine<'_> {
         self.items
             .get(item)
             .copied()
-            .ok_or(CaveInfoError::MalformedLine)
+            .ok_or_else(|| CaveInfoError::MalformedInfoLine(format!("tag:{:?} {:?} (index {})", self.tag, self.items, item)))
     }
 }
 
@@ -255,7 +260,7 @@ pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConf
         max_treasures: floorinfo_section.get_tag("003")?,
         max_gates: floorinfo_section.get_tag("004")?,
         num_rooms: floorinfo_section.get_tag("005")?,
-        corridor_probability: floorinfo_section.get_tag("006")?,
+        corridor_probability: floorinfo_section.get_tag::<f32>("006")?,
         cap_probability: floorinfo_section.get_tag::<f32>("014")? / 100f32,
         has_geyser: floorinfo_section.get_tag::<u8>("007")? > 0,
         exit_plugged: floorinfo_section.get_tag::<u8>("010")? > 0,
@@ -272,19 +277,20 @@ pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConf
         gate_info: gateinfo_section.try_into()?,
         cap_info: capinfo_section.try_into()?,
         is_final_floor: false,
+        waterwraith_timer: floorinfo_section.get_tag::<f32>("016")?,
     })
 }
 
 impl TryFrom<Section<'_>> for Vec<TekiInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: Section) -> Result<Vec<TekiInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<TekiInfo>, Self::Error> {
         section
             .lines
             .iter()
             .skip(1) // First line contains the number of Teki
             .tuples()
             .map(
-                |(item_line, group_line)| -> Result<TekiInfo, CaveInfoError> {
+                |(item_line, group_line)| -> Result<TekiInfo, Self::Error> {
                     let internal_identifier = item_line.get_line_item(0)?;
                     let amount_code = item_line.get_line_item(1)?;
                     let group: u32 = group_line.get_line_item(0)?.parse()?;
@@ -319,13 +325,13 @@ impl TryFrom<Section<'_>> for Vec<TekiInfo> {
                     })
                 },
             )
-            .collect()
+            .collect::<Result<Vec<_>, _>>()
     }
 }
 
 impl TryFrom<Section<'_>> for Vec<ItemInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: Section) -> Result<Vec<ItemInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<ItemInfo>, Self::Error> {
         section
             .lines
             .iter()
@@ -346,23 +352,23 @@ impl TryFrom<Section<'_>> for Vec<ItemInfo> {
 
 impl TryFrom<Section<'_>> for Vec<GateInfo> {
     type Error = CaveInfoError;
-    fn try_from(section: Section) -> Result<Vec<GateInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<GateInfo>, Self::Error> {
         section
             .lines
             .iter()
             .skip(1)
             .tuples()
             .map(
-                |(health_line, spawn_distribution_weight_line)| -> Result<GateInfo, CaveInfoError> {
+                |(health_line, spawn_distribution_weight_line)| -> Result<GateInfo, Self::Error> {
                     Ok(GateInfo {
                         health: health_line.get_line_item(1)?.parse()?,
                         spawn_distribution_weight: spawn_distribution_weight_line
                             .get_line_item(0)?
                             .chars()
                             .last()
-                            .ok_or(CaveInfoError::MalformedLine)?
+                            .ok_or_else(|| CaveInfoError::MalformedInfoLine("GateInfo: no weight value found".into()))?
                             .to_digit(10)
-                            .ok_or(CaveInfoError::ParseValueError)?
+                            .ok_or_else(|| CaveInfoError::ParseValueError("Couldn't parse weight in gateinfo".into()))?
                             as u32,
                     })
                 },
@@ -375,14 +381,14 @@ impl TryFrom<Section<'_>> for Vec<CapInfo> {
     /// Almost an exact duplicate of the code for TekiInfo, which is unfortunately
     /// necessary with how the code is currently structured. May refactor in the future.
     type Error = CaveInfoError;
-    fn try_from(section: Section) -> Result<Vec<CapInfo>, CaveInfoError> {
+    fn try_from(section: Section) -> Result<Vec<CapInfo>, Self::Error> {
         section
             .lines
             .iter()
             .skip(1) // First line contains the number of Teki
             .tuples()
             .map(
-                |(_, item_line, group_line)| -> Result<CapInfo, CaveInfoError> {
+                |(_, item_line, group_line)| -> Result<CapInfo, Self::Error> {
                     let internal_identifier = item_line.get_line_item(0)?;
                     let amount_code = item_line.get_line_item(1)?;
                     let group: u8 = group_line.get_line_item(0)?.parse()?;
@@ -443,9 +449,9 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
     let layoutfile_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/layout.txt");
     let mut spawnpoints = match AssetManager::get_txt_file(&layoutfile_path) {
         Ok(cave_unit_layout_file_txt) => {
-            let spawnpoints_sections = parse_cave_unit_layout_file(cave_unit_layout_file_txt)
-                .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse cave unit layout file '{}': {}", &layoutfile_path.to_string_lossy(), e)))?.1;
-            spawnpoints_sections.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>()?
+            parse_cave_unit_layout_file(cave_unit_layout_file_txt)
+                .map(|sections| sections.1.into_iter().map(TryInto::try_into).collect::<Result<Vec<_>, _>>())
+                .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse cave unit layout file '{}': {}", &layoutfile_path.to_string_lossy(), e)))??
         },
         Err(_) => Vec::new(),
     };
@@ -503,7 +509,7 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
 
 impl TryFrom<&[InfoLine<'_>]> for DoorUnit {
     type Error = CaveInfoError;
-    fn try_from(lines: &[InfoLine]) -> Result<DoorUnit, CaveInfoError> {
+    fn try_from(lines: &[InfoLine]) -> Result<DoorUnit, Self::Error> {
         let direction = lines[1].get_line_item(0)?.parse()?;
         let side_lateral_offset = lines[1].get_line_item(1)?.parse()?;
         let waypoint_index = lines[1].get_line_item(2)?.parse()?;
@@ -524,7 +530,7 @@ impl TryFrom<&[InfoLine<'_>]> for DoorUnit {
 
 impl TryFrom<&InfoLine<'_>> for DoorLink {
     type Error = CaveInfoError;
-    fn try_from(line: &InfoLine) -> Result<DoorLink, CaveInfoError> {
+    fn try_from(line: &InfoLine) -> Result<DoorLink, Self::Error> {
         let distance = line.get_line_item(0)?.parse()?;
         let door_id = line.get_line_item(1)?.parse()?;
         let tekiflag = line.get_line_item(2)?.parse::<u8>()? > 0;
@@ -542,11 +548,11 @@ impl TryFrom<Section<'_>> for SpawnPoint {
         Ok(
             SpawnPoint {
                 group: section.get_line(0)?.get_line_item(0)?.parse()?,
-                pos_x: section.get_line(1)?.get_line_item(0)?.parse()?,
-                pos_y: section.get_line(1)?.get_line_item(1)?.parse()?,
-                pos_z: section.get_line(1)?.get_line_item(2)?.parse()?,
-                angle_degrees: section.get_line(2)?.get_line_item(0)?.parse()?,
-                radius: section.get_line(3)?.get_line_item(0)?.parse()?,
+                pos_x: float(section.get_line(1)?.get_line_item(0)?)?.1,
+                pos_y: float(section.get_line(1)?.get_line_item(1)?)?.1,
+                pos_z: float(section.get_line(1)?.get_line_item(2)?)?.1,
+                angle_degrees: float(section.get_line(2)?.get_line_item(0)?)?.1,
+                radius: float(section.get_line(3)?.get_line_item(0)?)?.1,
                 min_num: section.get_line(4)?.get_line_item(0)?.parse()?,
                 max_num: section.get_line(5)?.get_line_item(0)?.parse()?,
             }

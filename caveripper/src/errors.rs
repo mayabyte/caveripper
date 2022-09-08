@@ -79,11 +79,14 @@ pub enum CaveInfoError {
     #[error("Invalid sublevel '{0}'")]
     InvalidSublevel(String),
 
-    #[error("Malformed line in caveinfo file")]
-    MalformedLine,
+    #[error("Malformed Section: {0}")]
+    MalformedSection(String),
 
-    #[error("Error parsing value into the appropriate type")]
-    ParseValueError,
+    #[error("Malformed line in caveinfo file: '{0}'")]
+    MalformedInfoLine(String),
+
+    #[error("Error parsing value into the appropriate type: {0}")]
+    ParseValueError(String),
 
     #[error("No tag '{0}' in file")]
     NoSuchTag(String),
@@ -105,20 +108,26 @@ pub enum CaveInfoError {
 }
 
 impl From<ParseIntError> for CaveInfoError {
-    fn from(_: ParseIntError) -> CaveInfoError {
-        CaveInfoError::ParseValueError
+    fn from(e: ParseIntError) -> CaveInfoError {
+        CaveInfoError::ParseValueError(e.to_string())
     }
 }
 
 impl From<ParseFloatError> for CaveInfoError {
-    fn from(_: ParseFloatError) -> CaveInfoError {
-        CaveInfoError::ParseValueError
+    fn from(e: ParseFloatError) -> CaveInfoError {
+        CaveInfoError::ParseValueError(e.to_string())
     }
 }
 
 impl From<AssetError> for CaveInfoError {
     fn from(e: AssetError) -> Self {
         CaveInfoError::AssetError(Box::new(e))
+    }
+}
+
+impl From<nom::Err<(&str, nom::error::ErrorKind)>> for CaveInfoError {
+    fn from(e: nom::Err<(&str, nom::error::ErrorKind)>) -> Self {
+        CaveInfoError::NomError(e.to_string())
     }
 }
 

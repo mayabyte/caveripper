@@ -41,6 +41,7 @@ pub struct CaveInfo {
     pub gate_info: Vec<GateInfo>,
     pub cap_info: Vec<CapInfo>,
     pub is_final_floor: bool,
+    pub waterwraith_timer: f32,  // How long, in seconds, it'll take for the waterwraith to fall. 0 = never.
 }
 
 impl CaveInfo {

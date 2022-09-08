@@ -9,7 +9,7 @@ use caveripper::{
 pub fn benchmark_layout_generation(c: &mut Criterion) {
     AssetManager::init_global("assets", ".").unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_vanilla_caveinfo()
+    AssetManager::preload_all_caveinfo()
         .expect("Failed to load caveinfo!");
     let manager = AssetManager::all_sublevels().unwrap();
     let all_sublevels = manager.iter().collect_vec();
@@ -26,7 +26,7 @@ pub fn benchmark_layout_generation(c: &mut Criterion) {
 pub fn benchmark_layout_rendering(c: &mut Criterion) {
     AssetManager::init_global("assets", ".").unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_vanilla_caveinfo()
+    AssetManager::preload_all_caveinfo()
         .expect("Failed to load caveinfo!");
     let manager = AssetManager::all_sublevels().unwrap();
     let all_sublevels = manager.iter().collect_vec();

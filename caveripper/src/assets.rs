@@ -164,10 +164,11 @@ impl AssetManager {
 
     /// Forces the asset manager to load all the Caveinfo files in Vanilla Pikmin 2.
     /// Most useful for testing and benchmarking purposes.
-    pub fn preload_vanilla_caveinfo() -> Result<(), AssetError> {
+    pub fn preload_all_caveinfo() -> Result<(), AssetError> {
         let assets = ASSETS.get().ok_or(AssetError::Uninitialized)?;
-        for cave in ALL_VANILLA_CAVES {
-            assets.load_caveinfo(AssetManager::find_cave_cfg(cave, Some("pikmin2"), false)?)?;
+        for cave in ALL_CAVES {
+            let (game, cave_name) = cave.split_once(':').unwrap_or(("pikmin2", cave));
+            assets.load_caveinfo(AssetManager::find_cave_cfg(cave_name, Some(game), false)?)?;
         }
         Ok(())
     }
@@ -307,11 +308,13 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
     }
 }
 
-static ALL_VANILLA_CAVES: [&str; 44] = [
+static ALL_CAVES: [&str; 58] = [
     "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", 
     "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm", 
     "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str", 
-    "bg", "cop", "bd", "snr", "er"
+    "bg", "cop", "bd", "snr", "er", "newyear:bg", "newyear:sk", "newyear:cwnn", "newyear:snd",
+    "newyear:ch", "newyear:rh", "newyear:ss", "newyear:sa", "newyear:aa", "newyear:ser",
+    "newyear:tc", "newyear:er", "newyear:cg", "newyear:sd" 
 ];
 
 #[derive(Clone, Debug)]

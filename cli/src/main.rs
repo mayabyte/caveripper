@@ -32,9 +32,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let args = Cli::parse();
     match args.verbosity {
-        1 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
-        2 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
-        3 => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
+        0 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
+        1 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
+        2 => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
         _ => {/* No higher log levels */},
     }
 

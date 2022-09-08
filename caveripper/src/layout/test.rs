@@ -25,7 +25,7 @@ fn test_slugs() {
 
     let num_layouts = 100;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    AssetManager::preload_all_caveinfo().expect("Failed to load caveinfo!");
     let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
 
     let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
@@ -84,7 +84,7 @@ fn test_render_layouts() {
 
     let num_layouts = 1_000;
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    AssetManager::preload_all_caveinfo().expect("Failed to load caveinfo!");
     let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
 
     let tests: Vec<(u32, Sublevel)> = (0..num_layouts).into_iter()
@@ -117,10 +117,11 @@ fn test_render_layouts() {
 #[test]
 fn test_render_caveinfo() {
     AssetManager::init_global("../assets", "..").unwrap();
-    AssetManager::preload_vanilla_caveinfo().expect("Failed to load caveinfo!");
+    AssetManager::preload_all_caveinfo().expect("Failed to load caveinfo!");
     let all_sublevels = AssetManager::all_sublevels().expect("Failed to get all sublevel caveinfos");
 
-    all_sublevels.into_par_iter().panic_fuse().for_each(|(_, caveinfo)| {
+    all_sublevels.into_par_iter().panic_fuse().for_each(|(sublevel, caveinfo)| {
+        println!("{}", sublevel.long_name());
         render_caveinfo(&caveinfo, CaveinfoRenderOptions::default()).unwrap();
     });
 }
