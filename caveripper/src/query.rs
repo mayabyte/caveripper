@@ -127,7 +127,7 @@ impl TryFrom<&str> for Query {
                 let relationship = char_to_ordering(relationship_char);
                 if AssetManager::teki_list()?.contains(&obj.to_ascii_lowercase()) 
                     || AssetManager::treasure_list()?.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(obj)) 
-                    || obj.eq_ignore_ascii_case("gate") 
+                    || obj.eq_ignore_ascii_case("gate") || obj.eq_ignore_ascii_case("hole") || obj.eq_ignore_ascii_case("geyser")
                 {
                     clauses.push(QueryClause {
                         sublevel, 
