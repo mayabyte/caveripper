@@ -38,9 +38,18 @@ impl<K: Eq + Hash, V> PinMap<K, V> {
                 // The map's contents are individually pinned, so any reallocation the map
                 // does will not invalidate immutable references to the entries.
                 let _lock = self.lock.write().expect("PinMap lock poisoned");
-                self.inner.get().as_mut().unwrap().insert(key, Box::pin(value));
+
+                // If multiple threads are waiting on the lock to write to the same key, they
+                // could end up overwriting each other and causing UB. Therefore we have to
+                // check whether the key is present in the map again right before writing.
+                if !(*self.inner.get()).contains_key(&key) {
+                    self.inner.get().as_mut().unwrap().insert(key, Box::pin(value));
+                    Ok(())
+                }
+                else {
+                    Err(value)
+                }
             }
-            Ok(())
         }
     }
 
