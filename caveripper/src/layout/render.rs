@@ -1088,8 +1088,8 @@ impl Textured for CaveUnit {
 
         img = resize(
             &img,
-            img.width() * RENDER_SCALE, 
-            img.height() * RENDER_SCALE, 
+            (self.width * 8) as u32 * RENDER_SCALE, 
+            (self.height * 8) as u32 * RENDER_SCALE, 
             FilterType::Nearest
         );
 
