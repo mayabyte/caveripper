@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
 use itertools::Itertools;
 use nom::{
     sequence::tuple, 
@@ -23,7 +23,14 @@ pub struct Query {
 
 impl Query {
     pub fn matches(&self, seed: u32) -> bool {
-        self.clauses.iter().all(|cond| cond.matches(seed))
+        let unique_sublevels: HashSet<&Sublevel> = self.clauses.iter().map(|clause| &clause.sublevel).collect();
+        let layouts: HashMap<&Sublevel, Layout> = unique_sublevels.into_iter()
+            .map(|sublevel| {
+                let caveinfo = AssetManager::get_caveinfo(sublevel).unwrap();
+                (sublevel, Layout::generate(seed, caveinfo))
+            })
+            .collect();
+        self.clauses.iter().all(|clause| clause.matches(&layouts[&clause.sublevel]))
     }
 }
 
@@ -47,10 +54,8 @@ pub struct QueryClause {
 }
 
 impl QueryClause {
-    pub fn matches(&self, seed: u32) -> bool {
-        let caveinfo = AssetManager::get_caveinfo(&self.sublevel).unwrap();
-        let layout = Layout::generate(seed, caveinfo);
-        self.querykind.matches(&layout)
+    fn matches<'a>(&self, layout: &'a Layout<'a>) -> bool {
+        self.querykind.matches(layout)
     }
 }
 

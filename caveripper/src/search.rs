@@ -3,7 +3,7 @@ use crossbeam::channel::{Receiver, bounded, unbounded};
 use indicatif::ProgressBar;
 use rand::random;
 use rayon::{spawn, current_num_threads};
-use crate::query::QueryClause;
+use crate::query::Query;
 
 
 /// Finds seeds matching the given QueryClause in parallel and sends them to the returned
@@ -16,10 +16,9 @@ use crate::query::QueryClause;
 ///   searched if 'None' is passed.
 /// - progress: an Indicatif ProgressBar that will be updated as the search progresses.
 pub fn find_matching_layouts_parallel(
-    query: &QueryClause, 
+    query: &Query, 
     deadline: Option<Instant>, 
     num: Option<usize>, 
-    seed_source: Option<Receiver<u32>>, 
     progress: Option<&ProgressBar>
 ) -> Receiver<u32> {
     let (sender, results_r) = unbounded();
@@ -30,7 +29,6 @@ pub fn find_matching_layouts_parallel(
         let num_s = num_s.clone();
         let num_r = num_r.clone();
         let query = query.clone();
-        let seed_source = seed_source.clone();
         let progress = progress.map(|p| p.downgrade());
         spawn(move || {
             loop {
@@ -43,18 +41,7 @@ pub fn find_matching_layouts_parallel(
                     return;
                 }
 
-                // Attempt to retrieve a seed from the seed source, which will most likely be
-                // another search function running in parallel. This allows us to search only
-                // a subset of seeds that were found by some previous condition.
-                let seed: u32 = if let Some(seed_source) = seed_source.as_ref() {
-                    match seed_source.recv() {
-                        Ok(seed) => seed,
-                        Err(_) => return, // If the source is done sending seeds, then so are we.
-                    }
-                }
-                else {
-                    random()
-                };
+                let seed: u32 = random();
 
                 if query.matches(seed) {
                     if sender.send(seed).is_err() {

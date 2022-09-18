@@ -71,7 +71,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let progress_bar = ProgressBar::new_spinner()
                 .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]").unwrap());
-            progress_bar.enable_steady_tick(Duration::from_secs(2));
 
             if !atty::is(Stream::Stdout) {
                 progress_bar.finish_and_clear();
@@ -79,11 +78,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Apply the query clauses in sequence, using the result of the previous one's
             // search as the seed source for the following one.
-            let result_recv = query.clauses.iter().enumerate().fold(None, |recv, (i, clause)| {
-                let num = (i == query.clauses.len()).then_some(num);
-                Some(find_matching_layouts_parallel(clause, deadline, num, recv, Some(&progress_bar)))
-            })
-            .unwrap();
+            let result_recv = find_matching_layouts_parallel(&query, deadline, (num > 0).then_some(num), Some(&progress_bar));
 
             let mut num_found = 0;
             for seed in result_recv.iter().take(num) {
