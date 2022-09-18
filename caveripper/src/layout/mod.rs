@@ -32,6 +32,20 @@ impl<'a> Layout<'a> {
             .flat_map(|unit| unit.spawnpoints.iter().flat_map(|spawnpoint| spawnpoint.contains.iter()))
     }
 
+    /// Gets all SpawnObjects in the layout plus their global coordinates
+    pub fn get_spawn_objects_with_position(&'a self) -> impl Iterator<Item=(&'a SpawnObject, (f32, f32))> {
+        self.map_units.iter()
+            .flat_map(|unit| unit.spawnpoints.iter())
+            .flat_map(|sp| {
+                sp.contains.iter().map(|so| {
+                    match so {
+                        SpawnObject::Teki(_, (dx, dz)) => (so, (sp.x + dx, sp.z + dz)),
+                        _ => (so, (sp.x, sp.z))
+                    }
+                })
+            })
+    }
+
     /// A unique structured string describing this layout.
     /// The general structure is as follows:
     /// <sublevel name>;<0xAAAAAAAA>;<map units list>;<all spawn object list>

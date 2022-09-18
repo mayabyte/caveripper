@@ -2,6 +2,12 @@ pub fn sqrt(val: f32) -> f32 {
     (val as f64 * fast_inverse_sqrt(val as f64)) as f32
 }
 
+pub fn dist(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
+    let dx = x1 - x2;
+    let dz = z1 - z2;
+    sqrt(dx*dx + dz*dz)
+}
+
 /// https://en.wikipedia.org/wiki/Fast_inverse_square_root
 /// Approximates the inverse sqrt to within 1/32 of the true value.
 /// Used in Pikmin 2 via PowerPC's `frsqrte` instruction.

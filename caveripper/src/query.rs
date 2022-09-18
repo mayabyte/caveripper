@@ -5,10 +5,16 @@ use nom::{
     character::{
         complete::{u32 as nomU32, space1, space0, alphanumeric1},
     }, 
-    branch::alt, bytes::complete::tag, multi::many1, combinator::recognize, IResult
+    branch::alt, bytes::complete::{tag, tag_no_case}, multi::many1, combinator::recognize, IResult, number::complete::float
 };
-
-use crate::{errors::SearchConditionError, layout::Layout, caveinfo::{RoomType, CaveUnit}, assets::AssetManager, sublevel::Sublevel};
+use crate::{
+    errors::SearchConditionError, 
+    layout::Layout, 
+    caveinfo::{RoomType, CaveUnit}, 
+    assets::AssetManager, 
+    sublevel::Sublevel,
+    pikmin_math::dist,
+};
 
 #[derive(Clone, Debug)]
 pub struct Query {
@@ -61,6 +67,7 @@ pub enum QueryKind {
     CountRoom{ room_matcher: RoomMatcher, relationship: Ordering, amount: usize },
     EntityInRoom{ entity_name: String, room_matcher: RoomMatcher },
     EntityInSameRoomAs{ entity1_name: String, entity2_name: String },
+    StraightLineDist{ entity1_name: String, entity2_name: String, relationship: Ordering, req_dist: f32 },
 }
 
 impl QueryKind {
@@ -99,7 +106,18 @@ impl QueryKind {
                             .collect_vec();
                         entities.contains(&e1lower) && entities.contains(&e2lower)
                     })
-            }
+            },
+            QueryKind::StraightLineDist { entity1_name, entity2_name, relationship, req_dist } => {
+                let e1s = layout.get_spawn_objects_with_position()
+                    .filter(|(so, (_, _))| so.name().eq_ignore_ascii_case(entity1_name));
+                let e2s = layout.get_spawn_objects_with_position()
+                    .filter(|(so, (_, _))| so.name().eq_ignore_ascii_case(entity2_name));
+                e1s.cartesian_product(e2s.collect_vec())
+                    .any(|((_, (x1, z1)), (_, (x2, z2)))| {
+                        let d = dist(x1, z1, x2, z2);
+                        d.partial_cmp(req_dist).map(|ordering| ordering == *relationship).unwrap_or(false)
+                    })
+            },
         }
     }
 }
@@ -174,6 +192,18 @@ impl TryFrom<&str> for Query {
                     }
                 });
             }
+            else if let Ok((rest, (entity1, entity2, relationship_char, dist))) = straight_line_dist(remaining_text) {
+                remaining_text = rest;
+                clauses.push(QueryClause {
+                    sublevel,
+                    querykind: QueryKind::StraightLineDist { 
+                        entity1_name: entity1.to_string(), 
+                        entity2_name: entity2.to_string(), 
+                        relationship: char_to_ordering(relationship_char), 
+                        req_dist: dist 
+                    }
+                });
+            }
             else {
                 return Err(SearchConditionError::InvalidArgument("Unrecognized query".to_string()));
             }
@@ -200,7 +230,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "count {} {} {}", name, order_char, amount)
+                write!(f, "{} {} {}", name, order_char, amount)
             },
             QueryKind::CountRoom { room_matcher, relationship, amount } => {
                 let order_char = match relationship {
@@ -208,13 +238,21 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "count_entity {:?} {} {}", room_matcher, order_char, amount)
+                write!(f, "{:?} {} {}", room_matcher, order_char, amount)
             },
             QueryKind::EntityInRoom { entity_name, room_matcher } => {
                 write!(f, "{} in {:?}", entity_name, room_matcher)
             },
             QueryKind::EntityInSameRoomAs { entity1_name, entity2_name } => {
                 write!(f, "{} with {}", entity1_name, entity2_name)
+            },
+            QueryKind::StraightLineDist { entity1_name, entity2_name, relationship, req_dist: dist } => {
+                let order_char = match relationship {
+                    Ordering::Less => '<',
+                    Ordering::Equal => '=',
+                    Ordering::Greater => '>'
+                };
+                write!(f, "{} straight dist {} {} {}", entity1_name, entity2_name, order_char, dist)
             }
         }
     }
@@ -283,7 +321,7 @@ fn compare_cmd(input: &str) -> IResult<&str, (&str, &str, u32)> {
 /// Parses an "in" command of the structure "ENTITY_IDENT in ROOM_IDENT".
 fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
     let (rest, (_, entity, _, _, _, room)) = tuple((
-        space0, ident, space1, tag("in"), space1, ident
+        space0, ident, space1, tag_no_case("in"), space1, ident
     ))(input)?;
     Ok((rest, (entity, room)))
 }
@@ -291,9 +329,17 @@ fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
 /// Parses a "with" command of the structure "ENTITY_1 with ENTITY_2".
 fn entity_in_same_room_as(input: &str) -> IResult<&str, (&str, &str)> {
     let (rest, (_, e1, _, _, _, e2)) = tuple((
-        space0, ident, space1, tag("with"), space1, ident
+        space0, ident, space1, tag_no_case("with"), space1, ident
     ))(input)?;
     Ok((rest, (e1, e2)))
+}
+
+/// Parses a "straight dist" command of the structure "ENTITY_1 straight dist ENTITY2 COMPARATOR DIST"
+fn straight_line_dist(input: &str) -> IResult<&str, (&str, &str, &str, f32)> {
+    let (rest, (_, entity1, _, _, _, _, _, entity2, _, relationship_char, _, dist)) = tuple((
+        space0, ident, space1, tag_no_case("straight"), space1, tag_no_case("dist"), space1, ident, space0, comparator, space0, float
+    ))(input)?;
+    Ok((rest, (entity1, entity2, relationship_char, dist)))
 }
 
 fn char_to_ordering(c: &str) -> Ordering {
