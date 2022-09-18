@@ -5,7 +5,7 @@ use std::str::FromStr;
 use encoding_rs::SHIFT_JIS;
 use image::RgbaImage;
 use itertools::Itertools;
-use log::{info, warn};
+use log::info;
 use once_cell::sync::OnceCell;
 
 use crate::caveinfo::CaveInfo;
@@ -220,7 +220,7 @@ impl AssetManager {
         }
         else {
             self.load_caveinfo(&sublevel.cfg)?;
-            Ok(self.caveinfo_cache.get(sublevel).unwrap())
+            self.caveinfo_cache.get(sublevel).ok_or_else(|| Box::new(SublevelError::UnrecognizedSublevel(sublevel.floor.to_string())).into())
         }
     }
 
@@ -308,13 +308,18 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
     }
 }
 
-static ALL_CAVES: [&str; 58] = [
+static ALL_CAVES: [&str; 88] = [
     "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", 
     "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm", 
     "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str", 
     "bg", "cop", "bd", "snr", "er", "newyear:bg", "newyear:sk", "newyear:cwnn", "newyear:snd",
     "newyear:ch", "newyear:rh", "newyear:ss", "newyear:sa", "newyear:aa", "newyear:ser",
-    "newyear:tc", "newyear:er", "newyear:cg", "newyear:sd" 
+    "newyear:tc", "newyear:er", "newyear:cg", "newyear:sd", "newyear:ch1", "newyear:ch2",
+    "newyear:ch3", "newyear:ch4", "newyear:ch5", "newyear:ch6", "newyear:ch7", "newyear:ch8",
+    "newyear:ch9", "newyear:ch10", "newyear:ch11", "newyear:ch12", "newyear:ch13", "newyear:ch14",
+    "newyear:ch15", "newyear:ch16", "newyear:ch17", "newyear:ch18", "newyear:ch19", "newyear:ch20",
+    "newyear:ch21", "newyear:ch22", "newyear:ch23", "newyear:ch24", "newyear:ch25", "newyear:ch26",
+    "newyear:ch27", "newyear:ch28", "newyear:ch29", "newyear:ch30", 
 ];
 
 #[derive(Clone, Debug)]

@@ -139,6 +139,7 @@ impl TryFrom<&str> for Query {
             if let Ok((rest, sublevel_str)) = ident_s(remaining_text) {
                 sublevel = Sublevel::try_from(sublevel_str)
                     .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
+                let _ = AssetManager::get_caveinfo(&sublevel)?;  // Ensure this sublevel actually exists.
                 remaining_text = rest;
             }
             else {

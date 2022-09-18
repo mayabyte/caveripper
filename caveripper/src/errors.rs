@@ -125,8 +125,14 @@ impl From<AssetError> for CaveInfoError {
     }
 }
 
-impl From<nom::Err<(&str, nom::error::ErrorKind)>> for CaveInfoError {
-    fn from(e: nom::Err<(&str, nom::error::ErrorKind)>) -> Self {
+// impl From<nom::Err<(&str, nom::error::ErrorKind)>> for CaveInfoError {
+//     fn from(e: nom::Err<(&str, nom::error::ErrorKind)>) -> Self {
+//         CaveInfoError::NomError(e.to_string())
+//     }
+// }
+
+impl<'a> From<nom::Err<nom::error::Error<&'a str>>> for CaveInfoError {
+    fn from(e: nom::Err<nom::error::Error<&'a str>>) -> Self {
         CaveInfoError::NomError(e.to_string())
     }
 }

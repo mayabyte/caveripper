@@ -56,3 +56,33 @@ newyear,    Timeless Castle,       false,  yakushima_4.txt,                 TC
 newyear,    Elemental River,       false,  last_1.txt,                      ER
 newyear,    Colosseum Garden,      false,  last_2.txt,                      CG
 newyear,    Season Den,            false,  last_3.txt,                      SD, sed
+newyear,    Carrot Garden,         true,  ch_ABEM_tutorial.txt,             CH1, cg
+newyear,    Mamuta Town,           true,  ch_NARI_07whitepurple.txt,        CH2, mt
+newyear,    Attic Maze,            true,  ch_NARI_03toy.txt,                CH3, am
+newyear,    Elemental Crossroads,  true,  ch_NARI_01kusachi.txt,            CH4, ec, emc, ecr
+newyear,    Antenna Beetle's Bakery, true, ch_ABEM_LeafChappy.txt,          CH5, abb
+newyear,    Evaporated Castle,     true,  ch_NARI_05start3easy.txt,         CH6, evc
+newyear,    Bomb Facility,         true,  ch_MUKI_metal.txt,                CH7, bfc
+newyear,    Closed Pool,           true,  ch_MAT_limited_time.txt,          CH8, cp
+newyear,    Tranquility Garden,    true,  ch_MAT_t_hunter_hana.txt,         CH9, tg
+newyear,    Subterranean Seasons,  true,  ch_MUKI_damagumo.txt,             CH10, sts
+newyear,    Timeless Void,         true,  ch_MAT_t_hunter_enemy.txt,        CH11, tv
+newyear,    Battlefield,           true,  ch_MAT_conc_cave.txt,             CH12, bf
+newyear,    Windy Radio Station,   true,  ch_NARI_04series.txt,             CH13, wrs
+newyear,    Bulbmin House,         true,  ch_MAT_t_hunter_otakara.txt,      CH14, bh
+newyear,    Bug Garden,            true,  ch_MUKI_bigfoot.txt,              CH15, bg
+newyear,    Glutton's Treehouse,   true,  ch_MIYA_oopan.txt,                CH16, gt
+newyear,    Sector PNF,            true,  ch_MAT_yellow_purple_white.txt,   CH17, spnf
+newyear,    Cacti Highway,         true,  ch_MUKI_redblue.txt,              CH18, chw
+newyear,    Pikmin Ninety-Five,    true,  ch_NARI_08tobasare.txt,           CH19, pnf
+newyear,    Flooded Memories,      true,  ch_NARI_02tile.txt,               CH20, fm
+newyear,    Castle Navel,          true,  ch_MAT_crawler.txt,               CH21, cn
+newyear,    Volcanic Depths,       true,  ch_MAT_route_rover.txt,           CH22, vd
+newyear,    Glistening Sanctuary,  true,  ch_MUKI_enemyzero.txt,            CH23, gs
+newyear,    Steam Pipe Castle,     true,  ch_NARI_09suikomi.txt,            CH24, spc
+newyear,    Galaxy Gazer,          true,  ch_MUKI_houdai.txt,               CH25, gg
+newyear,    Blue Zone,             true,  ch_NARI_06start3hard.txt,         CH26, bz
+newyear,    Hocotate Airlines,     true,  ch_MAT_flier.txt,                 CH27, ha
+newyear,    Timeless Realm,        true,  ch_MIYA_trap.txt,                 CH28, tr
+newyear,    Midway Arcade,         true,  ch_MUKI_bombing.txt,              CH29, ma
+newyear,    Boss All-Stars,        true,  ch_MUKI_king.txt,                 CH30, bas

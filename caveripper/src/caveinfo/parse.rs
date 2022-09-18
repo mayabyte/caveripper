@@ -247,10 +247,9 @@ pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConf
         raw_sections;
 
     let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-    let cave_unit_definition_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/units").join(cave_unit_definition_file_name);
+    let cave_unit_definition_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/units").join(&cave_unit_definition_file_name);
     let cave_unit_definition_text = AssetManager::get_txt_file(&cave_unit_definition_path)?;
-    let (_, cave_unit_sections) = parse_cave_unit_definition(cave_unit_definition_text)
-        .expect("Couldn't parse Cave Unit Definition file!");
+    let (_, cave_unit_sections) = parse_cave_unit_definition(cave_unit_definition_text)?;
 
     let floor_num: usize = floorinfo_section.get_tag("000")?;
     Ok(CaveInfo {
