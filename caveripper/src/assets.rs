@@ -70,6 +70,9 @@ impl AssetManager {
             .collect::<Result<Vec<_>, AssetError>>()?;
         manager.cave_cfg = cave_cfg;
 
+        // Eggs are not listed in enemytex, so they have to be added manually
+        manager.teki.push("egg".to_string());
+
         let all_games: HashSet<&str> = manager.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect();
         for game in all_games.into_iter() {
             if !manager.asset_path.join(game).is_dir() {
@@ -94,25 +97,23 @@ impl AssetManager {
             let mut treasures = parse_treasure_config(&treasures);
             treasures.append(&mut parse_treasure_config(&ek_treasures));
             treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
-            manager.treasures = treasures;
+            manager.treasures.extend(treasures);
     
             let teki_path = manager.asset_path.join(game).join("user/Yamashita/enemytex/arc");
-            let teki: Vec<String> = read_dir(&teki_path)
+            let teki = read_dir(&teki_path)
                 .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
                 .filter_map(Result::ok)
                 .filter(|dir_entry| dir_entry.path().is_dir())
-                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
-                .collect();
-            manager.teki = teki;
+                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
+            manager.teki.extend(teki);
     
             let room_path = manager.asset_path.join(game).join("user/Mukki/mapunits/arc");
-            let rooms: Vec<String> = read_dir(&room_path)
+            let rooms = read_dir(&room_path)
                 .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
                 .filter_map(Result::ok)
                 .filter(|dir_entry| dir_entry.path().is_dir())
-                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase())
-                .collect();
-            manager.rooms = rooms;
+                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
+            manager.rooms.extend(rooms);
         }
 
         Ok(manager)
