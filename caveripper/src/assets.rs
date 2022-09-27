@@ -304,7 +304,7 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
         "egg" => Some("36px-Egg_icon.png"),
         "wakame_s" => Some("wakame_s.png"),
         "chiyogami" => Some("chiyogami.PNG"),
-        "rock" => Some("Bingo_Battle_Rock_Storm_icon.png"),
+        "rock" => Some("Roulette_Wheel_boulder.png"),
         _ => None
     }
 }
