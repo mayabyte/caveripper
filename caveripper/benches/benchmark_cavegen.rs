@@ -2,7 +2,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use caveripper::{
-    layout::{Layout, render::{render_layout, LayoutRenderOptions}},
+    layout::Layout,
+    render::{render_layout, LayoutRenderOptions},
     assets::AssetManager,
 };
 

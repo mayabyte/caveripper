@@ -1,5 +1,4 @@
 mod generate;
-pub mod render;
 #[cfg(test)]
 mod test;
 
@@ -28,8 +27,7 @@ impl<'a> Layout<'a> {
     }
 
     pub fn get_spawn_objects(&'a self) -> impl Iterator<Item=&'a SpawnObject> {
-        self.map_units.iter()
-            .flat_map(|unit| unit.spawnpoints.iter().flat_map(|spawnpoint| spawnpoint.contains.iter()))
+        self.map_units.iter().flat_map(|unit| unit.spawn_objects())
     }
 
     /// Gets all SpawnObjects in the layout plus their global coordinates
@@ -236,6 +234,15 @@ impl<'a> PlacedMapUnit<'a> {
 
     pub fn overlaps(&self, other: &PlacedMapUnit) -> bool {
         boxes_overlap(self.x, self.z, self.unit.width, self.unit.height, other.x, other.z, other.unit.width, other.unit.height)
+    }
+
+    pub fn spawn_objects(&self) -> impl Iterator<Item=&SpawnObject> {
+        self.spawnpoints.iter().flat_map(|sp| sp.contains.iter())
+    }
+
+    /// Identifier string unique to this unit within a layout.
+    pub(crate) fn key(&self) -> String {
+        format!("{}/{}/{}", self.x, self.z, self.unit.unit_folder_name)
     }
 }
 

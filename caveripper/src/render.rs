@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test;
+
 use std::borrow::Cow;
 use std::cmp::max;
 use std::f32::consts::PI;
@@ -6,7 +9,7 @@ use std::path::{Path, PathBuf};
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
 use crate::assets::{AssetManager, get_special_texture_name};
 use crate::errors::{RenderError, AssetError};
-use super::{Layout, SpawnObject, PlacedMapUnit};
+use crate::layout::{Layout, SpawnObject, PlacedMapUnit};
 use clap::Args;
 use fontdue::layout::{Layout as FontLayout, TextStyle, LayoutSettings, VerticalAlign, HorizontalAlign, WrapStyle};
 use fontdue::{Font, FontSettings};

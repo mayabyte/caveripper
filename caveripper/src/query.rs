@@ -1,20 +1,22 @@
+#[cfg(test)]
+mod test;
+
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
 use itertools::Itertools;
-use nom::{
-    sequence::tuple, 
-    character::{
-        complete::{u32 as nomU32, space1, space0, alphanumeric1},
-    }, 
-    branch::alt, bytes::complete::{tag, tag_no_case}, multi::many1, combinator::recognize, IResult, number::complete::float
-};
+use pest::{Parser, iterators::{Pair, Pairs}};
+use pest_derive::Parser;
 use crate::{
-    errors::SearchConditionError, 
-    layout::Layout, 
-    caveinfo::{RoomType, CaveUnit}, 
-    assets::AssetManager, 
+    errors::SearchConditionError,
+    layout::{Layout, SpawnObject},
+    caveinfo::{RoomType, CaveUnit},
+    assets::AssetManager,
     sublevel::Sublevel,
     pikmin_math::dist,
 };
+
+#[derive(Parser)]
+#[grammar = "query/query_grammar.pest"]
+struct QueryParser;
 
 #[derive(Clone, Debug)]
 pub struct Query {
@@ -31,6 +33,36 @@ impl Query {
             })
             .collect();
         self.clauses.iter().all(|clause| clause.matches(&layouts[&clause.sublevel]))
+    }
+}
+
+/// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
+/// This effectively defines a DSL for search terms.
+impl TryFrom<&str> for Query {
+    type Error = SearchConditionError;
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        let pairs = QueryParser::parse(Rule::query, input)
+            .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
+        let mut sublevel: Option<Sublevel> = None;
+        let mut clauses = Vec::new();
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::sublevel_ident => {
+                    sublevel = Some(pair.as_str().try_into()?);
+                },
+                Rule::expression => {
+                    if let Some(sublevel) = sublevel.as_ref() {
+                        clauses.push(QueryClause{sublevel: sublevel.clone(), querykind: pair.try_into()?});
+                    }
+                    else {
+                        return Err(SearchConditionError::ParseError("No sublevel provided".into()));
+                    }
+                },
+                Rule::EOI => {}, // The end-of-input rule gets matched as an explicit token, so we have to ignore it.
+                rule => return Err(SearchConditionError::ParseError(format!("Expected expression, got {:?} \"{}\"", rule, pair.as_str())))
+            }
+        }
+        Ok(Query{clauses})
     }
 }
 
@@ -68,284 +100,317 @@ impl Display for QueryClause {
 /// Programmatically defined conditions to search for in a sublevel
 #[derive(Clone, Debug)]
 pub enum QueryKind {
-    CountEntity{ name: String, relationship: Ordering, amount: usize },
-    CountRoom{ room_matcher: RoomMatcher, relationship: Ordering, amount: usize },
-    EntityInRoom{ entity_name: String, room_matcher: RoomMatcher },
-    EntityInSameRoomAs{ entity1_name: String, entity2_name: String },
-    StraightLineDist{ entity1_name: String, entity2_name: String, relationship: Ordering, req_dist: f32 },
+    CountEntity{ entity_matcher: EntityMatcher, relationship: Ordering, amount: usize },
+    CountRoom{ unit_matcher: UnitMatcher, relationship: Ordering, amount: usize },
+    StraightLineDist{ entity1: EntityMatcher, entity2: EntityMatcher, relationship: Ordering, req_dist: f32 },
+    RoomPath(RoomPath),
 }
 
 impl QueryKind {
     /// Checks whether the given layout matches the query condition.
     pub fn matches<'a>(&self, layout: &'a Layout<'a>) -> bool {
-        match self { 
-            QueryKind::CountEntity { name, relationship, amount } => {
+        match self {
+            QueryKind::CountEntity { entity_matcher, relationship, amount } => {
                 let entity_count = layout.get_spawn_objects()
-                    .filter(|entity| entity.name().eq_ignore_ascii_case(name))
+                    .filter(|entity| entity_matcher.matches(entity))
                     .count();
                 entity_count.cmp(amount) == *relationship
             },
-            QueryKind::CountRoom { room_matcher, relationship, amount } => {
+            QueryKind::CountRoom { unit_matcher: room_matcher, relationship, amount } => {
                 let unit_count = layout.map_units.iter()
                     .filter(|unit| room_matcher.matches(unit.unit))
                     .count();
                 unit_count.cmp(amount) == *relationship
             },
-            QueryKind::EntityInRoom { entity_name, room_matcher } => {
-                layout.map_units.iter()
-                    .filter(|unit| room_matcher.matches(unit.unit))
-                    .any(|unit| {
-                        unit.spawnpoints.iter()
-                            .any(|sp| {
-                                sp.contains.iter().any(|so| so.name().eq_ignore_ascii_case(entity_name))
-                            })
-                    })
-            },
-            QueryKind::EntityInSameRoomAs { entity1_name, entity2_name } => {
-                let e1lower = entity1_name.to_ascii_lowercase();
-                let e2lower = entity2_name.to_ascii_lowercase();
-                layout.map_units.iter()
-                    .any(|unit| {
-                        let entities = unit.spawnpoints.iter()
-                            .flat_map(|sp| sp.contains.iter().map(|e| e.name().to_ascii_lowercase()))
-                            .collect_vec();
-                        entities.contains(&e1lower) && entities.contains(&e2lower)
-                    })
-            },
-            QueryKind::StraightLineDist { entity1_name, entity2_name, relationship, req_dist } => {
+            QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist } => {
                 let e1s = layout.get_spawn_objects_with_position()
-                    .filter(|(so, (_, _))| so.name().eq_ignore_ascii_case(entity1_name));
+                    .filter(|(so, (_, _))| entity1.matches(so));
                 let e2s = layout.get_spawn_objects_with_position()
-                    .filter(|(so, (_, _))| so.name().eq_ignore_ascii_case(entity2_name));
+                    .filter(|(so, (_, _))| entity2.matches(so));
                 e1s.cartesian_product(e2s.collect_vec())
                     .any(|((_, (x1, z1)), (_, (x2, z2)))| {
                         let d = dist(x1, z1, x2, z2);
                         d.partial_cmp(req_dist).map(|ordering| ordering == *relationship).unwrap_or(false)
                     })
             },
+            QueryKind::RoomPath(search_path) => search_path.matches(layout),
         }
     }
 }
 
-/// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
-/// This effectively defines a DSL for search terms.
-impl TryFrom<&str> for Query {
+impl TryFrom<Pair<'_, Rule>> for QueryKind {
     type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
-        let mut remaining_text = input;
-        let mut clauses = Vec::new();
-        loop {
-            let sublevel;
-            if let Ok((rest, sublevel_str)) = ident_s(remaining_text) {
-                sublevel = Sublevel::try_from(sublevel_str)
-                    .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
-                let _ = AssetManager::get_caveinfo(&sublevel)?;  // Ensure this sublevel actually exists.
-                remaining_text = rest;
-            }
-            else {
-                return Err(SearchConditionError::ParseError("No valid sublevel specified in query.".to_string()))
-            }
+    fn try_from(input: Pair<'_, Rule>) -> Result<Self, Self::Error> {
+        if input.as_rule() != Rule::expression {
+            return Err(SearchConditionError::ParseError(format!("Expected expression, got {}", input.as_str())));
+        }
 
-            if let Ok((rest, (obj, relationship_char, amount))) = compare_cmd(remaining_text) {
-                remaining_text = rest;
-                let relationship = char_to_ordering(relationship_char);
-                if AssetManager::teki_list()?.contains(&obj.to_ascii_lowercase()) 
-                    || AssetManager::treasure_list()?.iter().map(|t| t.internal_name.as_str()).any(|t| t.eq_ignore_ascii_case(obj)) 
-                    || obj.eq_ignore_ascii_case("gate") || obj.eq_ignore_ascii_case("hole") || obj.eq_ignore_ascii_case("geyser")
-                {
-                    clauses.push(QueryClause {
-                        sublevel, 
-                        querykind: QueryKind::CountEntity { 
-                            name: obj.trim().to_string(), 
-                            relationship, 
-                            amount: amount as usize 
-                        }
-                    });
+        let full_txt = input.as_str();
+        let expr = input.into_inner().next().unwrap();
+        match (expr.as_rule(), expr.into_inner()) {
+            (Rule::compare, inner) => {
+                let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
+                let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
+                if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase()) {
+                    Ok(QueryKind::CountEntity {
+                        entity_matcher: values[0].into(),
+                        relationship: char_to_ordering(values[1]),
+                        amount: values[2].parse()?,
+                    })
                 }
-                else if AssetManager::room_list()?.contains(&obj.to_ascii_lowercase()) 
-                    || ["room", "cap", "alcove", "hall", "hallway"].contains(&obj.to_ascii_lowercase().as_str()) 
-                {
-                    clauses.push(QueryClause {
-                        sublevel,
-                        querykind: QueryKind::CountRoom { 
-                            room_matcher: obj.trim().into(), 
-                            relationship,
-                            amount: amount as usize 
-                        }
-                    });
+                else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) {
+                    Ok(QueryKind::CountRoom {
+                        unit_matcher: values[0].into(),
+                        relationship: char_to_ordering(values[1]),
+                        amount: values[2].parse()?,
+                    })
                 }
                 else {
-                    return Err(SearchConditionError::InvalidArgument(format!("'{}' does not match any known object.", obj)));
+                    Err(SearchConditionError::UnrecognizedName(values[0].into()))
                 }
+            },
+            (Rule::straight_dist, inner) => {
+                let values: Vec<&str> = inner.map(|v| v.as_str()).collect();
+                Ok(QueryKind::StraightLineDist {
+                    entity1: values[0].into(),
+                    entity2: values[1].into(),
+                    relationship: char_to_ordering(values[2]),
+                    req_dist: values[3].parse()?,
+                })
+            },
+            (Rule::room_path, inner) => Ok(QueryKind::RoomPath(inner.try_into()?)),
+            _ => {
+                Err(SearchConditionError::ParseError(format!("Couldn't parse query \"{}\"", full_txt)))
             }
-            else if let Ok((rest, (entity, room))) = entity_in_room(remaining_text) {
-                remaining_text = rest;
-                clauses.push(QueryClause {
-                    sublevel,
-                    querykind: QueryKind::EntityInRoom { 
-                        entity_name: entity.to_string(),
-                        room_matcher: room.into() 
-                    }
-                });
-            }
-            else if let Ok((rest, (entity1, entity2))) = entity_in_same_room_as(remaining_text) {
-                remaining_text = rest;
-                clauses.push(QueryClause {
-                    sublevel, 
-                    querykind: QueryKind::EntityInSameRoomAs { 
-                        entity1_name: entity1.to_string(), 
-                        entity2_name: entity2.to_string()
-                    }
-                });
-            }
-            else if let Ok((rest, (entity1, entity2, relationship_char, dist))) = straight_line_dist(remaining_text) {
-                remaining_text = rest;
-                clauses.push(QueryClause {
-                    sublevel,
-                    querykind: QueryKind::StraightLineDist { 
-                        entity1_name: entity1.to_string(), 
-                        entity2_name: entity2.to_string(), 
-                        relationship: char_to_ordering(relationship_char), 
-                        req_dist: dist 
-                    }
-                });
-            }
-            else {
-                return Err(SearchConditionError::InvalidArgument("Unrecognized query".to_string()));
-            }
-
-            if remaining_text.trim().is_empty() {
-                break;
-            }
-
-            // Error if there isn't a combinator between queries
-            let (rest, _) = query_combinator(remaining_text)
-                .map_err(|_| SearchConditionError::MissingCombinator)?;
-            remaining_text = rest;
         }
-        Ok(Query{ clauses })
     }
 }
 
 impl Display for QueryKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self { 
-            QueryKind::CountEntity { name, relationship, amount } => {
+        match self {
+            QueryKind::CountEntity { entity_matcher, relationship, amount } => {
                 let order_char = match relationship {
                     Ordering::Less => '<',
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} {} {}", name, order_char, amount)
+                write!(f, "{} {} {}", entity_matcher, order_char, amount)
             },
-            QueryKind::CountRoom { room_matcher, relationship, amount } => {
+            QueryKind::CountRoom { unit_matcher, relationship, amount } => {
                 let order_char = match relationship {
                     Ordering::Less => '<',
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{:?} {} {}", room_matcher, order_char, amount)
+                write!(f, "{} {} {}", unit_matcher, order_char, amount)
             },
-            QueryKind::EntityInRoom { entity_name, room_matcher } => {
-                write!(f, "{} in {:?}", entity_name, room_matcher)
-            },
-            QueryKind::EntityInSameRoomAs { entity1_name, entity2_name } => {
-                write!(f, "{} with {}", entity1_name, entity2_name)
-            },
-            QueryKind::StraightLineDist { entity1_name, entity2_name, relationship, req_dist: dist } => {
+            QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist: dist } => {
                 let order_char = match relationship {
                     Ordering::Less => '<',
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} straight dist {} {} {}", entity1_name, entity2_name, order_char, dist)
+                write!(f, "{} straight dist {} {} {}", entity1, entity2, order_char, dist)
+            },
+            QueryKind::RoomPath(room_path) => {
+                let mut first = true;
+                for (unit_matcher, entity_matchers) in room_path.components.iter() {
+                    if !first {
+                        write!(f, " -> ")?;
+                    }
+                    else {
+                        first = false;
+                    }
+
+                    write!(f, "{}", unit_matcher)?;
+                    for em in entity_matchers.iter() {
+                        write!(f, " + {}", em)?;
+                    }
+                }
+                Ok(())
+            },
+        }
+    }
+}
+
+/// Matches a sequence of rooms connected in order, optionally with constraints on
+/// the entities they must contain.
+#[derive(Debug, Clone)]
+pub struct RoomPath {
+    components: Vec<(UnitMatcher, Vec<EntityMatcher>)>
+}
+
+impl RoomPath {
+    fn matches(&self, layout: &Layout) -> bool {
+        layout.map_units.iter().any(|start_unit| {
+            let mut frontier = vec![start_unit];
+            let mut visited = Vec::new();
+            for (unit_matcher, entity_matchers) in self.components.iter() {
+                if frontier.is_empty() {
+                    return false;
+                }
+                let mut new_frontier = Vec::new();
+                let mut matched = false;
+                for unit in frontier.iter() {
+                    if visited.contains(&unit.key()) {
+                        continue;
+                    }
+                    visited.push(unit.key());
+                    if unit_matcher.matches(unit.unit) && entity_matchers.iter().all(|em| unit.spawn_objects().any(|so| em.matches(so))) {
+                        matched = true;
+                        let neighbors = unit.doors.iter()
+                            .map(|door| door.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().parent_idx.unwrap())
+                            .map(|parent_idx| &layout.map_units[parent_idx])
+                            .filter(|neighbor| neighbor.key() != unit.key());
+                        new_frontier.extend(neighbors);
+                    }
+                }
+                if !matched {
+                    return false;
+                }
+                frontier = new_frontier;
+            }
+            true
+        })
+    }
+}
+
+impl TryFrom<Pairs<'_, Rule>> for RoomPath {
+    type Error = SearchConditionError;
+    fn try_from(input: Pairs<'_, Rule>) -> Result<Self, Self::Error> {
+        let components = input.map(|component| {
+            let mut pairs = component.into_inner();
+            (
+                pairs.next().unwrap().as_str().into(),
+                pairs.map(|e| e.as_str().into()).collect()
+            )
+        })
+        .collect::<Vec<(UnitMatcher, Vec<EntityMatcher>)>>();
+        Ok(RoomPath{components})
+    }
+}
+
+/// Matches entities or categories of entities.
+#[derive(Debug, Clone)]
+pub enum EntityMatcher {
+    Teki{name: String, carrying: Option<String>},
+    Treasure(String),
+    Hole,
+    Geyser,
+    Ship,
+    Gate,
+}
+
+impl EntityMatcher {
+    fn matches(&self, spawn_object: &SpawnObject) -> bool {
+        match (self, spawn_object) {
+            (EntityMatcher::Teki{ name, carrying }, SpawnObject::Teki(tekiinfo, _)) => {
+                let name_matches = name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&tekiinfo.internal_name);
+                let carrying_matches = carrying.as_ref().map_or(true,
+                    |c1| tekiinfo.carrying.as_ref().map_or(c1.eq_ignore_ascii_case("any"),
+                        |c2| c1.eq_ignore_ascii_case(&c2.internal_name))
+                );
+                name_matches && carrying_matches
+            },
+            // TODO: consolidate TekiInfo and CapInfo somehow so I don't need to double up code like this
+            (EntityMatcher::Teki{ name, carrying }, SpawnObject::CapTeki(capinfo, _)) => {
+                let name_matches = name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&capinfo.internal_name);
+                let carrying_matches = carrying.as_ref().map_or(true,
+                    |c1| capinfo.carrying.as_ref().map_or(c1.eq_ignore_ascii_case("any"),
+                        |c2| c1.eq_ignore_ascii_case(&c2.internal_name))
+                );
+                name_matches && carrying_matches
+            },
+            (EntityMatcher::Treasure(name), SpawnObject::Item(iteminfo)) => {
+                name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&iteminfo.internal_name)
+            },
+            (EntityMatcher::Hole, SpawnObject::Hole(_)) => true,
+            (EntityMatcher::Geyser, SpawnObject::Geyser(_)) => true,
+            (EntityMatcher::Ship, SpawnObject::Ship) => true,
+            (EntityMatcher::Gate, SpawnObject::Gate(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<&str> for EntityMatcher {
+    fn from(s: &str) -> Self {
+        match s.to_ascii_lowercase().trim() {
+            "hole" => EntityMatcher::Hole,
+            "geyser" => EntityMatcher::Geyser,
+            "ship" => EntityMatcher::Ship,
+            "gate" => EntityMatcher::Gate,
+            s => {
+                if AssetManager::treasure_list()
+                    .expect("Treasure list not present")
+                    .iter()
+                    .map(|t| t.internal_name.trim())
+                    .contains(&s)
+                {
+                    EntityMatcher::Treasure(s.to_string())
+                }
+                else if s.contains('/') {
+                    let (name, carrying) = s.split_once('/').unwrap();
+                    EntityMatcher::Teki { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) }
+                }
+                else {
+                    EntityMatcher::Teki { name: s.to_string(), carrying: None }
+                }
             }
         }
     }
 }
 
-/// Helper type for matching rooms (really any cave unit). There are several attributes
-/// on each unit that we may want to match against such as type, name, etc., and this
-/// type abstracts over them so they can be used interchangeably.
+impl Display for EntityMatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EntityMatcher::Hole => write!(f, "hole"),
+            EntityMatcher::Geyser => write!(f, "geyser"),
+            EntityMatcher::Ship => write!(f, "ship"),
+            EntityMatcher::Gate => write!(f, "gate"),
+            EntityMatcher::Treasure(name) | EntityMatcher::Teki{name, carrying: None} => write!(f, "{}", name),
+            EntityMatcher::Teki{name, carrying: Some(carrying)} => write!(f, "{}/{}", name, carrying),
+        }
+    }
+}
+
+/// Matches cave units or types of cave units.
 #[derive(Debug, Clone)]
-pub enum RoomMatcher {
+pub enum UnitMatcher {
     UnitType(RoomType),
     Named(String),
 }
 
-impl RoomMatcher {
+impl UnitMatcher {
     fn matches(&self, unit: &CaveUnit) -> bool {
         match self {
-            RoomMatcher::UnitType(t) => &unit.room_type == t,
-            RoomMatcher::Named(name) => unit.unit_folder_name.eq_ignore_ascii_case(name)
+            UnitMatcher::UnitType(t) => &unit.room_type == t,
+            UnitMatcher::Named(name) if name.eq_ignore_ascii_case("any") => true,
+            UnitMatcher::Named(name) => unit.unit_folder_name.eq_ignore_ascii_case(name),
         }
     }
 }
 
-impl From<&str> for RoomMatcher {
+impl From<&str> for UnitMatcher {
     fn from(input: &str) -> Self {
         if let Ok(room_type) = RoomType::try_from(input) {
-            RoomMatcher::UnitType(room_type)
+            UnitMatcher::UnitType(room_type)
         }
         else {
-            RoomMatcher::Named(input.to_string())
+            UnitMatcher::Named(input.to_string())
         }
     }
 }
 
-/// Parsing functions for layout query strings ///
-
-/// Parses an identifier consisting of letters, numbers, underscores, and dashes.
-fn ident(input: &str) -> IResult<&str, &str> {
-    recognize(many1(alt((alphanumeric1, tag("_"), tag("-")))))(input)
-}
-
-/// Recognizes '<', '=', or '>' for mathematical relationships.
-fn comparator(input: &str) -> IResult<&str, &str> {
-    alt((tag("<"), tag("="), tag(">")))(input)
-}
-
-/// Retrieves an ident surrounded by spaces
-fn ident_s(input: &str) -> IResult<&str, &str> {
-    let (rest, (_, id, _)) = tuple((space0, ident, space0))(input)?;
-    Ok((rest, id))
-}
-
-/// Recognizes an ampersand '&' optionally padded on either side by spaces.
-fn query_combinator(input: &str) -> IResult<&str, ()> {
-    Ok((tuple((space0, tag("&"), space0))(input)?.0, ()))
-}
-
-/// Parses any comparison command of the structure "IDENT_1 COMPARATOR IDENT_2".
-fn compare_cmd(input: &str) -> IResult<&str, (&str, &str, u32)> {
-    let (rest, (name, _, relationship_char, _, amount)) = tuple((
-        ident, space0, comparator, space0, nomU32,
-    ))(input)?;
-    Ok((rest, (name, relationship_char, amount)))
-}
-
-/// Parses an "in" command of the structure "ENTITY_IDENT in ROOM_IDENT".
-fn entity_in_room(input: &str) -> IResult<&str, (&str, &str)> {
-    let (rest, (_, entity, _, _, _, room)) = tuple((
-        space0, ident, space1, tag_no_case("in"), space1, ident
-    ))(input)?;
-    Ok((rest, (entity, room)))
-}
-
-/// Parses a "with" command of the structure "ENTITY_1 with ENTITY_2".
-fn entity_in_same_room_as(input: &str) -> IResult<&str, (&str, &str)> {
-    let (rest, (_, e1, _, _, _, e2)) = tuple((
-        space0, ident, space1, tag_no_case("with"), space1, ident
-    ))(input)?;
-    Ok((rest, (e1, e2)))
-}
-
-/// Parses a "straight dist" command of the structure "ENTITY_1 straight dist ENTITY2 COMPARATOR DIST"
-fn straight_line_dist(input: &str) -> IResult<&str, (&str, &str, &str, f32)> {
-    let (rest, (_, entity1, _, _, _, _, _, entity2, _, relationship_char, _, dist)) = tuple((
-        space0, ident, space1, tag_no_case("straight"), space1, tag_no_case("dist"), space1, ident, space0, comparator, space0, float
-    ))(input)?;
-    Ok((rest, (entity1, entity2, relationship_char, dist)))
+impl Display for UnitMatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnitMatcher::UnitType(t) => write!(f, "{}", t),
+            UnitMatcher::Named(name) if name.eq_ignore_ascii_case("any") => write!(f, "any(room)"),
+            UnitMatcher::Named(name) => write!(f, "{}", name)
+        }
+    }
 }
 
 fn char_to_ordering(c: &str) -> Ordering {

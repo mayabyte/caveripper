@@ -2,12 +2,14 @@
 #![feature(option_result_contains)]
 #![feature(let_else)]
 #![feature(map_try_insert)]
+#![feature(type_alias_impl_trait)]
 
 #![allow(stable_features)] // This feature is required to be able to build on NixOS for some reason.
 #![feature(let_chains)]
 
 pub mod caveinfo;
 pub mod layout;
+pub mod render;
 pub mod pikmin_math;
 pub mod assets;
 pub mod sublevel;

@@ -13,16 +13,14 @@ use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}, error::Error};
 use caveripper::{
-    assets::AssetManager, 
-    layout::{
-        Layout, 
-        render::{
-            render_layout, 
-            save_image, 
-            render_caveinfo
-        }
-    }, 
-    search::find_matching_layouts_parallel, 
+    assets::AssetManager,
+    layout::Layout,
+    render::{
+        render_layout,
+        save_image,
+        render_caveinfo
+    },
+    search::find_matching_layouts_parallel,
     parse_seed
 };
 use simple_logger::SimpleLogger;
@@ -100,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 })
                 .count();
             println!(
-                "🍞 Searched {} layouts and found {} ({:.03}%) that match the condition '{}'.", 
+                "🍞 Searched {} layouts and found {} ({:.03}%) that match the condition '{}'.",
                 num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &query
             );
         },
@@ -110,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 read_to_string(filename)?.lines()
                     .collect::<Vec<_>>()
                     .into_par_iter()
-                    .filter_map(|line| parse_seed(line).ok())    
+                    .filter_map(|line| parse_seed(line).ok())
                     .filter(|seed| {
                         query.matches(*seed)
                     })

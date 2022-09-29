@@ -1,0 +1,16 @@
+WHITESPACE = _{ " " | "\t" }
+number = @{ (ASCII_DIGIT)+ }
+comparator = { "<" | "=" | ">" }
+ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
+sublevel_ident = @{ ASCII_ALPHA+ ~ number }
+entity = { ident ~ ("/" ~ ident)? }
+room_path_component = { ident ~ ("+" ~ entity)* }
+
+// expressions
+compare = { entity ~ comparator ~ number }
+straight_dist = { entity ~ "straight dist" ~ entity ~ comparator ~ number }
+room_path = { room_path_component ~ ("->" ~ room_path_component)* }
+
+// top-level rules
+expression = { compare | straight_dist | room_path }
+query = _{ SOI ~ sublevel_ident ~ expression ~ ("&" ~ sublevel_ident? ~ expression)* ~ EOI }

@@ -83,7 +83,7 @@ impl CaveInfo {
 impl Display for CaveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
-            f, "NumRooms: {}\tNumGates: {}\tCorridorBetweenRoomsProb: {}%\tCapVsHallProb: {}%", 
+            f, "NumRooms: {}\tNumGates: {}\tCorridorBetweenRoomsProb: {}%\tCapVsHallProb: {}%",
             self.num_rooms, self.max_gates, self.corridor_probability * 100.0, self.cap_probability * 100.0
         )?;
 
@@ -388,7 +388,17 @@ impl TryFrom<&str> for RoomType {
             "room" => Ok(RoomType::Room),
             "cap" | "alcove" => Ok(RoomType::DeadEnd),
             "hall" | "hallway" => Ok(RoomType::Hallway),
-            _ => Err(SearchConditionError::InvalidArgument(input.to_string()))
+            _ => Err(SearchConditionError::UnrecognizedName(input.to_string()))
+        }
+    }
+}
+
+impl Display for RoomType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RoomType::Room => write!(f, "room"),
+            RoomType::Hallway => write!(f, "hallway"),
+            RoomType::DeadEnd => write!(f, "cap"),
         }
     }
 }

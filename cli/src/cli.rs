@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use caveripper::{parse_seed, sublevel::Sublevel, query::Query, layout::render::{LayoutRenderOptions, CaveinfoRenderOptions}};
+use caveripper::{parse_seed, sublevel::Sublevel, query::Query, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -32,7 +32,7 @@ pub enum Commands {
             help = SUBLEVEL_HELP,
         )]
         sublevel: Sublevel,
-    
+
         #[clap(
             value_parser = parse_seed,
             help = SEED_HELP,
@@ -146,7 +146,7 @@ pub enum Commands {
 
         #[clap(
             help = "The name for this ISO.",
-            default_value = "pikmin2" 
+            default_value = "pikmin2"
         )]
         game_name: String,
     }
@@ -154,35 +154,43 @@ pub enum Commands {
 
 const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
-const SEARCH_COND_LONG_HELP: &str = 
-r##"A string with one or more queries, joined by '&'. Caveripper will attempt 
-to find a layout matching all queries. All queries must start with a sublevel 
-followed by a space.
+const SEARCH_COND_LONG_HELP: &str =
+r##"A string with one or more queries, joined by '&'. Caveripper will attempt
+to find a layout matching all queries. At least the first query must start with
+a sublevel, and any further queries can specify different sublevels to check
+complex conditions. If not specified, each query will use the most recently
+specified sublevel.
 
 Currently available query conditions:
 - "INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
-  each layout. This can include Teki, Treasures, or gates (use the name "gate").
-  Example: "BlackPom > 0" to check for layouts that have at least one Violet 
+  each layout. This can include Teki, Treasures, Gates, "hole", "geyser", "ship",
+  the internal name of a room tile, "alcove", "hallway", or "room".
+  Example: "BlackPom > 0" to check for layouts that have at least one Violet
   Candypop Bud.
-- "ROOM </=/> NUM". Check the number of the given unit type present. ROOM can be
-  a specific room's name, or "room", "alcove", or "hallway" to check all rooms of
-  a certain type. Example: "alcove < 2" to check for low-alcove layouts.
-- "ENTITY in ROOM". Check whether there's at least one of the named entity in one
-  of the specified rooms/room types. Example: "hole in room" to check if the exit
-  hole spawned in a room rather than an alcove.
-- "ENTITY1 with ENTITY2". Check whether the two named entities are in the same room
-  as each other.
-
-Example query structure to find a towerless layout:
-`caveripper search "scx7 minihoudai < 2"`
+- "INTERNAL_NAME straight dist INTERNAL_NAME </=/> NUM". Checks whether the
+  straight-line distance between the two named entities matches the specified
+  value. Note that this is distance 'as the crow flies' rather than distance
+  along carry paths.
+- "ROOM_NAME (+ ENTITY_NAME / CARRYING)* -> <repeated>". This is a 'room path'
+  query where you can specify a chain of rooms that all must be connected to
+  each other, each optionally containing specific entities. The room and entity
+  names here accept the word "any" as a special case. This query has a lot of
+  uses, so here are some illustrative examples:
+  - "bk4 room + hole": finds a layout where the hole is in a room.
+  - "sh6 any + ship -> any + bluekochappy/bey_goma": finds a layout where the
+    lens bulborb is in a room next to the ship.
+  - "fc6 room_north4_1_tsuchi + chess_king_white + chess_queen_black": finds a
+    fc6 layout where the two treasures are in the small round room.
+  - "scx8 any + ship -> alcove + geyser": finds a layout where the geyser is
+    in an alcove immediately next to the ship.
 "##;
-const SEED_HELP: &str = 
-r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed 
+const SEED_HELP: &str =
+r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed
 with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
 "##;
 const VERBOSE_HELP: &str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
-const SEED_FILE_HELP: &str = 
-r##"The file to read seeds from. Should contain one seed on each line with no extra 
+const SEED_FILE_HELP: &str =
+r##"The file to read seeds from. Should contain one seed on each line with no extra
 punctuation. If not specified, reads from STDIN.
 "##;

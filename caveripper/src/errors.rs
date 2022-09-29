@@ -61,17 +61,29 @@ pub enum SeedError {
 
 #[derive(Debug, Error, Clone)]
 pub enum SearchConditionError {
-    #[error("Error parsing search condition")]
+    #[error("Parse error: {0}")]
     ParseError(String),
 
-    #[error("Missing combinator between search conditions")]
-    MissingCombinator,
-
-    #[error("Invalid argument passed to search clause: {0}")]
-    InvalidArgument(String),
+    #[error("Unrecognized name: \"{0}\"")]
+    UnrecognizedName(String),
 
     #[error(transparent)]
     AssetError(#[from] AssetError),
+
+    #[error(transparent)]
+    SublevelError(#[from] SublevelError),
+}
+
+impl From<ParseIntError> for SearchConditionError {
+    fn from(e: ParseIntError) -> SearchConditionError {
+        SearchConditionError::ParseError(e.to_string())
+    }
+}
+
+impl From<ParseFloatError> for SearchConditionError {
+    fn from(e: ParseFloatError) -> SearchConditionError {
+        SearchConditionError::ParseError(e.to_string())
+    }
 }
 
 #[derive(Debug, Clone, Error)]
