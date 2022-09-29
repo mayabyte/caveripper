@@ -407,7 +407,7 @@ impl TryFrom<&str> for UnitMatcher {
         if let Ok(room_type) = RoomType::try_from(input) {
             Ok(UnitMatcher::UnitType(room_type))
         }
-        else if AssetManager::room_list()?.contains(&input.to_string()) {
+        else if AssetManager::room_list()?.contains(&input.to_string()) || input.eq_ignore_ascii_case("any") {
             Ok(UnitMatcher::Named(input.to_string()))
         }
         else {
