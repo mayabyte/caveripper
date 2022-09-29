@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use caveripper::{parse_seed, sublevel::Sublevel, query::Query, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
+use caveripper::{parse_seed, sublevel::Sublevel, query::{Query, QUERY_HELP}, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -73,7 +73,7 @@ pub enum Commands {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
-            long_help = SEARCH_COND_LONG_HELP,
+            long_help = QUERY_HELP,
         )]
         query: Query,
 
@@ -102,7 +102,7 @@ pub enum Commands {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
-            long_help = SEARCH_COND_LONG_HELP,
+            long_help = QUERY_HELP,
         )]
         query: Query,
 
@@ -124,7 +124,7 @@ pub enum Commands {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
             help = SEARCH_COND_HELP,
-            long_help = SEARCH_COND_LONG_HELP,
+            long_help = QUERY_HELP,
         )]
         query: Query,
 
@@ -154,36 +154,6 @@ pub enum Commands {
 
 const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
-const SEARCH_COND_LONG_HELP: &str =
-r##"A string with one or more queries, joined by '&'. Caveripper will attempt
-to find a layout matching all queries. At least the first query must start with
-a sublevel, and any further queries can specify different sublevels to check
-complex conditions. If not specified, each query will use the most recently
-specified sublevel.
-
-Currently available query conditions:
-- "INTERNAL_NAME </=/> NUM". Checks the number of the named entity present in
-  each layout. This can include Teki, Treasures, Gates, "hole", "geyser", "ship",
-  the internal name of a room tile, "alcove", "hallway", or "room".
-  Example: "BlackPom > 0" to check for layouts that have at least one Violet
-  Candypop Bud.
-- "INTERNAL_NAME straight dist INTERNAL_NAME </=/> NUM". Checks whether the
-  straight-line distance between the two named entities matches the specified
-  value. Note that this is distance 'as the crow flies' rather than distance
-  along carry paths.
-- "ROOM_NAME (+ ENTITY_NAME / CARRYING)* -> <repeated>". This is a 'room path'
-  query where you can specify a chain of rooms that all must be connected to
-  each other, each optionally containing specific entities. The room and entity
-  names here accept the word "any" as a special case. This query has a lot of
-  uses, so here are some illustrative examples:
-  - "bk4 room + hole": finds a layout where the hole is in a room.
-  - "sh6 any + ship -> any + bluekochappy/bey_goma": finds a layout where the
-    lens bulborb is in a room next to the ship.
-  - "fc6 room_north4_1_tsuchi + chess_king_white + chess_queen_black": finds a
-    fc6 layout where the two treasures are in the small round room.
-  - "scx8 any + ship -> alcove + geyser": finds a layout where the geyser is
-    in an alcove immediately next to the ship.
-"##;
 const SEED_HELP: &str =
 r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed
 with "0x". Not case sensitive.
