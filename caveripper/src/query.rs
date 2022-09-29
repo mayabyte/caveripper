@@ -153,14 +153,14 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
                 if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase()) {
                     Ok(QueryKind::CountEntity {
-                        entity_matcher: values[0].into(),
+                        entity_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),
                         amount: values[2].parse()?,
                     })
                 }
                 else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) {
                     Ok(QueryKind::CountRoom {
-                        unit_matcher: values[0].into(),
+                        unit_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),
                         amount: values[2].parse()?,
                     })
@@ -172,8 +172,8 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
             (Rule::straight_dist, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str()).collect();
                 Ok(QueryKind::StraightLineDist {
-                    entity1: values[0].into(),
-                    entity2: values[1].into(),
+                    entity1: values[0].try_into()?,
+                    entity2: values[1].try_into()?,
                     relationship: char_to_ordering(values[2]),
                     req_dist: values[3].parse()?,
                 })
@@ -279,14 +279,14 @@ impl RoomPath {
 impl TryFrom<Pairs<'_, Rule>> for RoomPath {
     type Error = SearchConditionError;
     fn try_from(input: Pairs<'_, Rule>) -> Result<Self, Self::Error> {
-        let components = input.map(|component| {
+        let components = input.map(|component| -> Result<(UnitMatcher, Vec<EntityMatcher>), Self::Error> {
             let mut pairs = component.into_inner();
-            (
-                pairs.next().unwrap().as_str().into(),
-                pairs.map(|e| e.as_str().into()).collect()
-            )
+            Ok((
+                pairs.next().unwrap().as_str().try_into()?,
+                pairs.map(|e| e.as_str().try_into()).collect::<Result<Vec<_>, _>>()?
+            ))
         })
-        .collect::<Vec<(UnitMatcher, Vec<EntityMatcher>)>>();
+        .collect::<Result<Vec<(UnitMatcher, Vec<EntityMatcher>)>, _>>()?;
         Ok(RoomPath{components})
     }
 }
@@ -334,28 +334,37 @@ impl EntityMatcher {
     }
 }
 
-impl From<&str> for EntityMatcher {
-    fn from(s: &str) -> Self {
+impl TryFrom<&str> for EntityMatcher {
+    type Error = SearchConditionError;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.to_ascii_lowercase().trim() {
-            "hole" => EntityMatcher::Hole,
-            "geyser" => EntityMatcher::Geyser,
-            "ship" => EntityMatcher::Ship,
-            "gate" => EntityMatcher::Gate,
+            "hole" => Ok(EntityMatcher::Hole),
+            "geyser" => Ok(EntityMatcher::Geyser),
+            "ship" => Ok(EntityMatcher::Ship),
+            "gate" => Ok(EntityMatcher::Gate),
             s => {
-                if AssetManager::treasure_list()
-                    .expect("Treasure list not present")
-                    .iter()
+                if AssetManager::treasure_list()?.iter()
                     .map(|t| t.internal_name.trim())
                     .contains(&s)
                 {
-                    EntityMatcher::Treasure(s.to_string())
+                    Ok(EntityMatcher::Treasure(s.to_string()))
                 }
                 else if s.contains('/') {
                     let (name, carrying) = s.split_once('/').unwrap();
-                    EntityMatcher::Teki { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) }
+                    if AssetManager::teki_list()?.contains(&name.to_string())
+                        && AssetManager::treasure_list()?.iter().map(|t| t.internal_name.trim()).contains(&carrying)
+                    {
+                        Ok(EntityMatcher::Teki { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) })
+                    }
+                    else {
+                        Err(SearchConditionError::UnrecognizedEntityName(s.into()))
+                    }
+                }
+                else if AssetManager::teki_list()?.contains(&s.to_string()) {
+                    Ok(EntityMatcher::Teki { name: s.to_string(), carrying: None })
                 }
                 else {
-                    EntityMatcher::Teki { name: s.to_string(), carrying: None }
+                    Err(SearchConditionError::UnrecognizedEntityName(s.into()))
                 }
             }
         }
@@ -392,13 +401,17 @@ impl UnitMatcher {
     }
 }
 
-impl From<&str> for UnitMatcher {
-    fn from(input: &str) -> Self {
+impl TryFrom<&str> for UnitMatcher {
+    type Error = SearchConditionError;
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
         if let Ok(room_type) = RoomType::try_from(input) {
-            UnitMatcher::UnitType(room_type)
+            Ok(UnitMatcher::UnitType(room_type))
+        }
+        else if AssetManager::room_list()?.contains(&input.to_string()) {
+            Ok(UnitMatcher::Named(input.to_string()))
         }
         else {
-            UnitMatcher::Named(input.to_string())
+            Err(SearchConditionError::UnrecognizedUnitName(input.to_string()))
         }
     }
 }

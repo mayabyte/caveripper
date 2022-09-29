@@ -64,6 +64,12 @@ pub enum SearchConditionError {
     #[error("Parse error: {0}")]
     ParseError(String),
 
+    #[error("Unrecognized unit name: \"{0}\"")]
+    UnrecognizedUnitName(String),
+
+    #[error("Unrecognized entity name: \"{0}\"")]
+    UnrecognizedEntityName(String),
+
     #[error("Unrecognized name: \"{0}\"")]
     UnrecognizedName(String),
 
