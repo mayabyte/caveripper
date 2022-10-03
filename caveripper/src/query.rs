@@ -158,7 +158,7 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                         amount: values[2].parse()?,
                     })
                 }
-                else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) {
+                else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
                     Ok(QueryKind::CountRoom {
                         unit_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),

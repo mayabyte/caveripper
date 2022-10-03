@@ -33,3 +33,18 @@ fn test_room_path() {
         assert!(!query.matches(seed));
     }
 }
+
+#[test]
+fn test_parse_room_type_names() {
+    AssetManager::init_global("../assets", "..").expect("Couldn't init asset manager");
+    let query_strings = [
+        "scx8 hallway > 50",
+        "scx8 hall > 50",
+        "cos1 cap > 10",
+        "cos1 alcove > 10",
+        "sr7 room < 2"
+    ];
+    for s in query_strings {
+        Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{}\"", s));
+    }
+}
