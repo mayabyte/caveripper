@@ -1,14 +1,14 @@
 use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
 use log::debug;
 use crate::{
-    pikmin_math::{PikminRng, self}, 
-    caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo}, 
+    pikmin_math::{PikminRng, self},
+    caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo},
     layout::{
-        PlacedDoor, 
-        SpawnObject, 
-        PlacedMapUnit, 
-        PlacedSpawnPoint, 
-        Layout, 
+        PlacedDoor,
+        SpawnObject,
+        PlacedMapUnit,
+        PlacedSpawnPoint,
+        Layout,
         boxes_overlap
     },
 };
@@ -369,10 +369,10 @@ impl<'a> LayoutBuilder<'a> {
                 if !hallway_unit_names.is_empty() {
                     { // subscope to avoid conflicting borrows again
                         'change_cap_to_hallway: for i in 0..self.map_units.len() {
-                            
+
                             let placed_unit = &self.map_units[i];
                             if placed_unit.unit.room_type != RoomType::DeadEnd { continue; }
-    
+
                             // Compute space behind alcove
                             let (space_x, space_z) = match placed_unit.doors[0].borrow().door_unit.direction {
                                 0 => (placed_unit.x, placed_unit.z + 1),
@@ -381,7 +381,7 @@ impl<'a> LayoutBuilder<'a> {
                                 3 => (placed_unit.x + 1, placed_unit.z),
                                 _ => panic!("Invalid door direction in changeCapToHallMapUnit")
                             };
-    
+
                             // Check for a corridor in the space behind this alcove
                             let corridor_behind_idx = self.map_units.iter()
                                 .enumerate()
@@ -394,13 +394,13 @@ impl<'a> LayoutBuilder<'a> {
                                         None
                                     }
                                 });
-    
+
                             if let Some(corridor_behind_idx) = corridor_behind_idx {
                                 // Set reflexive adjacent_door pointers to None before deletion
                                 if let Some(adjacent_door) = &placed_unit.doors[0].borrow().adjacent_door {
                                     adjacent_door.upgrade().unwrap().borrow_mut().adjacent_door = None;
                                 }
-    
+
                                 // Remove door connections for the hallway unit we will be deleting
                                 {
                                     let corridor_behind = &self.map_units[corridor_behind_idx];
@@ -410,11 +410,11 @@ impl<'a> LayoutBuilder<'a> {
                                         }
                                     }
                                 }
-    
+
                                 // Store this for later
                                 let cap_door_dir = placed_unit.doors[0].borrow().door_unit.direction;
                                 let attach_to = placed_unit.doors[0].borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap();
-    
+
                                 // Remove the one with the greater index first so we don't have to re-find
                                 // the other one after shifting.
                                 if i > corridor_behind_idx {
@@ -425,7 +425,7 @@ impl<'a> LayoutBuilder<'a> {
                                     self.map_units.remove(corridor_behind_idx);
                                     self.map_units.remove(i);
                                 }
-                                
+
                                 // Add a hallway unit in the cap's place. Note that another hallway unit
                                 // isn't added in place of the deleted hallway behind the cap; it will be
                                 // added in a normal hallway pass after this.
@@ -538,7 +538,7 @@ impl<'a> LayoutBuilder<'a> {
                         desired_direction = if unit_1.x == unit_2.x { 0 } else { 1 };
                     };
 
-                    
+
 
                     // Delete the 1x1 hallway units
                     if unit_1_idx > unit_2_idx {
@@ -853,19 +853,19 @@ impl<'a> LayoutBuilder<'a> {
 
                                 // Retrieve mutable references to each element we're modifying.
                                 let (t1, t2) = unsafe {
-                                    // SAFETY: i1 and i2 are guaranteed to be different elements by the 
-                                    // above condition. They will also always be in range due to the 
+                                    // SAFETY: i1 and i2 are guaranteed to be different elements by the
+                                    // above condition. They will also always be in range due to the
                                     // loop conditions.
                                     (
                                         (&to_spawn[t1i] as *const _ as *mut SpawnObject).as_mut().unwrap(),
                                         (&to_spawn[t2i] as *const _ as *mut SpawnObject).as_mut().unwrap()
                                     )
                                 };
-    
+
                                 if let (SpawnObject::Teki(_, (t1x, t1z)), SpawnObject::Teki(_, (t2x, t2z))) = (t1, t2) {
                                     let dx = *t1x - *t2x;
                                     let dz = *t1z - *t2z;
-    
+
                                     let dist = pikmin_math::sqrt(dx*dx + dz*dz);
                                     if dist > 0.0 && dist < 35.0 {
                                         let multiplier = 0.5 * (35.0 - dist) / dist;
@@ -990,8 +990,8 @@ impl<'a> LayoutBuilder<'a> {
 
                         let effective_treasure_score = if is_challenge_mode {
                             1 + map_unit.total_score * 10
-                        } else { 
-                            1 + map_unit.total_score 
+                        } else {
+                            1 + map_unit.total_score
                         };
                         spawnpoint.treasure_score = effective_treasure_score;
                         spawnpoints.push(spawnpoint);
@@ -1067,7 +1067,7 @@ impl<'a> LayoutBuilder<'a> {
                 {
                     continue;
                 }
-                
+
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
                     spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
@@ -1210,12 +1210,11 @@ impl<'a> LayoutBuilder<'a> {
                         if other_door.borrow().door_score.is_some() {
                             continue;
                         }
+                        let dist_score = (door_link.distance / 10.0) as u32;
+                        let teki_score = map_unit.teki_score;
+                        let seam_teki_score = other_door.borrow().seam_teki_score;
 
-                        let potential_score =
-                            start_door.borrow().door_score.unwrap()
-                            + (door_link.distance / 10.0) as u32
-                            + map_unit.teki_score
-                            + other_door.borrow().seam_teki_score;
+                        let potential_score = (dist_score + teki_score) * u32::from(door_link.tekiflag) + seam_teki_score + start_door.borrow().door_score.unwrap();
                         if selected_score.map(|s| potential_score < s).unwrap_or(true) {
                             selected_score = Some(potential_score);
                             selected_door = Some(other_door);
@@ -1241,20 +1240,17 @@ impl<'a> LayoutBuilder<'a> {
                 (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
             };
 
-            let current_adj_unit_total_score = adj_unit.total_score;
             let candidate_adj_unit_total_score = selected_score.unwrap() + adj_unit.teki_score;
-            if candidate_adj_unit_total_score < current_adj_unit_total_score {
-                adj_unit.total_score = min(candidate_adj_unit_total_score + adj_unit.teki_score, adj_unit.total_score);
-                debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
-            }
+            adj_unit.total_score = min(candidate_adj_unit_total_score, adj_unit.total_score);
+            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
         }
     }
 
     fn place_hole(&mut self, to_place: SpawnObject<'a>, is_challenge_mode: bool) {
         // Get a list of applicable spawn points (group 4 or 9)
         let mut hole_spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
-        
-        // We need to do this because the compiler cannot figure out that the borrows from 
+
+        // We need to do this because the compiler cannot figure out that the borrows from
         // self.map_units are never overlapping.
         let (mut rooms, rest): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) = self.map_units.iter_mut()
             .partition(|unit| unit.unit.room_type == RoomType::Room);
@@ -1295,7 +1291,7 @@ impl<'a> LayoutBuilder<'a> {
         if hole_spawnpoints.is_empty() {
             return;
         }
-        
+
         let hole_location = if is_challenge_mode {
             let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect();
             hole_spawnpoints.remove(self.rng.rand_index_weight(weights.as_slice()).unwrap())
@@ -1315,7 +1311,7 @@ impl<'a> LayoutBuilder<'a> {
 
             candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize)
         };
-        
+
 
         match to_place {
             SpawnObject::Hole(_) => {
@@ -1368,7 +1364,7 @@ impl<'a> LayoutBuilder<'a> {
                 .any(|so| {
                     if let SpawnObject::CapTeki(capteki, _) = so && capteki.is_candypop() && capteki.is_falling() { true }
                     else { false }
-                }) 
+                })
             {
                 continue;
             }

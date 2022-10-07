@@ -8,6 +8,7 @@
 #![feature(let_chains)]
 
 pub mod caveinfo;
+#[allow(clippy::bool_to_int_with_if)]
 pub mod layout;
 pub mod render;
 pub mod pikmin_math;

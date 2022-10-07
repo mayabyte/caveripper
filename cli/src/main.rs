@@ -32,8 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match args.verbosity {
         0 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
         1 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
-        2 => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
-        _ => {/* No higher log levels */},
+        2.. => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
     }
 
     // Run the desired command.
