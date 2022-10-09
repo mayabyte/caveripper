@@ -78,7 +78,7 @@ pub enum Commands {
         query: Query,
 
         #[clap(
-            default_value = "10",
+            default_value_t = 10,
             short = 't',
             long = "timeout",
             help = "The maximum time to search for a layout, in seconds. If set to 0, search indefinitely"
@@ -86,12 +86,20 @@ pub enum Commands {
         timeout_s: u64,
 
         #[clap(
-            default_value = "1",
+            default_value_t = 1,
             short = 'n',
             long = "num",
             help = "Number of seeds to attempt to find."
         )]
         num: usize,
+
+        #[clap(
+            value_parser = parse_seed,
+            short = 's',
+            long = "start",
+            help = "Search seeds sequentially starting from the given seed."
+        )]
+        start_from: Option<u32>,
     },
 
     /// Calculate statistics on what proportion of seeds match a given condition.

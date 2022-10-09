@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());
             }
         },
-        Commands::Search { query, timeout_s, num } => {
+        Commands::Search { query, timeout_s, num, start_from } => {
             let start_time = Instant::now();
             let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
             let deadline = timeout.map(|t| Instant::now() + t);
@@ -73,9 +73,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 progress_bar.finish_and_clear();
             }
 
-            // Apply the query clauses in sequence, using the result of the previous one's
-            // search as the seed source for the following one.
-            let result_recv = find_matching_layouts_parallel(&query, deadline, (num > 0).then_some(num), Some(&progress_bar));
+            let result_recv = find_matching_layouts_parallel(
+                &query,
+                deadline,
+                (num > 0).then_some(num),
+                start_from,
+                Some(&progress_bar)
+            );
 
             let mut num_found = 0;
             for seed in result_recv.iter().take(num) {
