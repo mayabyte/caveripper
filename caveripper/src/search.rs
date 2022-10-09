@@ -1,9 +1,9 @@
-use std::time::Instant;
+use std::{time::Instant, num::NonZeroU32};
 use crossbeam::channel::{Receiver, bounded, unbounded};
 use indicatif::ProgressBar;
-use rand::{rngs::SmallRng, SeedableRng, Rng};
+use rand::random;
 use rayon::{spawn, current_num_threads};
-use crate::query::Query;
+use crate::{query::Query, pikmin_math::PikminRng};
 
 
 /// Finds seeds matching the given QueryClause in parallel and sends them to the returned
@@ -25,15 +25,20 @@ pub fn find_matching_layouts_parallel(
     let (sender, results_r) = unbounded();
     let (num_s, num_r) = bounded::<()>(num.unwrap_or(0));  // 'Free-floating' way for spawned threads to communicate with each other.
 
-    for t in 0..current_num_threads() as u32 {
+    let num_threads = current_num_threads() as u32;
+    for t in 0..num_threads {
         let sender = sender.clone();
         let num_s = num_s.clone();
         let num_r = num_r.clone();
         let query = query.clone();
         let progress = progress.map(|p| p.downgrade());
         spawn(move || {
-            let mut iter = 0;
-            let mut rng = SmallRng::from_entropy();
+            let rng = PikminRng::new(start_from.unwrap_or_else(random));
+            // Offset the rng uniquely for each thread
+            if t > 0 {
+                rng.advance(NonZeroU32::new(t).unwrap());
+            }
+
             loop {
                 if let Some(deadline_inner) = deadline && Instant::now() > deadline_inner {
                     return;
@@ -44,13 +49,10 @@ pub fn find_matching_layouts_parallel(
                     return;
                 }
 
-                let seed: u32 = match start_from {
-                    Some(s) => {
-                        iter += 1;
-                        s + t * iter
-                    },
-                    None => rng.gen()
-                };
+                // Advance the rng by the same amount for each thread so threads never overlap
+                // given their unique offsets.
+                rng.advance(unsafe{NonZeroU32::new_unchecked(num_threads)});
+                let seed: u32 = rng.seed();
 
                 if query.matches(seed) {
                     if sender.send(seed).is_err() {
