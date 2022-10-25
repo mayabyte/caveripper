@@ -1153,7 +1153,6 @@ impl<'a> LayoutBuilder<'a> {
                 let mut door = door.borrow_mut();
                 if let Some(SpawnObject::Teki(_, _)) = *door.seam_spawnpoint {
                     door.seam_teki_score += 5;
-                    door.adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_teki_score += 5;
                 }
                 if door.seam_teki_score > 0 {
                     debug!("Set Seam Teki Score for door at ({}, {}) to {}.", door.x, door.z, door.seam_teki_score);
@@ -1214,7 +1213,8 @@ impl<'a> LayoutBuilder<'a> {
                         let teki_score = map_unit.teki_score;
                         let seam_teki_score = other_door.borrow().seam_teki_score;
 
-                        let potential_score = (dist_score + teki_score) * u32::from(door_link.tekiflag) + seam_teki_score + start_door.borrow().door_score.unwrap();
+                        let potential_score = dist_score + (teki_score * u32::from(door_link.tekiflag))
+                            + seam_teki_score + start_door.borrow().door_score.unwrap();
                         if selected_score.map(|s| potential_score < s).unwrap_or(true) {
                             selected_score = Some(potential_score);
                             selected_door = Some(other_door);
