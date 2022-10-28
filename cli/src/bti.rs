@@ -62,7 +62,7 @@ impl BtiImage {
                 if x >= width as usize || y >= height as usize {
                     continue;
                 }
-                decoded_data[(x + y*width as usize) as usize] = *pixel;
+                decoded_data[(x + y*width as usize)] = *pixel;
             }
 
             offset += block_size;

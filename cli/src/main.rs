@@ -26,13 +26,17 @@ use caveripper::{
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    AssetManager::init_global("assets", ".")?;
-
     let args = Cli::parse();
     match args.verbosity {
         0 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
         1 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
         2.. => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
+    }
+
+    // Conditionally initialize the asset manager only if necessary.
+    match args.subcommand {
+        Commands::Extract {..} => {/* does not require assets */},
+        _ => AssetManager::init_global("assets", ".")?,
     }
 
     // Run the desired command.
