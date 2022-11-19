@@ -18,6 +18,7 @@ pub mod query;
 pub mod search;
 pub mod errors;
 mod pinmap;
+mod python_bindings;
 
 pub fn parse_seed(src: &str) -> Result<u32, errors::SeedError> {
     let trimmed = src.strip_prefix("0x").unwrap_or(src);

@@ -54,7 +54,7 @@ This is a **work in progress** project. The cave generation implementation is no
 While the original and main goal of this project is seed finding, I've found myself wanting to use Caveripper as a base for a whole host of other things too. As such, sub-goals related to seed finding specifically (new Judge algorithm) are on a 'whenever I feel like it' schedule; many of the recent additions have been made with other uses in mind.
 
 ## Building from source
-Caveripper is a Rust project, and as such building should be very straightforward. Make sure you have Rust installed using [Rustup](https://rustup.rs/): 
+Caveripper is a Rust project, and as such building should be very straightforward. Make sure you have Rust installed using [Rustup](https://rustup.rs/):
 ```bash
 rustup default nightly
 rustup update
@@ -82,6 +82,24 @@ Benchmarks can be run like this:
 cargo install cargo-criterion  # one-time installation of the benchmark harness
 cargo criterion  # run benchmarks
 ```
+
+## Python Bindings
+Caveripper comes with some very simple Python bindings to the core cave generation algorithm. You can use them by following these steps:
+1. Follow the build steps above and build as normal. No extra feature flags are required.
+1. Find and rename the shared library file that was generated during the build. This will be in `target/release` next to the CLI binary.
+    - On macOS, rename `libcaveripper.dylib` to `caveripper.so`.
+    - On Windows, rename `libcaveripper.dll` to `caveripper.pyd`.
+    - On Linux (including WSL), rename `libcaveripper.so` to `caveripper.so`.
+1. Move the finished library file to your Python project's source directory along with the `assets/` and `resources/` folders.
+1. Use Caveripper from Python!
+```python
+>>> import caveripper
+>>> caveripper.generate(0x1234ABCD, "sh6")
+{'name': 'SH6', 'seed': 305441741, 'ship': [510.0, 510.0], 'hole': [1955.0, 1615.0], 'geyser': None, 'map_units': [{'name': 'room_4x4b_4_conc',
+...
+```
+So far only the `generate` function is available from Python, but this may change in the future.
+
 
 ## Guide to Reading the Code
 If you're interested in the precise details of how cave generation works, I'd suggest reading the code directly rather than relying on explanations due to how particular the cave generation algorithm is. I attempt to keep this repository well-commented to facilitate this - please let me know and/or submit a PR if you feel that the comments can be improved!

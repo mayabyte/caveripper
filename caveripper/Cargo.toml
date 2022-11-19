@@ -3,7 +3,10 @@ name = "caveripper"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "caveripper"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]
 
 [dependencies]
 nom = {version="7.1", features=["alloc"]}
@@ -23,13 +26,12 @@ crossbeam = "0.8.2"
 rand = {version="0.8", features=["small_rng"]}
 indicatif = "0.17"
 rayon = "1.5"
+serde = {version="1.0", features=["derive"]}
+serde_json = {version="1.0"}
+pyo3 = {version="0.17.3", features=["extension-module"]}
 
 [dev-dependencies]
 criterion = "0.3"
-
-[lib]
-name = "caveripper"
-path = "src/lib.rs"
 
 [[bench]]
 name = "benchmark_cavegen"

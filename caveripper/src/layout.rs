@@ -1,9 +1,8 @@
 mod generate;
-#[cfg(test)]
-mod test;
 
 use std::{cell::RefCell, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
+use serde::{Serialize, ser::SerializeStruct};
 
 use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, pikmin_math, sublevel::Sublevel};
 
@@ -22,16 +21,16 @@ pub struct Layout<'a> {
 }
 
 impl<'a> Layout<'a> {
-    pub fn generate(seed: u32, caveinfo: &'a CaveInfo) -> Layout<'a> {
+    pub fn generate(seed: u32, caveinfo: &CaveInfo) -> Layout {
         LayoutBuilder::generate(seed, caveinfo)
     }
 
-    pub fn get_spawn_objects(&'a self) -> impl Iterator<Item=&'a SpawnObject> {
+    pub fn get_spawn_objects<'b: 'a>(&'b self) -> impl Iterator<Item=&SpawnObject<'a>> + 'b {
         self.map_units.iter().flat_map(|unit| unit.spawn_objects())
     }
 
     /// Gets all SpawnObjects in the layout plus their global coordinates
-    pub fn get_spawn_objects_with_position(&'a self) -> impl Iterator<Item=(&'a SpawnObject, (f32, f32))> {
+    pub fn get_spawn_objects_with_position(&self) -> impl Iterator<Item=(&SpawnObject<'a>, (f32, f32))> {
         self.map_units.iter()
             .flat_map(|unit| unit.spawnpoints.iter())
             .flat_map(|sp| {
@@ -43,117 +42,67 @@ impl<'a> Layout<'a> {
                 })
             })
     }
+}
 
-    /// A unique structured string describing this layout.
-    /// The general structure is as follows:
-    /// <sublevel name>;<0xAAAAAAAA>;<map units list>;<all spawn object list>
-    /// This is only used for testing and comparison, so there's no need for this
-    /// format to be especially readable.
-    pub fn slug(&self) -> String {
-        let mut slug = String::new();
+impl Serialize for Layout<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("layout", 9)?;
+        state.serialize_field("name", &self.sublevel.short_name())?;
+        state.serialize_field("seed", &self.starting_seed)?;
+        state.serialize_field("ship",
+            &self.get_spawn_objects_with_position()
+                .find(|(so, _)| matches!(so, SpawnObject::Ship))
+                .map(|(_, pos)| pos)
+        )?;
+        state.serialize_field("hole",
+            &self.get_spawn_objects_with_position()
+                .find(|(so, _)| matches!(so, SpawnObject::Hole(..)))
+                .map(|(_, pos)| pos)
+        )?;
+        state.serialize_field("geyser",
+            &self.get_spawn_objects_with_position()
+                .find(|(so, _)| matches!(so, SpawnObject::Geyser(..)))
+                .map(|(_, pos)| pos)
+        )?;
 
-        slug.push_str(&format!("{};", self.cave_name));
-        slug.push_str(&format!("{:#010X};", self.starting_seed));
+        state.serialize_field("map_units", &self.map_units)?;
 
-        slug.push('[');
-        for map_unit in self.map_units.iter() {
-            slug.push_str(&format!("{},x{}z{}r{};",
-                map_unit.unit.unit_folder_name,
-                map_unit.x,
-                map_unit.z,
-                map_unit.unit.rotation
-            ));
-        }
-        slug.push_str("];");
-
-        let mut spawn_object_slugs = Vec::new();
-        for map_unit in self.map_units.iter() {
-            for spawnpoint in map_unit.spawnpoints.iter() {
-                for spawn_object in spawnpoint.contains.iter() {
-                    match &spawn_object {
-                        SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
-                                tekiinfo.internal_name,
-                                tekiinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
-                                tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                (spawnpoint.x + dx) as i32,
-                                (spawnpoint.z + dz) as i32,
-                            ));
-                        },
-                        SpawnObject::CapTeki(capinfo, _) => {
-                            spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
-                                capinfo.internal_name,
-                                capinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
-                                capinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
-                            ));
-                        },
-                        SpawnObject::Item(iteminfo) => {
-                            spawn_object_slugs.push(format!("{},x{}z{};",
-                                iteminfo.internal_name,
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
-                            ));
-                        },
-                        SpawnObject::Hole(_) => {
-                            spawn_object_slugs.push(format!("hole,x{}z{};",
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
-                            ));
-                        },
-                        SpawnObject::Geyser(_) => {
-                            spawn_object_slugs.push(format!("geyser,x{}z{};",
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
-                            ));
-                        },
-                        SpawnObject::Ship => {
-                            spawn_object_slugs.push(format!("ship,x{}z{};",
-                                spawnpoint.x as i32,
-                                spawnpoint.z as i32,
-                            ));
-                        },
-                        SpawnObject::Gate(_) => {}, // Does not get placed in this vec.
-                    }
-                }
-            }
-
-            for door in map_unit.doors.iter() {
-                let mut x = (door.borrow().x * 170) as f32;
-                let mut z = (door.borrow().z * 170) as f32;
-                match door.borrow().door_unit.direction {
-                    0 | 2 => x += 85.0,
-                    1 | 3 => z += 85.0,
-                    _ => panic!("Invalid door direction in slug"),
-                }
-                match &*door.borrow().seam_spawnpoint {
-                    Some(SpawnObject::Teki(tekiinfo, (dx, dz))) => {
-                        spawn_object_slugs.push(format!("{},carrying:{},spawn_method:{},x{}z{};",
-                            tekiinfo.internal_name,
-                            tekiinfo.carrying.clone().map(|t| t.internal_name).unwrap_or_else(|| "none".to_string()),
-                            tekiinfo.spawn_method.clone().unwrap_or_else(|| "0".to_string()),
-                            (x + dx) as i32, (z + dz) as i32,
-                        ));
-                    },
-                    Some(SpawnObject::Gate(gateinfo)) => {
-                        spawn_object_slugs.push(format!("GATE,hp{},x{}z{};",
-                            gateinfo.health, x as i32, z as i32,
-                        ));
-                    },
-                    _ => {}, // Nothing else can spawn in seams.
-                }
-            }
+        #[derive(Serialize)]
+        struct PlacedTeki<'a> {
+            name: &'a str, x: f32, y: f32, carrying: Option<&'a str>,
         }
 
-        slug.push('[');
-        spawn_object_slugs.sort();
-        for so_slug in spawn_object_slugs {
-            slug.push_str(&so_slug);
-        }
-        slug.push_str("];");
+        let teki = self.get_spawn_objects_with_position()
+            .filter(|(so, _)| matches!(so, SpawnObject::Teki(..) | SpawnObject::CapTeki(..)))
+            .map(|(so, pos)| PlacedTeki {
+                name: so.name(),
+                x: pos.0,
+                y: pos.1,
+                carrying: if let SpawnObject::Teki(info, _) = so { info.carrying.as_ref().map(|t| t.internal_name.as_str()) } else { None }
+            })
+            .collect::<Vec<_>>();
+        state.serialize_field("teki", &teki)?;
 
-        slug
+        #[derive(Serialize)]
+        struct PlacedObject<'a> {
+            name: &'a str, x: f32, y: f32
+        }
+
+        let treasures = self.get_spawn_objects_with_position()
+            .filter(|(so, _)| matches!(so, SpawnObject::Item(..)))
+            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos.0, y: pos.1 })
+            .collect::<Vec<_>>();
+        state.serialize_field("treasures", &treasures)?;
+
+        let gates = self.get_spawn_objects_with_position()
+            .filter(|(so, _)| matches!(so, SpawnObject::Gate(..)))
+            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos.0, y: pos.1 })
+            .collect::<Vec<_>>();
+        state.serialize_field("gates", &gates)?;
+
+        state.end()
     }
 }
 
@@ -243,6 +192,22 @@ impl<'a> PlacedMapUnit<'a> {
     /// Identifier string unique to this unit within a layout.
     pub(crate) fn key(&self) -> String {
         format!("{}/{}/{}", self.x, self.z, self.unit.unit_folder_name)
+    }
+}
+
+impl Serialize for PlacedMapUnit<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer
+    {
+        // Does not serialize spawn objects; that's left for another step
+        let mut state = serializer.serialize_struct("map_unit", 6)?;
+        state.serialize_field("name", &self.unit.unit_folder_name)?;
+        state.serialize_field("width", &self.unit.width)?;
+        state.serialize_field("height", &self.unit.height)?;
+        state.serialize_field("x", &self.x)?;
+        state.serialize_field("y", &self.z)?;
+        state.serialize_field("rotation", &self.unit.rotation)?;
+        state.end()
     }
 }
 
