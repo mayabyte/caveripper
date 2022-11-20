@@ -2,4 +2,5 @@
 members = [
     "caveripper",
     "cli",
+    "bindings",
 ]
