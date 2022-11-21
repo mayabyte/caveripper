@@ -1,6 +1,5 @@
 [workspace]
-members = [
-    "caveripper",
-    "cli",
-    "bindings",
-]
+members = ["caveripper", "cli", "bindings"]
+
+# bindings are not built by default
+default-members = ["caveripper", "cli"]

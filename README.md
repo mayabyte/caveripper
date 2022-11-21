@@ -85,7 +85,7 @@ cargo criterion  # run benchmarks
 
 ## Python Bindings
 Caveripper comes with some very simple Python bindings to the core cave generation algorithm. You can use them by following these steps:
-1. Follow the build steps above and build as normal. No extra feature flags are required.
+1. Follow the build steps above, but use the following build command instead: `cargo build --release -p bindings`
 1. Find and rename the shared library file that was generated during the build. This will be in `target/release` next to the CLI binary.
     - On macOS, rename `libcaveripper.dylib` to `caveripper.so`.
     - On Windows, rename `caveripper.dll` or `libcaveripper.dll` to `caveripper.pyd`.
