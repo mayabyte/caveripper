@@ -95,10 +95,21 @@ Caveripper comes with some very simple Python bindings to the core cave generati
 ```python
 >>> import caveripper
 >>> caveripper.generate(0x1234ABCD, "sh6")
-{'name': 'SH6', 'seed': 305441741, 'ship': [510.0, 510.0], 'hole': [1955.0, 1615.0], 'geyser': None, 'map_units': [{'name': 'room_4x4b_4_conc',
-...
+{'name': 'SH6', 'seed': 305441741, 'ship': [510.0, 510.0], 'hole': [1955.0, 1615.0], 'geyser': None, 'map_units': [{'name': 'room_4x4b_4_conc', ...
 ```
-So far only the `generate` function is available from Python, but this may change in the future.
+
+### Python Binding Docs
+
+```python
+# Generates a sublevel layout and returns a serialized representation as
+# a dictionary. If render=True, the image is saved as "<SUBLEVEL>_<SEED>.png".
+generate(seed: int, sublevel: str, render: bool = False) -> dict
+
+# Returns a serialized representation of the sublevel's full caveinfo
+# struct heirarchy. See caveripper/src/caveinfo.rs for field and
+# structure documentation.
+caveinfo(sublevel: str) -> dict
+```
 
 
 ## Guide to Reading the Code
