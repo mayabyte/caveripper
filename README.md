@@ -88,7 +88,7 @@ Caveripper comes with some very simple Python bindings to the core cave generati
 1. Follow the build steps above and build as normal. No extra feature flags are required.
 1. Find and rename the shared library file that was generated during the build. This will be in `target/release` next to the CLI binary.
     - On macOS, rename `libcaveripper.dylib` to `caveripper.so`.
-    - On Windows, rename `libcaveripper.dll` to `caveripper.pyd`.
+    - On Windows, rename `caveripper.dll` or `libcaveripper.dll` to `caveripper.pyd`.
     - On Linux (including WSL), rename `libcaveripper.so` to `caveripper.so`.
 1. Move the finished library file to your Python project's source directory along with the `assets/` and `resources/` folders.
 1. Use Caveripper from Python!
