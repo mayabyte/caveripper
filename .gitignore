@@ -4,3 +4,5 @@ output/*
 assets/
 *.iso
 .vscode
+*.so
+*.pyd

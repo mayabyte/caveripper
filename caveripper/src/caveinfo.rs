@@ -14,6 +14,7 @@ mod parse;
 use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use nom::Finish;
 use parse::parse_caveinfo;
+use serde::Serialize;
 use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::{Treasure, CaveConfig}, pikmin_math};
 use self::parse::try_parse_caveinfo;
 
@@ -23,7 +24,7 @@ use self::parse::try_parse_caveinfo;
 /// the next FloorInfo section begins or the file ends.
 /// Essentially, this is the entire collection of information required to
 /// generate one sublevel.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CaveInfo {
     pub sublevel: Sublevel,  // Not part of the file format
     pub floor_num: u32, // 0-indexed
@@ -150,7 +151,7 @@ impl Display for CaveInfo {
 /// that aren't either treasures or gates are considered Teki.
 /// Treasures held inside enemies *are* defined in TekiInfo, however. See the
 /// `carrying` field.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TekiInfo {
     pub internal_name: String,
     pub carrying: Option<Treasure>, // The object held by this Teki, if any.
@@ -163,7 +164,7 @@ pub struct TekiInfo {
 
 /// Defines 'loose' treasures, i.e. those that are not held by an enemy, but
 /// rather sitting out in the open or buried.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ItemInfo {
     pub internal_name: String,
     pub min_amount: u8,
@@ -172,7 +173,7 @@ pub struct ItemInfo {
 
 
 /// Defines gates. Very straightforward.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GateInfo {
     pub health: f32,
     pub spawn_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
@@ -196,7 +197,7 @@ pub struct GateInfo {
 /// with a spawn point' and "cap" when they mean 'a dead end with no spawn point'.
 /// CapInfo only applies to the former, 'dead ends with spawn points' A.K.A.
 /// "alcoves". Nothing can spawn in "caps" as you might expect.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CapInfo {
     pub internal_name: String,
     pub carrying: Option<Treasure>, // The object held by this Cap Teki, if any.
@@ -227,7 +228,7 @@ impl CapInfo {
 /// generated on a given sublevel. Each CaveUnit represents one possible
 /// map tile.
 /// https://pikmintkb.com/wiki/Cave_unit_definition_file
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CaveUnit {
     pub unit_folder_name: String,
     pub width: u16,  // In cave grid cells, not in-game coords
@@ -302,7 +303,7 @@ impl CaveUnit {
 
 
 /// Defines a cuboid of water in a room tile.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Waterbox {
     pub x1: f32,
     pub y1: f32,
@@ -312,7 +313,7 @@ pub struct Waterbox {
     pub z2: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Waypoint {
     pub x: f32,
     pub y: f32,
@@ -335,7 +336,7 @@ impl Waypoint {
 /// Indicates position and other metadata about doors in each map unit, relative to its
 /// origin point. A 'door' is just an open spot in a map unit where other map units get
 /// connected. All doors are exactly 170 in-game units wide, i.e. 1 map unit.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DoorUnit {
     pub direction: u16,         // 0, 1, 2, or 3
     pub side_lateral_offset: u16, // Appears to be the offset from center on the side of the room it's facing?
@@ -355,7 +356,7 @@ impl DoorUnit {
 /// DoorLink for every unique pair of doors in a given room tile. These are primarily
 /// used for calculating Door Score.
 /// To clarify, DoorLinks are NOT links between two doors in separate rooms.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DoorLink {
     pub distance: f32,  // Straight line distance. This can cross out-of-bounds and otherwise uncrossable obstacles.
     pub door_id: usize, // Id of the other door
@@ -363,7 +364,7 @@ pub struct DoorLink {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum RoomType {
     Room,
     Hallway,
@@ -406,7 +407,7 @@ impl Display for RoomType {
 
 /// Spawn Points for everything that gets placed in sublevels, including the Research
 /// Pod, the exit hole/geyser, treasures, Teki, etc.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SpawnPoint {
     pub group: u16,
     pub pos_x: f32,  // Positions are all relative to the origin of the unit they belong to, NOT global coords.

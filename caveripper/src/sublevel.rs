@@ -5,6 +5,7 @@ use crate::assets::{AssetManager, CaveConfig};
 use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
+use serde::Serialize;
 
 
 pub static DIRECT_MODE_TAG: &str = "caveinfo";
@@ -24,7 +25,7 @@ impl Sublevel {
 
     /// Constructs the normalized name of this sublevel, i.e. one in the
     /// same format that JHawk's CaveGen implementation accepts (i.e. "SCx-3" - proper capitalization
-    /// and hyphenated sublevel number.) The first entry in the shortened names list in cave_config.txt 
+    /// and hyphenated sublevel number.) The first entry in the shortened names list in cave_config.txt
     /// should always be the normalized cave name.
     pub fn normalized_name(&self) -> String {
         format!("{}-{}", self.cfg.shortened_names.first().unwrap(), self.floor)
@@ -102,7 +103,7 @@ impl TryFrom<&str> for Sublevel {
                 let floor = c2.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
 
                 Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false).map_err(Box::new)?.clone(), 
+                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false).map_err(Box::new)?.clone(),
                     floor
                 })
             },
@@ -111,12 +112,12 @@ impl TryFrom<&str> for Sublevel {
             [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
                 let floor = floor.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
                 Ok(Sublevel {
-                    cfg: CaveConfig { 
-                        game: DIRECT_MODE_TAG.into(), 
-                        full_name: format!("[Direct] {}", caveinfo_path), 
-                        is_challenge_mode: caveinfo_path.starts_with("ch"), 
-                        shortened_names: vec!["direct".to_string()], 
-                        caveinfo_filename: caveinfo_path.into() 
+                    cfg: CaveConfig {
+                        game: DIRECT_MODE_TAG.into(),
+                        full_name: format!("[Direct] {}", caveinfo_path),
+                        is_challenge_mode: caveinfo_path.starts_with("ch"),
+                        shortened_names: vec!["direct".to_string()],
+                        caveinfo_filename: caveinfo_path.into()
                     },
                     floor
                 })
@@ -124,6 +125,13 @@ impl TryFrom<&str> for Sublevel {
 
             _ => Err(SublevelError::ParseError(format!("\"{}\": Too many dashes in input.", input)))
         }
+    }
+}
+
+impl Serialize for Sublevel {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.short_name())
     }
 }
 
@@ -138,7 +146,7 @@ fn from_short_specifier(input: &str) -> Result<(&str, usize), SublevelError> {
         .ok_or(SublevelError::MissingFloorNumber)?
         .as_str().trim().parse()
         .map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
-    
+
     Ok((cave_name, floor))
 }
 
