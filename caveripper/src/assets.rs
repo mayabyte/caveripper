@@ -7,6 +7,7 @@ use image::RgbaImage;
 use itertools::Itertools;
 use log::info;
 use once_cell::sync::OnceCell;
+use serde::Serialize;
 
 use crate::caveinfo::CaveInfo;
 use crate::errors::{AssetError, SublevelError};
@@ -35,6 +36,8 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
+    /// Initializes the global asset manager if it has not already been initialized.
+    /// This is a no-op if the manager has already been initialized.
     pub fn init_global(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<(), AssetError> {
         let manager = AssetManager::init(asset_path, resources_loc)?;
         ASSETS.get_or_init(|| manager);
@@ -93,12 +96,12 @@ impl AssetManager {
                 .map_err(|e| AssetError::IoError(ek_treasure_path.to_string_lossy().into(), e.kind()))?
                 .as_slice()
             ).0.into_owned();
-    
+
             let mut treasures = parse_treasure_config(&treasures);
             treasures.append(&mut parse_treasure_config(&ek_treasures));
             treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
             manager.treasures.extend(treasures);
-    
+
             let teki_path = manager.asset_path.join(game).join("user/Yamashita/enemytex/arc");
             let teki = read_dir(&teki_path)
                 .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
@@ -106,7 +109,7 @@ impl AssetManager {
                 .filter(|dir_entry| dir_entry.path().is_dir())
                 .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
             manager.teki.extend(teki);
-    
+
             let room_path = manager.asset_path.join(game).join("user/Mukki/mapunits/arc");
             let rooms = read_dir(&room_path)
                 .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
@@ -202,7 +205,7 @@ impl AssetManager {
             if path.as_ref().starts_with("resources") {
                 let data = read(self.resources_loc.join(path)).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
                 let _ = self.txt_cache.insert(
-                    p_str.clone(), 
+                    p_str.clone(),
                     String::from_utf8(data)
                         .map_err(|_| AssetError::DecodingError(p_str.clone()))?
                 );
@@ -227,10 +230,10 @@ impl AssetManager {
 
     fn _get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, AssetError> {
         let p_str: String = path.as_ref().to_string_lossy().into();
-        let path: PathBuf = if path.as_ref().starts_with("resources") { 
-            self.resources_loc.join(path.as_ref()) 
-        } else { 
-            self.asset_path.join(path) 
+        let path: PathBuf = if path.as_ref().starts_with("resources") {
+            self.resources_loc.join(path.as_ref())
+        } else {
+            self.asset_path.join(path)
         };
 
         if let Some(value) = self.img_cache.get(&p_str) {
@@ -259,7 +262,7 @@ impl AssetManager {
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
             caveinfo.sublevel = sublevel.clone();
-            
+
             if self.caveinfo_cache.insert(sublevel, caveinfo).is_err() {
                 //warn!("Tried to replace CaveInfo {} in cache. Caveinfo NOT updated.", cave.caveinfo_filename);
                 //info!("Replaced CaveInfo {} in cache", cave.caveinfo_filename);
@@ -310,9 +313,9 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
 }
 
 static ALL_CAVES: [&str; 88] = [
-    "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh", 
-    "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm", 
-    "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str", 
+    "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh",
+    "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm",
+    "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str",
     "bg", "cop", "bd", "snr", "er", "newyear:bg", "newyear:sk", "newyear:cwnn", "newyear:snd",
     "newyear:ch", "newyear:rh", "newyear:ss", "newyear:sa", "newyear:aa", "newyear:ser",
     "newyear:tc", "newyear:er", "newyear:cg", "newyear:sd", "newyear:ch1", "newyear:ch2",
@@ -320,10 +323,10 @@ static ALL_CAVES: [&str; 88] = [
     "newyear:ch9", "newyear:ch10", "newyear:ch11", "newyear:ch12", "newyear:ch13", "newyear:ch14",
     "newyear:ch15", "newyear:ch16", "newyear:ch17", "newyear:ch18", "newyear:ch19", "newyear:ch20",
     "newyear:ch21", "newyear:ch22", "newyear:ch23", "newyear:ch24", "newyear:ch25", "newyear:ch26",
-    "newyear:ch27", "newyear:ch28", "newyear:ch29", "newyear:ch30", 
+    "newyear:ch27", "newyear:ch28", "newyear:ch29", "newyear:ch30",
 ];
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Treasure {
     pub internal_name: String,
     pub min_carry: u32,
