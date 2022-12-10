@@ -3,7 +3,7 @@ use crate::{
     caveinfo::{
         util::{expand_rotations, sort_cave_units},
         CaveInfo, TekiInfo, ItemInfo, CapInfo, GateInfo,
-        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType, 
+        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
         Waterbox, Waypoint
     },
     errors::{CaveInfoError},
@@ -23,13 +23,24 @@ use nom::{
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use pest::Parser;
+use pest_derive::Parser;
 use regex::Regex;
 use std::{str::FromStr, path::PathBuf, error::Error};
+
+#[derive(Parser)]
+#[grammar = "caveinfo/p2_cfg_grammar.pest"]
+struct CaveinfoParser;
 
 
 /// Takes the entire raw text of a CaveInfo file and parses it into a
 /// CaveInfo struct, ready for passing to the generator.
 pub(crate) fn parse_caveinfo(caveinfo_txt: &str) -> IResult<&str, Vec<[Section; 5]>> {
+    // let pairs = CaveinfoParser::parse(Rule::section_file, caveinfo_txt).unwrap();
+    // for p in pairs.flatten() {
+    //     println!("{:?} {}", p.as_rule(), p.as_str());
+    // }
+
     // Header section
     let (rest, header_section) = section(caveinfo_txt)?;
     let num_floors: u8 = header_section
@@ -231,7 +242,7 @@ fn skip_lines(input: &str, skip: usize) -> IResult<&str, ()> {
 
 fn waterbox_line(input: &str) -> IResult<&str, Waterbox> {
     let (rest, (_, x1, _, y1, _, z1, _, x2, _, y2, _, z2, _, _)) = tuple((
-        multispace0, float, multispace1, float, multispace1, float, multispace1, float, multispace1, float, 
+        multispace0, float, multispace1, float, multispace1, float, multispace1, float, multispace1, float,
         multispace1, float, multispace1, line_comment
     ))(input)?;
     Ok((rest, Waterbox { x1, y1, z1, x2, y2, z2 }))
@@ -247,7 +258,7 @@ pub(super) fn try_parse_caveinfo(raw_sections: [Section<'_>; 5], cave: &CaveConf
         raw_sections;
 
     let cave_unit_definition_file_name: String = floorinfo_section.get_tag("008")?;
-    let cave_unit_definition_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/units").join(&cave_unit_definition_file_name);
+    let cave_unit_definition_path = PathBuf::from(&cave.game).join("unitfiles").join(&cave_unit_definition_file_name);
     let cave_unit_definition_text = AssetManager::get_txt_file(&cave_unit_definition_path)?;
     let (_, cave_unit_sections) = parse_cave_unit_definition(cave_unit_definition_text)?;
 
@@ -445,7 +456,7 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
     };
 
     // Cave Unit Layout File (spawn points)
-    let layoutfile_path = PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/layout.txt");
+    let layoutfile_path = PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/layout.txt");
     let mut spawnpoints = match AssetManager::get_txt_file(&layoutfile_path) {
         Ok(cave_unit_layout_file_txt) => {
             parse_cave_unit_layout_file(cave_unit_layout_file_txt)
@@ -457,7 +468,7 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
 
     // Waterboxes file
     let waterboxes = match AssetManager::get_txt_file(
-        &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/waterbox.txt")
+        &PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/waterbox.txt")
     ) {
         Ok(waterboxes_file_txt) => {
             parse_waterboxes_file(waterboxes_file_txt)
@@ -468,7 +479,7 @@ fn try_parse_caveunit(section: Section, cave: &CaveConfig) -> Result<CaveUnit, C
 
     // route.txt file (Waypoints)
     let waypoints_file_txt = AssetManager::get_txt_file(
-        &PathBuf::from(&cave.game).join("user/Mukki/mapunits/arc").join(&unit_folder_name).join("texts/route.txt"))?;
+        &PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/route.txt"))?;
     let waypoints = parse_waypoints_file(waypoints_file_txt)
         .map_err(|e| CaveInfoError::NomError(format!("Couldn't parse routes.txt for {}: {}", &unit_folder_name, e)))?.1;
 
@@ -595,17 +606,17 @@ fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>,
     // Attempt to separate the candidate name into a teki and treasure component.
     // Teki carrying treasures are written as "Tekiname_Treasurename", but unfortunately
     // both teki and treasures can have underscores as part of their names, so splitting
-    // the two is non-trivial. To make things worse, some treasure names are strict 
-    // prefixes or suffixes of others ('fire', 'fire_helmet', 'suit_fire'). The only robust 
-    // way I've found to ensure the right teki/treasure combination is extracted is to 
+    // the two is non-trivial. To make things worse, some treasure names are strict
+    // prefixes or suffixes of others ('fire', 'fire_helmet', 'suit_fire'). The only robust
+    // way I've found to ensure the right teki/treasure combination is extracted is to
     // exhaustively check against all possible combinations of teki and treasure names.
     // This is an expensive operation, but this should only have to be done at caveinfo
     // loading time so it shouldn't affect performance where it matters.
     if combined_name.contains('_') {
-        let combined_name_lower = combined_name.to_ascii_lowercase(); 
+        let combined_name_lower = combined_name.to_ascii_lowercase();
         for (teki, treasure) in AssetManager::teki_list().expect("No teki list!")
             .iter()
-            .cartesian_product(AssetManager::treasure_list().expect("No treasure list!").iter()) 
+            .cartesian_product(AssetManager::treasure_list().expect("No treasure list!").iter())
         {
             // Check full string equality rather than prefix/suffix because
             // some treasure names are suffixes of others.

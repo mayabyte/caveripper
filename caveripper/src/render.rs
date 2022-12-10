@@ -294,7 +294,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
                         let carried_treasure_icon = resize(
                             AssetManager::get_img(
-                                &PathBuf::from(&caveinfo.sublevel.cfg.game).join("user/Matoba/resulttex/us/arc").join(carrying).join("texture.png")
+                                &PathBuf::from(&caveinfo.sublevel.cfg.game).join("treasures").join(format!("{}.png", carrying))
                             )?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
@@ -777,7 +777,7 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
             },
             TextureModifier::Carrying(carrying) => {
                 let carried_treasure_icon = resize(
-                    AssetManager::get_img(&PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(carrying).join("texture.png"))?,
+                    AssetManager::get_img(&PathBuf::from(game).join("treasures").join(format!("{}.png", carrying)))?,
                     24, 24, FilterType::Lanczos3
                 );
                 overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
@@ -936,7 +936,7 @@ impl Textured for TekiInfo {
                 AssetManager::get_img(&filename)
             },
             None => {
-                let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
+                let filename = PathBuf::from(game).join("teki").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
                 AssetManager::get_img(&filename)
             }
         }
@@ -973,7 +973,7 @@ impl Textured for CapInfo {
                 AssetManager::get_img(&filename)
             },
             None => {
-                let filename = PathBuf::from(game).join("user/Yamashita/enemytex/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
+                let filename = PathBuf::from(game).join("teki").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
                 AssetManager::get_img(&filename)
             }
         }
@@ -1000,7 +1000,7 @@ impl Textured for CapInfo {
 impl Textured for ItemInfo {
     fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
         // TODO: fix US region being hardcoded here.
-        let filename = PathBuf::from(game).join("user/Matoba/resulttex/us/arc").join(&self.internal_name.to_ascii_lowercase()).join("texture.png");
+        let filename = PathBuf::from(game).join("treasures").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
         AssetManager::get_img(&filename)
     }
 
@@ -1092,7 +1092,7 @@ impl Textured for SpawnObject<'_> {
 
 impl Textured for CaveUnit {
     fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
-        let filename = PathBuf::from(game).join("user/Mukki/mapunits/arc").join(&self.unit_folder_name).join("arc/texture.png");
+        let filename = PathBuf::from(game).join("mapunits").join(&self.unit_folder_name).join("arc/texture.png");
         let mut img = AssetManager::get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.

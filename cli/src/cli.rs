@@ -153,10 +153,9 @@ pub enum Commands {
         iso_path: PathBuf,
 
         #[clap(
-            help = "The name for this ISO.",
-            default_value = "pikmin2"
+            help = "The name for this ISO. Will attempt to auto-detect if not provided.",
         )]
-        game_name: String,
+        game_name: Option<String>,
     }
 }
 

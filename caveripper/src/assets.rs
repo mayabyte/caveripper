@@ -26,13 +26,13 @@ pub struct AssetManager {
     pub cave_cfg: Vec<CaveConfig>,
 
     /// All known treasure names. All lowercase so they can be easily compared.
-    pub treasures: Vec<Treasure>,
+    treasures: OnceCell<Vec<Treasure>>,
 
     /// All known teki names. All lowercase so they can be easily compared.
-    pub teki: Vec<String>,
+    teki: OnceCell<Vec<String>>,
 
     /// All known room names.
-    pub rooms: Vec<String>,
+    rooms: OnceCell<Vec<String>>,
 }
 
 impl AssetManager {
@@ -45,18 +45,6 @@ impl AssetManager {
     }
 
     fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<AssetManager, AssetError> {
-        let mut manager = Self {
-            asset_path: asset_path.as_ref().into(),
-            resources_loc: resources_loc.as_ref().into(),
-            txt_cache: PinMap::new(),
-            caveinfo_cache: PinMap::new(),
-            img_cache: PinMap::new(),
-            cave_cfg: Vec::new(),
-            treasures: Vec::new(),
-            teki: Vec::new(),
-            rooms: Vec::new(),
-        };
-
         let cave_cfg: Vec<CaveConfig> = read_to_string(resources_loc.as_ref().join("resources/caveinfo_config.txt"))
             .map_err(|e| AssetError::CaveConfigError(e.to_string()))?
             .lines()
@@ -71,55 +59,83 @@ impl AssetManager {
                 })
             })
             .collect::<Result<Vec<_>, AssetError>>()?;
-        manager.cave_cfg = cave_cfg;
 
-        // Eggs are not listed in enemytex, so they have to be added manually
-        manager.teki.push("egg".to_string());
+        Ok(Self {
+            asset_path: asset_path.as_ref().into(),
+            resources_loc: resources_loc.as_ref().into(),
+            txt_cache: PinMap::new(),
+            caveinfo_cache: PinMap::new(),
+            img_cache: PinMap::new(),
+            cave_cfg,
+            treasures: OnceCell::new(),
+            teki: OnceCell::new(),
+            rooms: OnceCell::new(),
+        })
+    }
 
-        let all_games: HashSet<&str> = manager.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect();
-        for game in all_games.into_iter() {
-            if !manager.asset_path.join(game).is_dir() {
-                info!("No files found for game {}; skipping.", game);
-                continue;
+    fn all_games(&self) -> HashSet<&str> {
+        self.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect()
+    }
+
+    fn treasures(&self) -> Result<&Vec<Treasure>, AssetError> {
+        self.treasures.get_or_try_init(|| {
+            let mut all_treasures = Vec::new();
+            for game in self.all_games() {
+                let treasure_path = self.asset_path.join(game).join("otakara_config.txt");
+                let ek_treasure_path = self.asset_path.join(game).join("item_config.txt");
+
+                let treasures = SHIFT_JIS.decode(
+                    read(&treasure_path)
+                    .map_err(|e| AssetError::IoError(treasure_path.to_string_lossy().into(), e.kind()))?
+                    .as_slice()
+                ).0.into_owned();
+                let ek_treasures = SHIFT_JIS.decode(
+                    read(&ek_treasure_path)
+                    .map_err(|e| AssetError::IoError(ek_treasure_path.to_string_lossy().into(), e.kind()))?
+                    .as_slice()
+                ).0.into_owned();
+
+                let mut treasures = parse_treasure_config(&treasures);
+                treasures.append(&mut parse_treasure_config(&ek_treasures));
+                treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
+                all_treasures.extend(treasures);
             }
+            Ok(all_treasures)
+        })
+    }
 
-            let treasure_path = manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/otakara_config.txt");
-            let ek_treasure_path = manager.asset_path.join(game).join("user/Abe/Pellet/us/pelletlist_us/item_config.txt");
+    fn teki(&self) -> Result<&Vec<String>, AssetError> {
+        self.teki.get_or_try_init(|| {
+            // Eggs are not listed in enemytex, so they have to be added manually
+            let mut all_teki = vec!["egg".to_string()];
 
-            let treasures = SHIFT_JIS.decode(
-                read(&treasure_path)
-                .map_err(|e| AssetError::IoError(treasure_path.to_string_lossy().into(), e.kind()))?
-                .as_slice()
-            ).0.into_owned();
-            let ek_treasures = SHIFT_JIS.decode(
-                read(&ek_treasure_path)
-                .map_err(|e| AssetError::IoError(ek_treasure_path.to_string_lossy().into(), e.kind()))?
-                .as_slice()
-            ).0.into_owned();
+            for game in self.all_games() {
+                let teki_path = self.asset_path.join(game).join("teki");
+                let teki = read_dir(&teki_path)
+                    .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
+                    .filter_map(Result::ok)
+                    .filter(|entry| entry.path().is_file())
+                    .map(|file_entry| file_entry.file_name().into_string().unwrap().strip_suffix(".png").unwrap().to_ascii_lowercase());
+                all_teki.extend(teki);
+            }
+            Ok(all_teki)
+        })
+    }
 
-            let mut treasures = parse_treasure_config(&treasures);
-            treasures.append(&mut parse_treasure_config(&ek_treasures));
-            treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
-            manager.treasures.extend(treasures);
-
-            let teki_path = manager.asset_path.join(game).join("user/Yamashita/enemytex/arc");
-            let teki = read_dir(&teki_path)
-                .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
-                .filter_map(Result::ok)
-                .filter(|dir_entry| dir_entry.path().is_dir())
-                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
-            manager.teki.extend(teki);
-
-            let room_path = manager.asset_path.join(game).join("user/Mukki/mapunits/arc");
-            let rooms = read_dir(&room_path)
-                .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
-                .filter_map(Result::ok)
-                .filter(|dir_entry| dir_entry.path().is_dir())
-                .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
-            manager.rooms.extend(rooms);
-        }
-
-        Ok(manager)
+    fn rooms(&self) -> Result<&Vec<String>, AssetError> {
+        self.rooms.get_or_try_init(|| {
+            let mut all_rooms = Vec::new();
+            for game in self.all_games() {
+                let room_path = self.asset_path.join(game).join("mapunits");
+                let rooms = read_dir(&room_path)
+                    .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
+                    .filter_map(Result::ok)
+                    .filter(|dir_entry| dir_entry.path().is_dir())
+                    .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
+                all_rooms.extend(rooms);
+            }
+            Ok(all_rooms)
+        })
     }
 
     pub fn get_txt_file<P: AsRef<Path>>(path: P) -> Result<&'static str, AssetError> {
@@ -155,15 +171,15 @@ impl AssetManager {
     }
 
     pub fn teki_list() -> Result<&'static [String], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.teki.as_slice())
+        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.teki()?.as_slice())
     }
 
     pub fn treasure_list() -> Result<&'static [Treasure], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.treasures.as_slice())
+        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.treasures()?.as_slice())
     }
 
     pub fn room_list() -> Result<&'static [String], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.rooms.as_slice())
+        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.rooms()?.as_slice())
     }
 
     /// Forces the asset manager to load all the Caveinfo files in Vanilla Pikmin 2.
@@ -289,7 +305,7 @@ impl CaveConfig {
             PathBuf::from(&self.caveinfo_filename)
         }
         else {
-            PathBuf::from(&self.game).join("user/Mukki/mapunits/caveinfo").join(&self.caveinfo_filename)
+            PathBuf::from(&self.game).join("caveinfo").join(&self.caveinfo_filename)
         }
     }
 }

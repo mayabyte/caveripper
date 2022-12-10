@@ -137,9 +137,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Extract { iso_path, game_name } => {
             let progress_bar = ProgressBar::new_spinner()
                 .with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
-            extract_iso(&game_name, iso_path, &progress_bar)?;
+            extract_iso(game_name, iso_path, &progress_bar)?;
             progress_bar.finish_and_clear();
-            println!("🍞 Done extracting ISO '{}'.", game_name);
+            println!("🍞 Done extracting ISO.");
         },
     }
 
