@@ -1,5 +1,4 @@
 use crate::assets::AssetManager;
-
 use super::Query;
 
 #[test]
@@ -46,5 +45,21 @@ fn test_parse_room_type_names() {
     ];
     for s in query_strings {
         Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{}\"", s));
+    }
+}
+
+#[test]
+fn test_clackerless() {
+    AssetManager::init_global("../assets", "..").expect("Couldn't init asset manager");
+    let query_string = "gk3 castanets = 0";
+    let success_seeds = [0x3D10D570, 0xF5F4D7A8, 0x950A49A3, 0x072BDE2E, 0x9D1F0152, 0xE3EF8C67, 0xA45CE0BA, 0xA8DF21A4, 0x16968C0D, 0xA5D15522];
+    let failure_seeds = [0x0407B6C5, 0xEA493EAC, 0xA92697B2, 0xFFBF35A8, 0x31A9BEFF, 0x732B700C, 0x505282B2, 0x240E934C, 0x23BBEA60, 0xD9D7CC12];
+
+    let query: Query = query_string.try_into().expect("couldn't parse query string");
+    for seed in success_seeds {
+        assert!(query.matches(seed));
+    }
+    for seed in failure_seeds {
+        assert!(!query.matches(seed));
     }
 }

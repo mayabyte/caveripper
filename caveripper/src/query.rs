@@ -151,7 +151,9 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
             (Rule::compare, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
-                if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase()) {
+                if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase())
+                || AssetManager::treasure_list()?.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))
+                {
                     Ok(QueryKind::CountEntity {
                         entity_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),
