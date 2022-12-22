@@ -12,11 +12,10 @@ mod util;
 mod parse;
 
 use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
-use nom::Finish;
 use parse::parse_caveinfo;
 use serde::Serialize;
-use crate::{errors::{CaveInfoError, SearchConditionError}, sublevel::Sublevel, assets::{Treasure, CaveConfig}, pikmin_math};
-use self::parse::try_parse_caveinfo;
+use error_stack::{Result, Report, report, ResultExt};
+use crate::{errors::CaveripperError, assets::{Treasure, CaveConfig}, pikmin_math};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -26,7 +25,7 @@ use self::parse::try_parse_caveinfo;
 /// generate one sublevel.
 #[derive(Debug, Clone, Serialize)]
 pub struct CaveInfo {
-    pub sublevel: Sublevel,  // Not part of the file format
+    pub cave_cfg: CaveConfig,  // Not part of the file format
     pub floor_num: u32, // 0-indexed
     pub max_main_objects: u32,
     pub max_treasures: u32,
@@ -60,24 +59,28 @@ impl CaveInfo {
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        self.sublevel.short_name()
+        format!("{}{}", self.cave_cfg.shortened_names.first().unwrap(), self.floor_num+1)
     }
 
-    pub fn parse_from(caveinfo_txt: &str, cave: &CaveConfig) -> Result<Vec<CaveInfo>, CaveInfoError> {
-        let floor_chunks = parse_caveinfo(caveinfo_txt)
-            .finish()
-            .map_err(|e| CaveInfoError::NomError(e.to_string()))?
-            .1;
-        let mut floors = floor_chunks
-            .into_iter()
-            .map(|c| try_parse_caveinfo(c, cave))
-            .collect::<Result<Vec<CaveInfo>, _>>()?;
-        floors.last_mut().unwrap().is_final_floor = true;
-        Ok(floors)
+    /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
+    pub fn long_name(&self) -> String {
+        format!("{} {}", self.cave_cfg.full_name, self.floor_num+1)
+    }
+
+    pub fn parse_from(cave: &CaveConfig) -> Result<Vec<CaveInfo>, CaveripperError> {
+        let floor_chunks = parse_caveinfo(cave)
+            .map_err(|e| CaveripperError::CaveinfoError)?;
+        // let mut floors = floor_chunks
+        //     .into_iter()
+        //     .map(|c| try_parse_caveinfo(c, cave))
+        //     .collect::<Result<Vec<CaveInfo>, _>>()?;
+        // floors.last_mut().unwrap().is_final_floor = true;
+        // Ok(floors)
+        unimplemented!()
     }
 
     pub fn is_challenge_mode(&self) -> bool {
-        self.sublevel.is_challenge_mode()
+        self.cave_cfg.is_challenge_mode
     }
 }
 
@@ -383,13 +386,13 @@ impl From<usize> for RoomType {
 }
 
 impl TryFrom<&str> for RoomType {
-    type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
         match input.to_ascii_lowercase().as_str() {
             "room" => Ok(RoomType::Room),
             "cap" | "alcove" => Ok(RoomType::DeadEnd),
             "hall" | "hallway" => Ok(RoomType::Hallway),
-            _ => Err(SearchConditionError::UnrecognizedName(input.to_string()))
+            _ => Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.to_owned())
         }
     }
 }

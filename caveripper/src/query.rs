@@ -2,11 +2,12 @@
 mod test;
 
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
+use error_stack::{Result, Report, report, ResultExt, IntoReport};
 use itertools::Itertools;
 use pest::{Parser, iterators::{Pair, Pairs}};
 use pest_derive::Parser;
 use crate::{
-    errors::SearchConditionError,
+    errors::CaveripperError,
     layout::{Layout, SpawnObject},
     caveinfo::{RoomType, CaveUnit},
     assets::AssetManager,
@@ -39,27 +40,29 @@ impl Query {
 /// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
 /// This effectively defines a DSL for search terms.
 impl TryFrom<&str> for Query {
-    type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
         let pairs = QueryParser::parse(Rule::query, input)
-            .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
+            .into_report().change_context(CaveripperError::QueryParseError)?;
         let mut sublevel: Option<Sublevel> = None;
         let mut clauses = Vec::new();
         for pair in pairs {
             match pair.as_rule() {
                 Rule::sublevel_ident => {
-                    sublevel = Some(pair.as_str().try_into()?);
+                    sublevel = Some(pair.as_str().try_into()
+                        .change_context(CaveripperError::QueryParseError)
+                        .attach_printable_lazy(|| pair.as_str().to_string())?);
                 },
                 Rule::expression => {
                     if let Some(sublevel) = sublevel.as_ref() {
                         clauses.push(QueryClause{sublevel: sublevel.clone(), querykind: pair.try_into()?});
                     }
                     else {
-                        return Err(SearchConditionError::ParseError("No sublevel provided".into()));
+                        return Err(report!(CaveripperError::QueryParseError));
                     }
                 },
                 Rule::EOI => {}, // The end-of-input rule gets matched as an explicit token, so we have to ignore it.
-                rule => return Err(SearchConditionError::ParseError(format!("Expected expression, got {:?} \"{}\"", rule, pair.as_str())))
+                rule => return Err(report!(CaveripperError::QueryParseError))
             }
         }
         Ok(Query{clauses})
@@ -139,34 +142,38 @@ impl QueryKind {
 }
 
 impl TryFrom<Pair<'_, Rule>> for QueryKind {
-    type Error = SearchConditionError;
-    fn try_from(input: Pair<'_, Rule>) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: Pair<'_, Rule>) -> std::result::Result<Self, Self::Error> {
         if input.as_rule() != Rule::expression {
-            return Err(SearchConditionError::ParseError(format!("Expected expression, got {}", input.as_str())));
+            return Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.as_str().to_string());
         }
 
-        let full_txt = input.as_str();
+        let full_txt = input.as_str().to_string();
         let expr = input.into_inner().next().unwrap();
         match (expr.as_rule(), expr.into_inner()) {
             (Rule::compare, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
-                if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase()) {
+
+                let teki_list = AssetManager::teki_list().change_context(CaveripperError::QueryParseError)?;
+                let room_list = AssetManager::room_list().change_context(CaveripperError::QueryParseError)?;
+
+                if teki_list.contains(&bare_name.to_ascii_lowercase()) {
                     Ok(QueryKind::CountEntity {
                         entity_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse()?,
+                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
-                else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
+                else if room_list.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
                     Ok(QueryKind::CountRoom {
                         unit_matcher: values[0].try_into()?,
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse()?,
+                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
                 else {
-                    Err(SearchConditionError::UnrecognizedName(values[0].into()))
+                    Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| full_txt.to_owned())
                 }
             },
             (Rule::straight_dist, inner) => {
@@ -175,12 +182,12 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                     entity1: values[0].try_into()?,
                     entity2: values[1].try_into()?,
                     relationship: char_to_ordering(values[2]),
-                    req_dist: values[3].parse()?,
+                    req_dist: values[3].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                 })
             },
             (Rule::room_path, inner) => Ok(QueryKind::RoomPath(inner.try_into()?)),
             _ => {
-                Err(SearchConditionError::ParseError(format!("Couldn't parse query \"{}\"", full_txt)))
+                Err(report!(CaveripperError::QueryParseError).attach_printable(full_txt))
             }
         }
     }
@@ -277,13 +284,13 @@ impl RoomPath {
 }
 
 impl TryFrom<Pairs<'_, Rule>> for RoomPath {
-    type Error = SearchConditionError;
-    fn try_from(input: Pairs<'_, Rule>) -> Result<Self, Self::Error> {
-        let components = input.map(|component| -> Result<(UnitMatcher, Vec<EntityMatcher>), Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: Pairs<'_, Rule>) -> std::result::Result<Self, Self::Error> {
+        let components = input.map(|component| -> std::result::Result<(UnitMatcher, Vec<EntityMatcher>), Self::Error> {
             let mut pairs = component.into_inner();
             Ok((
                 pairs.next().unwrap().as_str().try_into()?,
-                pairs.map(|e| e.as_str().try_into()).collect::<Result<Vec<_>, _>>()?
+                pairs.map(|e| e.as_str().try_into()).collect::<std::result::Result<Vec<_>, _>>()?
             ))
         })
         .collect::<Result<Vec<(UnitMatcher, Vec<EntityMatcher>)>, _>>()?;
@@ -335,15 +342,18 @@ impl EntityMatcher {
 }
 
 impl TryFrom<&str> for EntityMatcher {
-    type Error = SearchConditionError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(s: &str) -> std::result::Result<Self, Self::Error> {
         match s.to_ascii_lowercase().trim() {
             "hole" => Ok(EntityMatcher::Hole),
             "geyser" => Ok(EntityMatcher::Geyser),
             "ship" => Ok(EntityMatcher::Ship),
             "gate" => Ok(EntityMatcher::Gate),
             s => {
-                if AssetManager::treasure_list()?.iter()
+                let treasure_list = AssetManager::treasure_list().change_context(CaveripperError::QueryParseError)?;
+                let teki_list = AssetManager::teki_list().change_context(CaveripperError::QueryParseError)?;
+
+                if treasure_list.iter()
                     .map(|t| t.internal_name.trim())
                     .contains(&s)
                 {
@@ -351,20 +361,20 @@ impl TryFrom<&str> for EntityMatcher {
                 }
                 else if s.contains('/') {
                     let (name, carrying) = s.split_once('/').unwrap();
-                    if AssetManager::teki_list()?.contains(&name.to_string())
-                        && AssetManager::treasure_list()?.iter().map(|t| t.internal_name.trim()).contains(&carrying)
+                    if teki_list.contains(&name.to_string())
+                        && treasure_list.iter().map(|t| t.internal_name.trim()).contains(&carrying)
                     {
                         Ok(EntityMatcher::Teki { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) })
                     }
                     else {
-                        Err(SearchConditionError::UnrecognizedEntityName(s.into()))
+                        Err(report!(CaveripperError::QueryParseError))
                     }
                 }
-                else if AssetManager::teki_list()?.contains(&s.to_string()) {
+                else if teki_list.contains(&s.to_string()) {
                     Ok(EntityMatcher::Teki { name: s.to_string(), carrying: None })
                 }
                 else {
-                    Err(SearchConditionError::UnrecognizedEntityName(s.into()))
+                    Err(report!(CaveripperError::QueryParseError))
                 }
             }
         }
@@ -402,16 +412,17 @@ impl UnitMatcher {
 }
 
 impl TryFrom<&str> for UnitMatcher {
-    type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
+        let room_list = AssetManager::room_list().change_context(CaveripperError::QueryParseError)?;
         if let Ok(room_type) = RoomType::try_from(input) {
             Ok(UnitMatcher::UnitType(room_type))
         }
-        else if AssetManager::room_list()?.contains(&input.to_string()) || input.eq_ignore_ascii_case("any") {
+        else if room_list.contains(&input.to_string()) || input.eq_ignore_ascii_case("any") {
             Ok(UnitMatcher::Named(input.to_string()))
         }
         else {
-            Err(SearchConditionError::UnrecognizedUnitName(input.to_string()))
+            Err(report!(CaveripperError::QueryParseError))
         }
     }
 }

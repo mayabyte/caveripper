@@ -11,10 +11,8 @@ pub struct Cli {
 
     #[clap(
         global = true,
+        default_value_t = 0,
         short = 'v',
-        parse(from_occurrences),
-        takes_value = false,
-        multiple_occurrences = true,
         help = VERBOSE_HELP,
     )]
     pub verbosity: u8,
@@ -28,13 +26,13 @@ pub enum Commands {
     )]
     Generate {
         #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e}"))},
             help = SUBLEVEL_HELP,
         )]
         sublevel: Sublevel,
 
         #[clap(
-            value_parser = parse_seed,
+            value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e}")),
             help = SEED_HELP,
         )]
         seed: u32,
@@ -49,7 +47,7 @@ pub enum Commands {
     )]
     Caveinfo {
         #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e}"))},
             help = SUBLEVEL_HELP,
         )]
         sublevel: Sublevel,
@@ -71,7 +69,7 @@ pub enum Commands {
     )]
     Search {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e}"))},
             help = SEARCH_COND_HELP,
             long_help = QUERY_HELP,
         )]
@@ -94,7 +92,7 @@ pub enum Commands {
         num: usize,
 
         #[clap(
-            value_parser = parse_seed,
+            value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e}")),
             short = 's',
             long = "start",
             help = "Search seeds sequentially starting from the given seed."
@@ -108,7 +106,7 @@ pub enum Commands {
     )]
     Stats {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e}"))},
             help = SEARCH_COND_HELP,
             long_help = QUERY_HELP,
         )]
@@ -130,7 +128,7 @@ pub enum Commands {
     )]
     Filter {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s)},
+            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e}"))},
             help = SEARCH_COND_HELP,
             long_help = QUERY_HELP,
         )]

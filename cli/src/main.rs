@@ -7,6 +7,7 @@ mod util;
 use atty::Stream;
 use cli::*;
 use clap::Parser;
+use error_stack::Result;
 use extract::extract_iso;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
@@ -21,11 +22,11 @@ use caveripper::{
         render_caveinfo
     },
     search::find_matching_layouts_parallel,
-    parse_seed
+    parse_seed, errors::CaveripperError
 };
 use simple_logger::SimpleLogger;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), CaveripperError> {
     // The asset manager has to be initialized as the very first thing because
     // command parsing can involve sublevel string parsing, which requires
     // loading assets.
@@ -33,9 +34,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let args = Cli::parse();
     match args.verbosity {
-        0 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init()?,
-        1 => SimpleLogger::new().with_level(log::LevelFilter::Info).init()?,
-        2.. => SimpleLogger::new().with_level(log::LevelFilter::max()).init()?,
+        0 => SimpleLogger::new().with_level(log::LevelFilter::Warn).init().unwrap(),
+        1 => SimpleLogger::new().with_level(log::LevelFilter::Info).init().unwrap(),
+        2.. => SimpleLogger::new().with_level(log::LevelFilter::max()).init().unwrap(),
     }
 
     // Run the desired command.
@@ -111,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Filter { query, file } => {
             // Read from a file. In this case, we can check the seeds in parallel.
             if let Some(filename) = file {
-                read_to_string(filename)?.lines()
+                read_to_string(filename).unwrap().lines()
                     .collect::<Vec<_>>()
                     .into_par_iter()
                     .filter_map(|line| parse_seed(line).ok())
@@ -137,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Extract { iso_path, game_name } => {
             let progress_bar = ProgressBar::new_spinner()
                 .with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
-            extract_iso(game_name, iso_path, &progress_bar)?;
+            extract_iso(game_name, iso_path, &progress_bar).expect("Failed to extract ISO");
             progress_bar.finish_and_clear();
             println!("🍞 Done extracting ISO.");
         },

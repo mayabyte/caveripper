@@ -9,7 +9,7 @@ edition = "2021"
 simple_logger = {version="1.13", default-features=false, features=["colors"]}
 rayon = "1.5"
 indicatif = {version="0.17", features=["rayon"]}
-clap = {version="3.2", features=["derive"]}
+clap = {version="4.0", features=["derive"]}
 rand = "0.8"
 log = "0.4"
 crossbeam = "0.8.2"
@@ -20,6 +20,7 @@ encoding_rs = "0.8.31"
 image = "0.24"
 anyhow = "1.0"
 regex = "1.7"
+error-stack = "0.2"
 caveripper = {path="../caveripper"}
 
 [[bin]]

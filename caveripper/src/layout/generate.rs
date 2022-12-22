@@ -10,7 +10,7 @@ use crate::{
         PlacedSpawnPoint,
         Layout,
         boxes_overlap
-    },
+    }, sublevel::Sublevel,
 };
 
 pub struct LayoutBuilder<'a> {
@@ -1105,7 +1105,7 @@ impl<'a> LayoutBuilder<'a> {
 
         // Done!
         Layout {
-            sublevel: caveinfo.sublevel.clone(),
+            sublevel: Sublevel::from_cfg(&caveinfo.cave_cfg, caveinfo.floor_num as usize+1),
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
             map_units: self.map_units,

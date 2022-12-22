@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 
 use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
 use crate::assets::{AssetManager, get_special_texture_name};
-use crate::errors::{RenderError, AssetError};
+use crate::errors::CaveripperError;
 use crate::layout::{Layout, SpawnObject, PlacedMapUnit};
 use clap::Args;
+use error_stack::{Result, ResultExt, IntoReport};
 use fontdue::layout::{Layout as FontLayout, TextStyle, LayoutSettings, VerticalAlign, HorizontalAlign, WrapStyle};
 use fontdue::{Font, FontSettings};
 use image::imageops::colorops::brighten_in_place;
@@ -98,14 +99,14 @@ pub struct CaveinfoRenderOptions {
 }
 
 
-pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<RgbaImage, RenderError> {
+pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<RgbaImage, CaveripperError> {
     info!("Drawing layout image...");
 
     // Find the minimum and maximum map tile coordinates in the layout.
     let max_map_x = layout.map_units.iter().map(|unit| unit.x as i64 + unit.unit.width as i64).max()
-        .ok_or_else(|| RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed))?;
+        .ok_or_else(|| CaveripperError::LayoutGenerationError)?;
     let max_map_z = layout.map_units.iter().map(|unit| unit.z as i64 + unit.unit.height as i64).max()
-        .ok_or_else(|| RenderError::InvalidLayout(layout.cave_name.to_string(), layout.starting_seed))?;
+        .ok_or_else(|| CaveripperError::LayoutGenerationError)?;
 
     // Each map tile is 8x8 pixels on the radar.
     // We scale this up further so teki and treasure textures can be rendered at a decent
@@ -118,7 +119,8 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Draw map units
     for map_unit in layout.map_units.iter() {
-        let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game)?;
+        let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game)
+            .change_context(CaveripperError::RenderingError)?;
 
         // Copy the pixels of the radar image to the buffer
         let img_x = map_unit.x as i64 * GRID_FACTOR;
@@ -145,13 +147,16 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
                 SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, &layout.sublevel.cfg.game, &options)?;
+                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, &layout.sublevel.cfg.game, &options)
+                    .change_context(CaveripperError::RenderingError)?;
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, &layout.sublevel.cfg.game, &options)?;
+                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, &layout.sublevel.cfg.game, &options)
+                    .change_context(CaveripperError::RenderingError)?;
                 },
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, &layout.sublevel.cfg.game, &options)?;
+                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, &layout.sublevel.cfg.game, &options)
+                    .change_context(CaveripperError::RenderingError)?;
                 },
             }
         }
@@ -171,20 +176,24 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
             match spawn_object {
                 SpawnObject::Gate(gateinfo) => {
-                    let texture = gateinfo.get_texture(&layout.sublevel.cfg.game)?;
+                    let texture = gateinfo.get_texture(&layout.sublevel.cfg.game)
+                    .change_context(CaveripperError::RenderingError)?;
                     if door.borrow().door_unit.direction % 2 == 1 {
                         draw_object_at(
                             &mut canvas,
                             &WithCustomTexture{ inner: gateinfo, custom_texture: rotate90(texture) },
                             x, z, &layout.sublevel.cfg.game, &options
-                        )?;
+                        )
+                        .change_context(CaveripperError::RenderingError)?;
                     }
                     else {
-                        draw_object_at(&mut canvas, gateinfo, x, z, &layout.sublevel.cfg.game, &options)?;
+                        draw_object_at(&mut canvas, gateinfo, x, z, &layout.sublevel.cfg.game, &options)
+                        .change_context(CaveripperError::RenderingError)?;
                     }
                 }
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, x, z, &layout.sublevel.cfg.game, &options)?;
+                    draw_object_at(&mut canvas, spawn_object, x, z, &layout.sublevel.cfg.game, &options)
+                    .change_context(CaveripperError::RenderingError)?;
                 },
             }
         }
@@ -202,20 +211,23 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
     Ok(canvas)
 }
 
-pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, RenderError> {
+pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
     let mut canvas_header = RgbaImage::from_pixel(1060, 310, HEADER_BACKGROUND.into());
 
     // Sublevel name
-    let sublevel_title = render_text(&caveinfo.sublevel.long_name(), 64.0, [0,0,0, 255].into(), None);
+    let sublevel_title = render_text(&caveinfo.long_name(), 64.0, [0,0,0, 255].into(), None);
     overlay(&mut canvas_header, &sublevel_title, CAVEINFO_MARGIN * 2, -8);
 
     // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
     let mut metadata_icons = Vec::new();
-    metadata_icons.push(resize(SpawnObject::Ship.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
+    metadata_icons.push(resize(SpawnObject::Ship.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?,
+        CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3));
     if !caveinfo.is_final_floor {
         metadata_icons.push(
             resize(
-                SpawnObject::Hole(caveinfo.exit_plugged).get_texture(&caveinfo.sublevel.cfg.game)?,
+                SpawnObject::Hole(caveinfo.exit_plugged)
+                    .get_texture(&caveinfo.cave_cfg.game)
+                    .change_context(CaveripperError::RenderingError)?,
                 CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3)
             );
     }
@@ -224,7 +236,8 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             resize(
                 SpawnObject::Geyser(
                     caveinfo.is_challenge_mode() && caveinfo.is_final_floor
-                ).get_texture(&caveinfo.sublevel.cfg.game)?,
+                ).get_texture(&caveinfo.cave_cfg.game)
+                .change_context(CaveripperError::RenderingError)?,
                 CAVEINFO_ICON_SIZE,
                 CAVEINFO_ICON_SIZE,
                 FilterType::Lanczos3
@@ -234,7 +247,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     let num_gates = caveinfo.max_gates;
     for gateinfo in caveinfo.gate_info.iter() {
         let gate_icon = resize(
-            gateinfo.get_texture(&caveinfo.sublevel.cfg.game)?,
+            gateinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?,
             CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let num_txt = render_small_text(&format!("x{}", num_gates), 19.0, [20, 20, 20, 255].into());
         let hp_txt = render_small_text(&format!("{}HP", gateinfo.health as u32), 13.0, [20, 20, 20, 255].into());
@@ -254,7 +267,9 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         );
     }
 
-    let poko_icon = resize(AssetManager::get_img("resources/enemytex_special/Poko_icon.png")?, 16, 19, FilterType::Lanczos3);
+    let poko_icon = resize(
+        AssetManager::get_img("resources/enemytex_special/Poko_icon.png").change_context(CaveripperError::RenderingError)?,
+        16, 19, FilterType::Lanczos3);
 
     // Teki section
     let mut base_y =  64 + CAVEINFO_MARGIN * 2;
@@ -265,7 +280,8 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     for group in [8, 1, 0, 6, 5] {
         for tekiinfo in caveinfo.teki_group(group) {
-            let texture = resize(tekiinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+            let texture = resize(tekiinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?,
+                CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
 
             // If we overflow the width of the image, wrap to the next line.
             if base_x + CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN > canvas_header.width() as i64 {
@@ -283,19 +299,19 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                 match modifier {
                     TextureModifier::Falling => {
                         let falling_icon_texture = resize(
-                            AssetManager::get_img("resources/enemytex_special/falling_icon.png")?,
+                            AssetManager::get_img("resources/enemytex_special/falling_icon.png").change_context(CaveripperError::RenderingError)?,
                             24, 24, FilterType::Nearest
                         );
                         overlay(&mut canvas_header, &falling_icon_texture, base_x - 8, base_y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
-                        let treasure = AssetManager::treasure_list()?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
+                        let treasure = AssetManager::treasure_list().change_context(CaveripperError::RenderingError)?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
                             .expect("Teki carrying unknown or invalid treasure!");
 
                         let carried_treasure_icon = resize(
                             AssetManager::get_img(
-                                &PathBuf::from(&caveinfo.sublevel.cfg.game).join("treasures").join(format!("{}.png", carrying))
-                            )?,
+                                &PathBuf::from(&caveinfo.cave_cfg.game).join("treasures").join(format!("{}.png", carrying))
+                            ).change_context(CaveripperError::RenderingError)?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
                         overlay(&mut canvas_header, &carried_treasure_icon, base_x + 18, base_y + 14);
@@ -361,10 +377,10 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     let mut base_x = treasure_header.width() as i64 + CAVEINFO_MARGIN;
     for treasureinfo in caveinfo.item_info.iter() {
-        let treasure = AssetManager::treasure_list()?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
+        let treasure = AssetManager::treasure_list().change_context(CaveripperError::RenderingError)?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
             .expect("Unknown or invalid treasure!");
 
-        let treasure_texture = resize(treasureinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+        let treasure_texture = resize(treasureinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let x = base_x + CAVEINFO_MARGIN * 4;
         let y = base_y + CAVEINFO_MARGIN + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &treasure_texture, x, y);
@@ -412,7 +428,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     let capteki_header = render_text("Cap Teki", 48.0, capteki_color, None);
     overlay(&mut canvas_header, &capteki_header, CAVEINFO_MARGIN * 2, base_y);
     for (i, capinfo) in caveinfo.cap_info.iter().enumerate() {
-        let texture = resize(capinfo.get_texture(&caveinfo.sublevel.cfg.game)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
+        let texture = resize(capinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
         let x = (CAVEINFO_MARGIN * 5) + capteki_header.width() as i64 + i as i64 * (CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN * 2);
         let y = base_y + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
         overlay(&mut canvas_header, &texture, x, y);
@@ -420,7 +436,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         for modifier in capinfo.get_texture_modifiers().iter() {
             if let TextureModifier::Falling = modifier {
                 let falling_icon_texture = resize(
-                    AssetManager::get_img("resources/enemytex_special/falling_icon.png")?,
+                    AssetManager::get_img("resources/enemytex_special/falling_icon.png").change_context(CaveripperError::RenderingError)?,
                     24, 24, FilterType::Nearest
                 );
                 overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
@@ -472,7 +488,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         .collect();
 
     for (i, unit) in caps.iter().enumerate() {
-        let unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?;
+        let unit_texture = unit.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?;
         let y = base_y + i as i64 * ((RENDER_SCALE * 8) as i64 + maptile_margin);
 
         if y + unit_texture.height() as i64 > canvas_maptiles.height() as i64 {
@@ -499,7 +515,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
 
             let sp_img = match spawnpoint.group {
-                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png")?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
+                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png").change_context(CaveripperError::RenderingError)?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
                 9 => circle(5, group_color(9).into()),
                 _ => circle(5, [255,0,0,255].into()),
             };
@@ -513,7 +529,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
     }
 
     for unit in rooms {
-        let mut unit_texture = unit.get_texture(&caveinfo.sublevel.cfg.game)?.clone();
+        let mut unit_texture = unit.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?.clone();
 
         // If the unit is just too big, we have to expand the whole image
         if unit_texture.width() + 2 > canvas_maptiles.width() {
@@ -583,11 +599,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
             let sp_img = match spawnpoint.group {
                 0 => circle((spawnpoint.radius * COORD_FACTOR) as u32, group_color(0).into()),
                 1 => circle(5, group_color(1).into()),
-                2 => colorize(resize(AssetManager::get_img("resources/enemytex_special/duck.png")?, 14, 14, FilterType::Lanczos3), group_color(2).into()), // treasure
-                4 => resize(AssetManager::get_img("resources/enemytex_special/cave_white.png")?, 18, 18, FilterType::Lanczos3),
-                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png")?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
-                7 => resize(AssetManager::get_img("resources/enemytex_special/ship.png")?, 16, 16, FilterType::Lanczos3),
-                8 => colorize(resize(AssetManager::get_img("resources/enemytex_special/star.png")?, 16, 16, FilterType::Lanczos3), group_color(8).into()),
+                2 => colorize(resize(AssetManager::get_img("resources/enemytex_special/duck.png").change_context(CaveripperError::RenderingError)?, 14, 14, FilterType::Lanczos3), group_color(2).into()), // treasure
+                4 => resize(AssetManager::get_img("resources/enemytex_special/cave_white.png").change_context(CaveripperError::RenderingError)?, 18, 18, FilterType::Lanczos3),
+                6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png").change_context(CaveripperError::RenderingError)?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
+                7 => resize(AssetManager::get_img("resources/enemytex_special/ship.png").change_context(CaveripperError::RenderingError)?, 16, 16, FilterType::Lanczos3),
+                8 => colorize(resize(AssetManager::get_img("resources/enemytex_special/star.png").change_context(CaveripperError::RenderingError)?, 16, 16, FilterType::Lanczos3), group_color(8).into()),
                 _ => circle(5, [255,0,0,255].into()),
             };
 
@@ -613,9 +629,9 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
 /// Saves a layout image to disc.
 /// Filename must end with a `.png` extension.
-pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), RenderError> {
+pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), CaveripperError> {
     img.save_with_format(&filename, image::ImageFormat::Png)
-        .map_err(|_| RenderError::IoError(filename.as_ref().to_string_lossy().into_owned()))?;
+        .into_report().change_context(CaveripperError::RenderingError)?;
     Ok(())
 }
 
@@ -736,7 +752,7 @@ fn try_blend(canvas: &mut RgbaImage, x: i64, y: i64, color: Rgba<u8>) {
 }
 
 // x and z are world coordinates, not image or map unit coordinates
-fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, game: &str, options: &LayoutRenderOptions) -> Result<(), AssetError> {
+fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, game: &str, options: &LayoutRenderOptions) -> Result<(), CaveripperError> {
     let mut texture = Cow::Borrowed(obj.get_texture(game)?);
 
     // Modifiers to be applied before ('under') the main texture, or to the texture itself
@@ -905,12 +921,12 @@ enum TextureModifier {
 }
 
 trait Textured {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError>;
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError>;
     fn get_texture_modifiers(&self) -> Vec<TextureModifier>;
 }
 
 impl<T: Textured> Textured for &T {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         (*self).get_texture(game)
     }
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
@@ -919,7 +935,7 @@ impl<T: Textured> Textured for &T {
 }
 
 impl Textured for PlacedMapUnit<'_> {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         self.unit.get_texture(game)
     }
 
@@ -929,7 +945,7 @@ impl Textured for PlacedMapUnit<'_> {
 }
 
 impl Textured for TekiInfo {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
                 let filename = format!("resources/enemytex_special/{}", special_name);
@@ -964,7 +980,7 @@ impl Textured for TekiInfo {
 }
 
 impl Textured for CapInfo {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         // We don't consider the possibility of treasures spawning in CapInfo here since that
         // is never done in the vanilla game. May need to fix in the future for romhack support.
         match get_special_texture_name(&self.internal_name) {
@@ -998,7 +1014,7 @@ impl Textured for CapInfo {
 }
 
 impl Textured for ItemInfo {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         // TODO: fix US region being hardcoded here.
         let filename = PathBuf::from(game).join("treasures").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
         AssetManager::get_img(&filename)
@@ -1014,7 +1030,7 @@ impl Textured for ItemInfo {
 }
 
 impl Textured for GateInfo {
-    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, CaveripperError> {
         let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
         AssetManager::get_img(filename)
     }
@@ -1026,7 +1042,7 @@ impl Textured for GateInfo {
 }
 
 impl Textured for SpawnObject<'_> {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         match self {
             SpawnObject::Teki(tekiinfo, _) => tekiinfo.get_texture(game),
             SpawnObject::CapTeki(capinfo, _) => capinfo.get_texture(game),
@@ -1091,7 +1107,7 @@ impl Textured for SpawnObject<'_> {
 }
 
 impl Textured for CaveUnit {
-    fn get_texture(&self, game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         let filename = PathBuf::from(game).join("mapunits").join(&self.unit_folder_name).join("arc/texture.png");
         let mut img = AssetManager::get_img(&filename)?.to_owned();
 
@@ -1142,7 +1158,7 @@ struct WithCustomTexture<T: Textured> {
 }
 
 impl<T: Textured> Textured for WithCustomTexture<T> {
-    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, AssetError> {
+    fn get_texture(&self, _game: &str) -> Result<&RgbaImage, CaveripperError> {
         Ok(&self.custom_texture)
     }
 

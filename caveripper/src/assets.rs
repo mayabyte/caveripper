@@ -8,9 +8,10 @@ use itertools::Itertools;
 use log::info;
 use once_cell::sync::OnceCell;
 use serde::Serialize;
+use error_stack::{Result, IntoReport, ResultExt};
 
 use crate::caveinfo::CaveInfo;
-use crate::errors::{AssetError, SublevelError};
+use crate::errors::CaveripperError;
 use crate::pinmap::PinMap;
 use crate::sublevel::{Sublevel, DIRECT_MODE_TAG};
 
@@ -38,27 +39,27 @@ pub struct AssetManager {
 impl AssetManager {
     /// Initializes the global asset manager if it has not already been initialized.
     /// This is a no-op if the manager has already been initialized.
-    pub fn init_global(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<(), AssetError> {
+    pub fn init_global(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<(), CaveripperError> {
         let manager = AssetManager::init(asset_path, resources_loc)?;
         ASSETS.get_or_init(|| manager);
         Ok(())
     }
 
-    fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<AssetManager, AssetError> {
+    fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<AssetManager, CaveripperError> {
         let cave_cfg: Vec<CaveConfig> = read_to_string(resources_loc.as_ref().join("resources/caveinfo_config.txt"))
-            .map_err(|e| AssetError::CaveConfigError(e.to_string()))?
+            .into_report().change_context(CaveripperError::AssetLoadingError)?
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
-                Ok(CaveConfig {
+                CaveConfig {
                     game: data.remove(0),
                     full_name: data.remove(0),
-                    is_challenge_mode: data.remove(0).parse().map_err(|e: <bool as FromStr>::Err| AssetError::CaveConfigError(e.to_string()))?,
+                    is_challenge_mode: data.remove(0).parse().expect("is_challenge_mode parse error"),
                     caveinfo_filename: data.remove(0),
                     shortened_names: data,
-                })
+                }
             })
-            .collect::<Result<Vec<_>, AssetError>>()?;
+            .collect::<Vec<_>>();
 
         Ok(Self {
             asset_path: asset_path.as_ref().into(),
@@ -77,7 +78,7 @@ impl AssetManager {
         self.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect()
     }
 
-    fn treasures(&self) -> Result<&Vec<Treasure>, AssetError> {
+    fn treasures(&self) -> Result<&Vec<Treasure>, CaveripperError> {
         self.treasures.get_or_try_init(|| {
             let mut all_treasures = Vec::new();
             for game in self.all_games() {
@@ -86,12 +87,12 @@ impl AssetManager {
 
                 let treasures = SHIFT_JIS.decode(
                     read(&treasure_path)
-                    .map_err(|e| AssetError::IoError(treasure_path.to_string_lossy().into(), e.kind()))?
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach(treasure_path)?
                     .as_slice()
                 ).0.into_owned();
                 let ek_treasures = SHIFT_JIS.decode(
                     read(&ek_treasure_path)
-                    .map_err(|e| AssetError::IoError(ek_treasure_path.to_string_lossy().into(), e.kind()))?
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach(ek_treasure_path)?
                     .as_slice()
                 ).0.into_owned();
 
@@ -104,7 +105,7 @@ impl AssetManager {
         })
     }
 
-    fn teki(&self) -> Result<&Vec<String>, AssetError> {
+    fn teki(&self) -> Result<&Vec<String>, CaveripperError> {
         self.teki.get_or_try_init(|| {
             // Eggs are not listed in enemytex, so they have to be added manually
             let mut all_teki = vec!["egg".to_string()];
@@ -112,8 +113,8 @@ impl AssetManager {
             for game in self.all_games() {
                 let teki_path = self.asset_path.join(game).join("teki");
                 let teki = read_dir(&teki_path)
-                    .map_err(|e| AssetError::IoError(teki_path.to_string_lossy().into(), e.kind()))?
-                    .filter_map(Result::ok)
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach(teki_path)?
+                    .filter_map(|r| r.ok())
                     .filter(|entry| entry.path().is_file())
                     .map(|file_entry| file_entry.file_name().into_string().unwrap().strip_suffix(".png").unwrap().to_ascii_lowercase());
                 all_teki.extend(teki);
@@ -122,14 +123,14 @@ impl AssetManager {
         })
     }
 
-    fn rooms(&self) -> Result<&Vec<String>, AssetError> {
+    fn rooms(&self) -> Result<&Vec<String>, CaveripperError> {
         self.rooms.get_or_try_init(|| {
             let mut all_rooms = Vec::new();
             for game in self.all_games() {
                 let room_path = self.asset_path.join(game).join("mapunits");
                 let rooms = read_dir(&room_path)
-                    .map_err(|e| AssetError::IoError(room_path.to_string_lossy().into(), e.kind()))?
-                    .filter_map(Result::ok)
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach(room_path)?
+                    .filter_map(|r| r.ok())
                     .filter(|dir_entry| dir_entry.path().is_dir())
                     .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
                 all_rooms.extend(rooms);
@@ -138,54 +139,55 @@ impl AssetManager {
         })
     }
 
-    pub fn get_txt_file<P: AsRef<Path>>(path: P) -> Result<&'static str, AssetError> {
-        ASSETS.get().ok_or(AssetError::Uninitialized)?._get_txt_file(path)
+    pub fn get_txt_file<P: AsRef<Path>>(path: P) -> Result<&'static str, CaveripperError> {
+        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_txt_file(path)
     }
 
-    pub fn get_caveinfo(sublevel: &Sublevel) -> Result<&'static CaveInfo, AssetError> {
-        ASSETS.get().ok_or(AssetError::Uninitialized)?._get_caveinfo(sublevel)
+    pub fn get_caveinfo(sublevel: &Sublevel) -> Result<&'static CaveInfo, CaveripperError> {
+        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_caveinfo(sublevel)
     }
 
     /// Get a file as raw bytes. Does not cache the file.
-    pub fn get_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, AssetError> {
-        let manager = ASSETS.get().ok_or(AssetError::Uninitialized)?;
-        if path.as_ref().starts_with("resources") {
+    pub fn get_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CaveripperError> {
+        let manager = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
+        let path = path.as_ref();
+        if path.starts_with("resources") {
             read(manager.resources_loc.join(&path))
         }
         else {
             read(manager.asset_path.join(&path))
         }
-        .map_err(|e| AssetError::IoError(path.as_ref().to_string_lossy().to_string(), e.kind()))
+        .into_report().change_context(CaveripperError::AssetLoadingError).attach_lazy(|| path.to_owned())
     }
 
-    pub fn get_img<P: AsRef<Path>>(path: P) -> Result<&'static RgbaImage, AssetError> {
-        ASSETS.get().ok_or(AssetError::Uninitialized)?._get_img(path)
+    pub fn get_img<P: AsRef<Path>>(path: P) -> Result<&'static RgbaImage, CaveripperError> {
+        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_img(path)
     }
 
-    pub fn get_or_store_img(key: String, generator: impl FnOnce() -> Result<RgbaImage, AssetError>) -> Result<&'static RgbaImage, AssetError> {
-        let manager = ASSETS.get().ok_or(AssetError::Uninitialized)?;
+    pub fn get_or_store_img(key: String, generator: impl FnOnce() -> Result<RgbaImage, CaveripperError>) -> Result<&'static RgbaImage, CaveripperError> {
+        let manager = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
         if manager.img_cache.get(&key).is_none() {
             manager._store_img(key.clone(), generator()?);
         }
         manager._get_img(&key)
     }
 
-    pub fn teki_list() -> Result<&'static [String], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.teki()?.as_slice())
+    pub fn teki_list() -> Result<&'static [String], CaveripperError> {
+        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.teki()?.as_slice())
     }
 
-    pub fn treasure_list() -> Result<&'static [Treasure], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.treasures()?.as_slice())
+    pub fn treasure_list() -> Result<&'static [Treasure], CaveripperError> {
+        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.treasures()?.as_slice())
     }
 
-    pub fn room_list() -> Result<&'static [String], AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.rooms()?.as_slice())
+    pub fn room_list() -> Result<&'static [String], CaveripperError> {
+        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.rooms()?.as_slice())
     }
 
     /// Forces the asset manager to load all the Caveinfo files in Vanilla Pikmin 2.
     /// Most useful for testing and benchmarking purposes.
-    pub fn preload_all_caveinfo() -> Result<(), AssetError> {
-        let assets = ASSETS.get().ok_or(AssetError::Uninitialized)?;
+    pub fn preload_all_caveinfo() -> Result<(), CaveripperError> {
+        let assets = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
         for cave in ALL_CAVES {
             let (game, cave_name) = cave.split_once(':').unwrap_or(("pikmin2", cave));
             assets.load_caveinfo(AssetManager::find_cave_cfg(cave_name, Some(game), false)?)?;
@@ -195,12 +197,12 @@ impl AssetManager {
 
     /// Clones the sublevel cache and returns it.
     /// Most useful for testing.
-    pub fn all_sublevels() -> Result<PinMap<Sublevel, CaveInfo>, AssetError> {
-        Ok(ASSETS.get().ok_or(AssetError::Uninitialized)?.caveinfo_cache.clone())
+    pub fn all_sublevels() -> Result<PinMap<Sublevel, CaveInfo>, CaveripperError> {
+        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.caveinfo_cache.clone())
     }
 
-    pub(crate) fn find_cave_cfg(name: &str, game: Option<&str>, force_challenge_mode: bool) -> Result<&'static CaveConfig, AssetError> {
-        ASSETS.get().ok_or(AssetError::Uninitialized)?.cave_cfg.iter()
+    pub(crate) fn find_cave_cfg(name: &str, game: Option<&str>, force_challenge_mode: bool) -> Result<&'static CaveConfig, CaveripperError> {
+        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.cave_cfg.iter()
             .filter(|cfg| {
                 game.map(|game_name| cfg.game.eq_ignore_ascii_case(game_name)).unwrap_or(true) && (!force_challenge_mode || cfg.is_challenge_mode)
             })
@@ -208,10 +210,11 @@ impl AssetManager {
                 cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n))
                 || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
             })
-            .ok_or_else(|| Box::new(SublevelError::UnrecognizedSublevel(name.to_string())).into())
+            .ok_or_else(|| CaveripperError::UnrecognizedSublevel)
+            .into_report().attach_printable_lazy(|| name.to_string())
     }
 
-    fn _get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<&str, AssetError> {
+    fn _get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<&str, CaveripperError> {
         let p_str: String = path.as_ref().to_string_lossy().into();
         if let Some(value) = self.txt_cache.get(&p_str) {
             Ok(value)
@@ -219,32 +222,35 @@ impl AssetManager {
         else {
             info!("Loading {}...", &p_str);
             if path.as_ref().starts_with("resources") {
-                let data = read(self.resources_loc.join(path)).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
+                let data = read(self.resources_loc.join(path))
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
                 let _ = self.txt_cache.insert(
                     p_str.clone(),
                     String::from_utf8(data)
-                        .map_err(|_| AssetError::DecodingError(p_str.clone()))?
+                        .into_report().change_context(CaveripperError::AssetLoadingError)?
                 );
             }
             else {
-                let data = read(self.asset_path.join(path)).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
+                let data = read(self.asset_path.join(path))
+                    .into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
                 let _ = self.txt_cache.insert(p_str.clone(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
             }
             Ok(self.txt_cache.get(&p_str).unwrap())
         }
     }
 
-    fn _get_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, AssetError> {
+    fn _get_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, CaveripperError> {
         if let Some(value) = self.caveinfo_cache.get(sublevel) && !sublevel.cfg.game.eq_ignore_ascii_case(DIRECT_MODE_TAG) {
             Ok(value)
         }
         else {
             self.load_caveinfo(&sublevel.cfg)?;
-            self.caveinfo_cache.get(sublevel).ok_or_else(|| Box::new(SublevelError::UnrecognizedSublevel(sublevel.floor.to_string())).into())
+            self.caveinfo_cache.get(sublevel).ok_or(CaveripperError::UnrecognizedSublevel)
+                .into_report().attach_lazy(|| sublevel.clone())
         }
     }
 
-    fn _get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, AssetError> {
+    fn _get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, CaveripperError> {
         let p_str: String = path.as_ref().to_string_lossy().into();
         let path: PathBuf = if path.as_ref().starts_with("resources") {
             self.resources_loc.join(path.as_ref())
@@ -257,8 +263,8 @@ impl AssetManager {
         }
         else {
             info!("Loading image {}...", &p_str);
-            let data = read(&path).map_err(|e| AssetError::IoError(p_str.clone(), e.kind()))?;
-            let img = image::load_from_memory(data.as_slice()).map_err(|_| AssetError::DecodingError(p_str.clone()))?
+            let data = read(&path).into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
+            let img = image::load_from_memory(data.as_slice()).into_report().change_context(CaveripperError::AssetLoadingError)?
                 .into_rgba8();
             let _ = self.img_cache.insert(p_str.clone(), img);
             Ok(self.img_cache.get(&p_str).unwrap())
@@ -270,14 +276,14 @@ impl AssetManager {
     }
 
     /// Loads, parses, and stores a CaveInfo file
-    fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), AssetError> {
+    fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), CaveripperError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
         let caveinfo_txt = self._get_txt_file(&cave.get_caveinfo_path())?;
-        let caveinfos = CaveInfo::parse_from(caveinfo_txt, cave)
-            .map_err(|e| AssetError::CaveInfoError(cave.get_caveinfo_path().to_string_lossy().to_string(), Box::new(e)))?;
+        let caveinfos = CaveInfo::parse_from(cave)
+            .change_context(CaveripperError::CaveinfoError)?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
-            caveinfo.sublevel = sublevel.clone();
+            caveinfo.cave_cfg = cave.clone();
 
             if self.caveinfo_cache.insert(sublevel, caveinfo).is_err() {
                 //warn!("Tried to replace CaveInfo {} in cache. Caveinfo NOT updated.", cave.caveinfo_filename);
@@ -290,7 +296,7 @@ impl AssetManager {
 }
 
 /// Metadata about a cave. Defined in resources/cave_config.txt
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize)]
 pub struct CaveConfig {
     pub game: String,  // Indicates either the vanilla game or a romhack
     pub full_name: String,
