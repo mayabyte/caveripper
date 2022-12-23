@@ -10,6 +10,7 @@
 
 mod util;
 mod parse;
+mod error;
 
 use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use parse::parse_caveinfo;
@@ -68,15 +69,9 @@ impl CaveInfo {
     }
 
     pub fn parse_from(cave: &CaveConfig) -> Result<Vec<CaveInfo>, CaveripperError> {
-        let floor_chunks = parse_caveinfo(cave)
-            .map_err(|e| CaveripperError::CaveinfoError)?;
-        // let mut floors = floor_chunks
-        //     .into_iter()
-        //     .map(|c| try_parse_caveinfo(c, cave))
-        //     .collect::<Result<Vec<CaveInfo>, _>>()?;
-        // floors.last_mut().unwrap().is_final_floor = true;
-        // Ok(floors)
-        unimplemented!()
+        parse_caveinfo(cave)
+            .change_context(CaveripperError::CaveinfoError)
+            .attach_printable_lazy(|| format!("{} ({}/{})", cave.full_name, cave.game, cave.caveinfo_filename))
     }
 
     pub fn is_challenge_mode(&self) -> bool {
@@ -110,7 +105,7 @@ impl Display for CaveInfo {
                 write!(f, ", weight: {}", tekiinfo.filler_distribution_weight)?;
             }
             if let Some(spawn_method) = &tekiinfo.spawn_method {
-                write!(f, ", spawn method: {}", spawn_method)?;
+                write!(f, ", spawn method: {spawn_method}")?;
             }
             write!(f, ")")?;
             if let Some(carrying) = &tekiinfo.carrying {
@@ -131,7 +126,7 @@ impl Display for CaveInfo {
                 write!(f, ", weight: {}", capinfo.filler_distribution_weight)?;
             }
             if let Some(spawn_method) = &capinfo.spawn_method {
-                write!(f, ", spawn method: {}", spawn_method)?;
+                write!(f, ", spawn method: {spawn_method}")?;
             }
             writeln!(f, ")")?;
         }
@@ -139,7 +134,7 @@ impl Display for CaveInfo {
         writeln!(f, "Rooms:")?;
         let unique_units: HashSet<&str> = self.cave_units.iter().map(|unit| unit.unit_folder_name.as_ref()).collect();
         for unit in unique_units.iter() {
-            writeln!(f, "\t{}", unit)?;
+            writeln!(f, "\t{unit}")?;
         }
 
         Ok(())

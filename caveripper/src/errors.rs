@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[derive(Debug, Clone, Error)]
 pub enum CaveripperError {
-    #[error("Couldn't read CaveInfo")]
+    #[error("Couldn't construct CaveInfo")]
     CaveinfoError,
 
     #[error("Unrecognized sublevel")]

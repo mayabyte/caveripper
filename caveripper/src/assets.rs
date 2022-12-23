@@ -210,8 +210,22 @@ impl AssetManager {
                 cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n))
                 || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
             })
-            .ok_or_else(|| CaveripperError::UnrecognizedSublevel)
+            .ok_or(CaveripperError::UnrecognizedSublevel)
             .into_report().attach_printable_lazy(|| name.to_string())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn caveinfos_from_cave(compound_name: &str) -> Result<Vec<&'static CaveInfo>, CaveripperError> {
+        let (game_name, cave_name) = compound_name.split_once(':').unwrap_or(("pikmin2", compound_name));
+        let cfg = AssetManager::find_cave_cfg(cave_name, Some(game_name), false)?;
+
+        let mut floor = 1;
+        let mut caveinfos = Vec::new();
+        while let Ok(caveinfo) = AssetManager::get_caveinfo(&Sublevel::from_cfg(cfg, floor)) {
+            caveinfos.push(caveinfo);
+            floor += 1;
+        }
+        Ok(caveinfos)
     }
 
     fn _get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<&str, CaveripperError> {
@@ -278,9 +292,7 @@ impl AssetManager {
     /// Loads, parses, and stores a CaveInfo file
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), CaveripperError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
-        let caveinfo_txt = self._get_txt_file(&cave.get_caveinfo_path())?;
-        let caveinfos = CaveInfo::parse_from(cave)
-            .change_context(CaveripperError::CaveinfoError)?;
+        let caveinfos = CaveInfo::parse_from(cave)?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
             caveinfo.cave_cfg = cave.clone();
@@ -330,6 +342,7 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
         "wakame_s" => Some("wakame_s.png"),
         "chiyogami" => Some("chiyogami.PNG"),
         "rock" => Some("Roulette_Wheel_boulder.png"),
+        "panhouse" => Some("ooinu_s.png"),
         _ => None
     }
 }
