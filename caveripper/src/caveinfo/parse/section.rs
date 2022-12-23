@@ -56,6 +56,7 @@ impl<'a> Section<'a> {
         self.lines.iter()
             .find(|line| line.tag.contains(&tag))
             .ok_or(report!(CaveInfoError::MissingItem))
+            .attach_printable_lazy(|| format!("tag {tag}"))
     }
 
     pub fn get_line(&self, index: usize) -> Result<&InfoLine, CaveInfoError> {

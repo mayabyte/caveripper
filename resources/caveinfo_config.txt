@@ -86,3 +86,15 @@ newyear,    Hocotate Airlines,     true,  ch_MAT_flier.txt,                 CH27
 newyear,    Timeless Realm,        true,  ch_MIYA_trap.txt,                 CH28, tr
 newyear,    Midway Arcade,         true,  ch_MUKI_bombing.txt,              CH29, ma
 newyear,    Boss All-Stars,        true,  ch_MUKI_king.txt,                 CH30, bas
+251,        Abandoned Toybox,      false, Abandoned_Toybox.txt,             AT
+251,        Aquatic Depths,        false, Aquatic_Depths.txt,               AD, aqd
+251,        Flaming Trench,        false, Flaming_Trench.txt,               FT
+251,        Gambler's Den,         false, Gamblers_Den.txt,                 GD, gad
+251,        Grubdog Domain,        false, Grubdog_Domain.txt,               GDD
+251,        Ivory Metalworks,      false, Ivory_Metalworks.txt,             IM
+251,        Steel Catacombs,       false, Steel_Catacombs.txt,              SC, stc
+251,        Wooden Fortress,       false, Wooden_Fortress.txt,              WF
+251,        Arachnid Asylum,       false, yakushima_1.txt,                  AA, ana
+251,        Subterranean Sands,    false, yakushima_2.txt,                  SS, sus
+251,        Cryptic Kitchen,       false, yakushima_3.txt,                  CK
+251,        Palace of the Wraith,  false, yakushima_4.txt,                  PotW, pow

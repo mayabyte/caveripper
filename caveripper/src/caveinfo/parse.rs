@@ -72,7 +72,7 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig) -> Result<Vec<CaveInfo>, Cav
                 gate_info: gate.try_into()?,
                 cap_info: cap.try_into()?,
                 is_final_floor: false,
-                waterwraith_timer: header.get_tag("{f016}")?,
+                waterwraith_timer: header.get_tag("{f016}").unwrap_or(0.0f32),
             })
         })
         .collect::<Result<Vec<CaveInfo>, CaveInfoError>>()?;
@@ -410,7 +410,7 @@ impl TryFrom<Section<'_>> for Waypoint {
 static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
     // Captures an optional Spawn Method and the Internal Name with the
     // Carrying item still attached.
-    Regex::new(r"(\$\d?)?([A-Za-z_-]+)").unwrap()
+    Regex::new(r"(\$\d?)?([A-Za-z\d_-]+)").unwrap()
 });
 fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<Treasure>) {
     let captures = INTERNAL_IDENTIFIER_RE

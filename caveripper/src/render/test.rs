@@ -44,7 +44,8 @@ test_render_layouts!("ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "
 "newyear_ch9", "newyear_ch10", "newyear_ch11", "newyear_ch12", "newyear_ch13", "newyear_ch14",
 "newyear_ch15", "newyear_ch16", "newyear_ch17", "newyear_ch18", "newyear_ch19", "newyear_ch20",
 "newyear_ch21", "newyear_ch22", "newyear_ch23", "newyear_ch24", "newyear_ch25", "newyear_ch26",
-"newyear_ch27", "newyear_ch28", "newyear_ch29", "newyear_ch30");
+"newyear_ch27", "newyear_ch28", "newyear_ch29", "newyear_ch30", "251_at", "251_aqd", "251_ft",
+"251_gd", "251_gdd", "251_im", "251_sc", "251_wf", "251_aa", "251_ss", "251_ck", "251_potw");
 
 macro_rules! test_render_caveinfo {
     ($($name: literal),+) => {
@@ -73,4 +74,5 @@ test_render_caveinfo!("ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", 
 "newyear_ch9", "newyear_ch10", "newyear_ch11", "newyear_ch12", "newyear_ch13", "newyear_ch14",
 "newyear_ch15", "newyear_ch16", "newyear_ch17", "newyear_ch18", "newyear_ch19", "newyear_ch20",
 "newyear_ch21", "newyear_ch22", "newyear_ch23", "newyear_ch24", "newyear_ch25", "newyear_ch26",
-"newyear_ch27", "newyear_ch28", "newyear_ch29", "newyear_ch30");
+"newyear_ch27", "newyear_ch28", "newyear_ch29", "newyear_ch30", "251_at", "251_aqd", "251_ft",
+"251_gd", "251_gdd", "251_im", "251_sc", "251_wf", "251_aa", "251_ss", "251_ck", "251_potw");

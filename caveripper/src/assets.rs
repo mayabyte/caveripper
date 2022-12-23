@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fs::{read_to_string, read_dir, read};
 use std::path::{Path, PathBuf};
 use encoding_rs::SHIFT_JIS;
@@ -98,7 +98,7 @@ impl AssetManager {
                 let mut treasures = parse_treasure_config(&treasures);
                 treasures.append(&mut parse_treasure_config(&ek_treasures));
                 treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
-                all_treasures.extend(treasures);
+                all_treasures.append(&mut treasures);
             }
             Ok(all_treasures)
         })
@@ -369,22 +369,35 @@ pub struct Treasure {
 }
 
 fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
-    config_txt.lines().skip(4)
-        .batching(|lines| {
-            // Skip the opening bracket
-            lines.next()?;
-            Some(lines.take_while(|line| line != &"}").collect_vec())
+    config_txt.chars()
+        .peekable()
+        .batching(|chars| {
+            let val = chars.skip_while(|c| c != &'{')
+                .skip(1)
+                .take_while(|c| c != &'}')
+                .skip(1)
+                .collect::<String>();
+            if chars.peek().is_none() {
+                None
+            }
+            else {
+                Some(val)
+            }
         })
+        .filter(|section| !section.trim().is_empty())
         .map(|section| {
-            let internal_name = treasure_config_line_value(section[0]).to_string();
-            let min_carry = treasure_config_line_value(section[13]).parse().unwrap();
-            let max_carry = treasure_config_line_value(section[14]).parse().unwrap();
-            let value = treasure_config_line_value(section[18]).parse().unwrap();
+            let section: HashMap<&str, &str> = section.lines()
+                .filter(|line| !line.is_empty())
+                .map(|line| {
+                    let line = line.split_whitespace().collect_vec();
+                    (*line.first().unwrap(), *line.last().unwrap())
+                })
+                .collect();
+            let internal_name = section["name"].to_string();
+            let min_carry = section["min"].parse().unwrap();
+            let max_carry = section["max"].parse().unwrap();
+            let value = section["money"].parse().unwrap();
             Treasure { internal_name, min_carry, max_carry, value }
         })
         .collect_vec()
-}
-
-fn treasure_config_line_value(line: &str) -> &str {
-    line.trim().split_ascii_whitespace().last().unwrap()
 }
