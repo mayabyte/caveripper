@@ -63,6 +63,7 @@ impl TryFrom<&str> for Query {
                 },
                 Rule::EOI => {}, // The end-of-input rule gets matched as an explicit token, so we have to ignore it.
                 rule => return Err(report!(CaveripperError::QueryParseError))
+                    .attach_printable_lazy(|| format!("unexpected rule {rule:?}"))
             }
         }
         Ok(Query{clauses})
@@ -72,7 +73,7 @@ impl TryFrom<&str> for Query {
 impl Display for Query {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, cond) in self.clauses.iter().enumerate() {
-            write!(f, "{}", cond)?;
+            write!(f, "{cond}")?;
             if i != self.clauses.len() - 1 {
                 write!(f, " & ")?;
             }
@@ -202,7 +203,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} {} {}", entity_matcher, order_char, amount)
+                write!(f, "{entity_matcher} {order_char} {amount}")
             },
             QueryKind::CountRoom { unit_matcher, relationship, amount } => {
                 let order_char = match relationship {
@@ -210,7 +211,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} {} {}", unit_matcher, order_char, amount)
+                write!(f, "{unit_matcher} {order_char} {amount}")
             },
             QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist: dist } => {
                 let order_char = match relationship {
@@ -218,7 +219,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} straight dist {} {} {}", entity1, entity2, order_char, dist)
+                write!(f, "{entity1} straight dist {entity2} {order_char} {dist}")
             },
             QueryKind::RoomPath(room_path) => {
                 let mut first = true;
@@ -230,9 +231,9 @@ impl Display for QueryKind {
                         first = false;
                     }
 
-                    write!(f, "{}", unit_matcher)?;
+                    write!(f, "{unit_matcher}")?;
                     for em in entity_matchers.iter() {
-                        write!(f, " + {}", em)?;
+                        write!(f, " + {em}")?;
                     }
                 }
                 Ok(())
@@ -388,8 +389,8 @@ impl Display for EntityMatcher {
             EntityMatcher::Geyser => write!(f, "geyser"),
             EntityMatcher::Ship => write!(f, "ship"),
             EntityMatcher::Gate => write!(f, "gate"),
-            EntityMatcher::Treasure(name) | EntityMatcher::Teki{name, carrying: None} => write!(f, "{}", name),
-            EntityMatcher::Teki{name, carrying: Some(carrying)} => write!(f, "{}/{}", name, carrying),
+            EntityMatcher::Treasure(name) | EntityMatcher::Teki{name, carrying: None} => write!(f, "{name}"),
+            EntityMatcher::Teki{name, carrying: Some(carrying)} => write!(f, "{name}/{carrying}"),
         }
     }
 }
@@ -430,9 +431,9 @@ impl TryFrom<&str> for UnitMatcher {
 impl Display for UnitMatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnitMatcher::UnitType(t) => write!(f, "{}", t),
+            UnitMatcher::UnitType(t) => write!(f, "{t}"),
             UnitMatcher::Named(name) if name.eq_ignore_ascii_case("any") => write!(f, "any(room)"),
-            UnitMatcher::Named(name) => write!(f, "{}", name)
+            UnitMatcher::Named(name) => write!(f, "{name}")
         }
     }
 }

@@ -45,6 +45,6 @@ fn test_parse_room_type_names() {
         "sr7 room < 2"
     ];
     for s in query_strings {
-        Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{}\"", s));
+        Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }

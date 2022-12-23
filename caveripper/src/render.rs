@@ -104,9 +104,9 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Find the minimum and maximum map tile coordinates in the layout.
     let max_map_x = layout.map_units.iter().map(|unit| unit.x as i64 + unit.unit.width as i64).max()
-        .ok_or_else(|| CaveripperError::LayoutGenerationError)?;
+        .ok_or(CaveripperError::LayoutGenerationError)?;
     let max_map_z = layout.map_units.iter().map(|unit| unit.z as i64 + unit.unit.height as i64).max()
-        .ok_or_else(|| CaveripperError::LayoutGenerationError)?;
+        .ok_or(CaveripperError::LayoutGenerationError)?;
 
     // Each map tile is 8x8 pixels on the radar.
     // We scale this up further so teki and treasure textures can be rendered at a decent
@@ -249,7 +249,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         let gate_icon = resize(
             gateinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?,
             CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
-        let num_txt = render_small_text(&format!("x{}", num_gates), 19.0, [20, 20, 20, 255].into());
+        let num_txt = render_small_text(&format!("x{num_gates}"), 19.0, [20, 20, 20, 255].into());
         let hp_txt = render_small_text(&format!("{}HP", gateinfo.health as u32), 13.0, [20, 20, 20, 255].into());
         let mut final_gate_icon = RgbaImage::new(CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE);
         overlay(&mut final_gate_icon, &gate_icon, 0, -12);
@@ -310,7 +310,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
                         let carried_treasure_icon = resize(
                             AssetManager::get_img(
-                                &PathBuf::from(&caveinfo.cave_cfg.game).join("treasures").join(format!("{}.png", carrying))
+                                &PathBuf::from(&caveinfo.cave_cfg.game).join("treasures").join(format!("{carrying}.png"))
                             ).change_context(CaveripperError::RenderingError)?,
                             CAVEINFO_ICON_SIZE - 10, CAVEINFO_ICON_SIZE - 10, FilterType::Lanczos3
                         );
@@ -793,7 +793,7 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
             },
             TextureModifier::Carrying(carrying) => {
                 let carried_treasure_icon = resize(
-                    AssetManager::get_img(&PathBuf::from(game).join("treasures").join(format!("{}.png", carrying)))?,
+                    AssetManager::get_img(&PathBuf::from(game).join("treasures").join(format!("{carrying}.png")))?,
                     24, 24, FilterType::Lanczos3
                 );
                 overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
@@ -948,12 +948,12 @@ impl Textured for TekiInfo {
     fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
-                let filename = format!("resources/enemytex_special/{}", special_name);
-                AssetManager::get_img(&filename)
+                let filename = format!("resources/enemytex_special/{special_name}");
+                AssetManager::get_img(filename)
             },
             None => {
                 let filename = PathBuf::from(game).join("teki").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
-                AssetManager::get_img(&filename)
+                AssetManager::get_img(filename)
             }
         }
     }
@@ -985,12 +985,12 @@ impl Textured for CapInfo {
         // is never done in the vanilla game. May need to fix in the future for romhack support.
         match get_special_texture_name(&self.internal_name) {
             Some(special_name) => {
-                let filename = format!("resources/enemytex_special/{}", special_name);
-                AssetManager::get_img(&filename)
+                let filename = format!("resources/enemytex_special/{special_name}");
+                AssetManager::get_img(filename)
             },
             None => {
                 let filename = PathBuf::from(game).join("teki").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
-                AssetManager::get_img(&filename)
+                AssetManager::get_img(filename)
             }
         }
     }
@@ -1017,7 +1017,7 @@ impl Textured for ItemInfo {
     fn get_texture(&self, game: &str) -> Result<&RgbaImage, CaveripperError> {
         // TODO: fix US region being hardcoded here.
         let filename = PathBuf::from(game).join("treasures").join(format!("{}.png", self.internal_name.to_ascii_lowercase()));
-        AssetManager::get_img(&filename)
+        AssetManager::get_img(filename)
     }
 
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {

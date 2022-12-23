@@ -171,7 +171,7 @@ impl DesiredFileMatcher {
 
         let mut final_path = self.destination.to_string_lossy();
         for (i, filler) in fillers.enumerate() {
-            final_path = final_path.replace(&format!("{{{}}}", i), filler).into();
+            final_path = final_path.replace(&format!("{{{i}}}"), filler).into();
         }
         Some(PathBuf::from(&*final_path))
     }

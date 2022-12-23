@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{read_to_string, read_dir, read};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use encoding_rs::SHIFT_JIS;
 use image::RgbaImage;
 use itertools::Itertools;
@@ -152,10 +151,10 @@ impl AssetManager {
         let manager = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
         let path = path.as_ref();
         if path.starts_with("resources") {
-            read(manager.resources_loc.join(&path))
+            read(manager.resources_loc.join(path))
         }
         else {
-            read(manager.asset_path.join(&path))
+            read(manager.asset_path.join(path))
         }
         .into_report().change_context(CaveripperError::AssetLoadingError).attach_lazy(|| path.to_owned())
     }
@@ -277,7 +276,7 @@ impl AssetManager {
         }
         else {
             info!("Loading image {}...", &p_str);
-            let data = read(&path).into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
+            let data = read(path).into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
             let img = image::load_from_memory(data.as_slice()).into_report().change_context(CaveripperError::AssetLoadingError)?
                 .into_rgba8();
             let _ = self.img_cache.insert(p_str.clone(), img);

@@ -100,6 +100,6 @@ fn test_sqrt() {
     }
 
     for (i, (e, a)) in expected.iter().zip(actual.iter()).enumerate() {
-        assert_eq!(e, a, "{}", i);
+        assert_eq!(e, a, "{i}");
     }
 }

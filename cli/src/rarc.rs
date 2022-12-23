@@ -23,7 +23,7 @@ impl<'a> Rarc<'a> {
 
         let data_header_offset = read_u32(data, 0x8);
         if data_header_offset != 0x20 {
-            println!("{:#X}", data_header_offset);
+            println!("{data_header_offset:#X}");
             return Err(RarcError::MagicError(1));
         }
 
@@ -100,7 +100,7 @@ impl RarcNode {
     fn read(data: &[u8], node_offset: u32) -> Self {
         let num_files = read_u16(data, node_offset + 0xA);
         let first_file_index = read_u32(data, node_offset + 0xC);
-        
+
         RarcNode {
             num_files, first_file_index
         }

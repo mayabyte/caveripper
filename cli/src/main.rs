@@ -12,7 +12,7 @@ use extract::extract_iso;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
-use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}, error::Error};
+use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}};
 use caveripper::{
     assets::AssetManager,
     layout::Layout,
@@ -54,7 +54,7 @@ fn main() -> Result<(), CaveripperError> {
         Commands::Caveinfo { sublevel, text, render_options } => {
             let caveinfo = AssetManager::get_caveinfo(&sublevel)?;
             if text {
-                println!("{}", caveinfo);
+                println!("{caveinfo}");
             }
             else {
                 let _ = std::fs::create_dir("output");
@@ -88,7 +88,7 @@ fn main() -> Result<(), CaveripperError> {
             let mut num_found = 0;
             for seed in result_recv.iter().take(num) {
                 num_found += 1;
-                progress_bar.suspend(|| println!("{:#010X}", seed));
+                progress_bar.suspend(|| println!("{seed:#010X}"));
             }
 
             progress_bar.finish_and_clear();
@@ -120,7 +120,7 @@ fn main() -> Result<(), CaveripperError> {
                         query.matches(*seed)
                     })
                     .for_each(|seed| {
-                        println!("{:#010X}", seed);
+                        println!("{seed:#010X}");
                     });
             }
             // Read from stdin and print as results become ready
@@ -131,7 +131,7 @@ fn main() -> Result<(), CaveripperError> {
                         query.matches(*seed)
                     })
                     .for_each(|seed| {
-                        println!("{:#010X}", seed);
+                        println!("{seed:#010X}");
                     });
             }
         },

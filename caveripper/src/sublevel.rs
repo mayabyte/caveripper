@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
-use error_stack::{ResultExt, Report, report};
+use error_stack::{Result, ResultExt, Report, report, IntoReport};
 use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
@@ -59,7 +57,7 @@ static SUBLEVEL_COMPONENT: OnceCell<Regex> = OnceCell::new();
 
 impl TryFrom<&str> for Sublevel {
     type Error = Report<CaveripperError>;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
         let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
 
         let (game, input) = input.split_once(':')
@@ -93,7 +91,8 @@ impl TryFrom<&str> for Sublevel {
 
             // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
             [c1, c2] => {
-                let floor = c2.trim().parse().map_err(|e: <usize as FromStr>::Err| CaveripperError::UnrecognizedSublevel)?;
+                let floor = c2.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
 
                 Ok(Sublevel {
                     cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false)
@@ -104,11 +103,12 @@ impl TryFrom<&str> for Sublevel {
 
             // Direct mode caveinfo+unitfile specifier
             [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
-                let floor = floor.trim().parse().map_err(|e: <usize as FromStr>::Err| CaveripperError::UnrecognizedSublevel)?;
+                let floor = floor.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
                 Ok(Sublevel {
                     cfg: CaveConfig {
                         game: DIRECT_MODE_TAG.into(),
-                        full_name: format!("[Direct] {}", caveinfo_path),
+                        full_name: format!("[Direct] {caveinfo_path}"),
                         is_challenge_mode: caveinfo_path.starts_with("ch"),
                         shortened_names: vec!["direct".to_string()],
                         caveinfo_filename: caveinfo_path.into()
@@ -123,7 +123,7 @@ impl TryFrom<&str> for Sublevel {
 }
 
 impl Serialize for Sublevel {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where S: serde::Serializer {
         serializer.serialize_str(&self.short_name())
     }
@@ -139,7 +139,7 @@ fn from_short_specifier(input: &str) -> Result<(&str, usize), CaveripperError> {
     let floor = number_re.find(input)
         .ok_or(CaveripperError::UnrecognizedSublevel)?
         .as_str().trim().parse()
-        .map_err(|e: <usize as FromStr>::Err| CaveripperError::UnrecognizedSublevel)?;
+        .into_report().change_context(CaveripperError::UnrecognizedSublevel)?;
 
     Ok((cave_name, floor))
 }
