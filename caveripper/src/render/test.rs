@@ -54,4 +54,8 @@ test_render!("ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "sm
 "newyear_ch15", "newyear_ch16", "newyear_ch17", "newyear_ch18", "newyear_ch19", "newyear_ch20",
 "newyear_ch21", "newyear_ch22", "newyear_ch23", "newyear_ch24", "newyear_ch25", "newyear_ch26",
 "newyear_ch27", "newyear_ch28", "newyear_ch29", "newyear_ch30", "251_at", "251_aqd", "251_ft",
-"251_gd", "251_gdd", "251_im", "251_sc", "251_wf", "251_aa", "251_ss", "251_ck", "251_potw");
+"251_gd", "251_gdd", "251_im", "251_sc", "251_wf", "251_aa", "251_ss", "251_ck", "251_potw",
+"251_ch1", "251_ch2", "251_ch3", "251_ch4", "251_ch5", "251_ch6", "251_ch7", "251_ch8", "251_ch9",
+"251_ch10", "251_ch11", "251_ch12", "251_ch13", "251_ch14", "251_ch15", "251_ch16", "251_ch17",
+"251_ch18", "251_ch19", "251_ch20", "251_ch21", "251_ch22", "251_ch23", "251_ch24", "251_ch25",
+"251_ch26", "251_ch27", "251_ch28", "251_ch29", "251_ch30");

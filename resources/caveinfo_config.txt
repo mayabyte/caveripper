@@ -98,3 +98,33 @@ newyear,    Boss All-Stars,        true,  ch_MUKI_king.txt,                 CH30
 251,        Subterranean Sands,    false, yakushima_2.txt,                  SS, sus
 251,        Cryptic Kitchen,       false, yakushima_3.txt,                  CK
 251,        Palace of the Wraith,  false, yakushima_4.txt,                  PotW, pow
+251,        Frigid Cavern,         true,  ch1_snow_tutorial.txt,            CH1, fgc
+251,        Purple Trials,         true,  ch2_purplepikmin.txt,             CH2, pt
+251,        Gambler's Den,         true,  ch3_casino_easy.txt,              CH3, gd
+251,        Bulbmin Gardens,       true,  ch4_bulbmin.txt,                  CH4, bg, bmg
+251,        Shaded Cove,           true,  ch5_sand.txt,                     CH5, sc, shc
+251,        Valley of Repose,      true,  ch6_tutorial.txt,                 CH6, vor
+251,        Awakening Wood,        true,  ch7_forest.txt,                   CH7, aw
+251,        Perplexing Pool,       true,  ch8_yakushima.txt,                CH8, pp
+251,        Wistful Wild,          true,  ch9_last.txt,                     CH9, ww
+251,        Foreboding Forest,     true,  ch10_special.txt,                 CH10, ff
+251,        Beverage Hall,         true,  ch11_breadbugs.txt,               CH11, bh, bvh
+251,        Metallic Maze,         true,  ch12_newmetal_maze.txt,           CH12, mm
+251,        Mad Labyrinth,         true,  ch13_coc8.txt,                    CH13, ml
+251,        Orange Chasm,          true,  ch14_orange.txt,                  CH14, oc
+251,        Candypop Plains,       true,  ch15_candypop.txt,                CH15, cp, cpp
+251,        Brick Workshop,        true,  ch16_big_snow.txt,                CH16, bw
+251,        Snagret Sanctum,       true,  ch17_snagrets.txt,                CH17, ss
+251,        Secret Rage,           true,  ch18_cavemetal05.txt,             CH18, sr, scr
+251,        Haunted Halls,         true,  ch19_BigFoot.txt,                 CH19, hh
+251,        Perilous Pipeline,     true,  ch20_crawbster.txt,               CH20, ppl
+251,        Felt Den,              true,  ch21_casino_large.txt,            CH21, fd
+251,        Ceramic Cellar,        true,  ch22_big_tile.txt,                CH22, crc
+251,        Shrouded Field,        true,  ch23_shady_garden.txt,            CH23, sf
+251,        Torture Trench,        true,  ch24_trap.txt,                    CH24, tt
+251,        Variety Pit,           true,  ch25_8floor.txt,                  CH25, vp
+251,        Evil Den,              true,  ch26_waterwraith.txt,             CH26, ed
+251,        Conveyor Chasm,        true,  ch27_conveyor.txt,                CH27, cc
+251,        Royal Realm,           true,  ch28_emperor.txt,                 CH28, rr
+251,        Titan's Trench,        true,  ch29_bigtreasure.txt,             CH29, ttt, ttr
+251,        The Gauntlet,          true,  ch30_gauntlet.txt,                CH30, tg
