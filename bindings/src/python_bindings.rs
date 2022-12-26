@@ -1,5 +1,6 @@
+use error_stack::Report;
 use pyo3::{prelude::*, types::{PyDict, PyInt, PyString}, exceptions::{PyValueError, PyException, PyIOError}};
-use ::caveripper::{layout::Layout, parse_seed, assets::AssetManager, errors::SublevelError, render::{render_layout, LayoutRenderOptions, save_image}};
+use ::caveripper::{layout::Layout, parse_seed, assets::AssetManager, errors::CaveripperError, render::{render_layout, LayoutRenderOptions, save_image}};
 
 
 #[pymodule]
@@ -16,7 +17,7 @@ fn generate<'a>(py: Python<'a>, #[pyo3(from_py_with="py_convert_seed")] seed: u3
         .expect("Couldn't initialize asset manager! Are the assets/ and resources/ directories present?");
 
     let sublevel = sublevel.try_into()
-        .map_err(|e: SublevelError| PyValueError::new_err(e.to_string()))?;
+        .map_err(|e: Report<CaveripperError>| PyValueError::new_err(e.to_string()))?;
     let caveinfo = AssetManager::get_caveinfo(&sublevel)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let layout = Layout::generate(seed, caveinfo);
@@ -40,7 +41,7 @@ fn caveinfo<'a>(py: Python<'a>, sublevel: &str) -> PyResult<&'a PyDict> {
         .expect("Couldn't initialize asset manager! Are the assets/ and resources/ directories present?");
 
     let caveinfo = AssetManager::get_caveinfo(
-        &sublevel.try_into().map_err(|e: SublevelError| PyValueError::new_err(e.to_string()))?
+        &sublevel.try_into().map_err(|e: Report<CaveripperError>| PyValueError::new_err(e.to_string()))?
     ).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     let json = PyModule::import(py, "json")?;

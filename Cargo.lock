@@ -62,6 +62,7 @@ name = "bindings"
 version = "0.0.0"
 dependencies = [
  "caveripper",
+ "error-stack",
  "pyo3",
  "serde_json",
 ]

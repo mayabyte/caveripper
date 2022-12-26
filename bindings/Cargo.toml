@@ -11,4 +11,5 @@ crate-type = ["cdylib"]
 [dependencies]
 caveripper = {path="../caveripper"}
 serde_json = {version="1.0"}
+error-stack = "*"
 pyo3 = {version="0.17.3", features=["extension-module"]}
