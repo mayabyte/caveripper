@@ -80,7 +80,7 @@ impl Serialize for Layout<'_> {
                 name: so.name(),
                 x: pos.0,
                 y: pos.1,
-                carrying: if let SpawnObject::Teki(info, _) = so { info.carrying.as_ref().map(|t| t.internal_name.as_str()) } else { None }
+                carrying: if let SpawnObject::Teki(info, _) = so { info.carrying.as_deref() } else { None }
             })
             .collect::<Vec<_>>();
         state.serialize_field("teki", &teki)?;

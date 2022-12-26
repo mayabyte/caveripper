@@ -305,7 +305,9 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
                         overlay(&mut canvas_header, &falling_icon_texture, base_x - 8, base_y - 2);
                     },
                     TextureModifier::Carrying(carrying) => {
-                        let treasure = AssetManager::treasure_list().change_context(CaveripperError::RenderingError)?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
+                        let treasure = AssetManager::treasure_list(&caveinfo.cave_cfg.game)
+                            .change_context(CaveripperError::RenderingError)?.iter()
+                            .find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
                             .expect("Teki carrying unknown or invalid treasure!");
 
                         let carried_treasure_icon = resize(
@@ -377,7 +379,9 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
     let mut base_x = treasure_header.width() as i64 + CAVEINFO_MARGIN;
     for treasureinfo in caveinfo.item_info.iter() {
-        let treasure = AssetManager::treasure_list().change_context(CaveripperError::RenderingError)?.iter().find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
+        let treasure = AssetManager::treasure_list(&caveinfo.cave_cfg.game)
+            .change_context(CaveripperError::RenderingError)?.iter()
+            .find(|t| t.internal_name.eq_ignore_ascii_case(&treasureinfo.internal_name))
             .expect("Unknown or invalid treasure!");
 
         let treasure_texture = resize(treasureinfo.get_texture(&caveinfo.cave_cfg.game).change_context(CaveripperError::RenderingError)?, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3);
@@ -964,7 +968,7 @@ impl Textured for TekiInfo {
             modifiers.push(TextureModifier::Falling);
         }
         if let Some(carrying) = self.carrying.as_ref() {
-            modifiers.push(TextureModifier::Carrying(carrying.internal_name.clone()));
+            modifiers.push(TextureModifier::Carrying(carrying.clone()));
             modifiers.push(TextureModifier::QuickGlance(QUICKGLANCE_TREASURE_COLOR.into()));
             modifiers.push(TextureModifier::GaugeRing);
         }

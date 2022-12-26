@@ -9,7 +9,7 @@ use crate::{
         DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
         Waterbox, Waypoint
     },
-    assets::{AssetManager, Treasure, CaveConfig}
+    assets::{AssetManager, CaveConfig}
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -405,55 +405,38 @@ impl TryFrom<Section<'_>> for Waypoint {
 //    Utility Functions
 // ************************
 
+static SPAWN_METHOD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\$\d?)").unwrap());
+
 /// Retrieves Spawn Method, Internal Name, and Carrying Item from a combined
 /// internal identifier as used by TekiInfo and CapInfo.
-static INTERNAL_IDENTIFIER_RE: Lazy<Regex> = Lazy::new(|| {
-    // Captures an optional Spawn Method and the Internal Name with the
-    // Carrying item still attached.
-    Regex::new(r"(\$\d?)?([A-Za-z\d_-]+)").unwrap()
-});
-fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<Treasure>) {
-    let captures = INTERNAL_IDENTIFIER_RE
-        .captures(internal_combined_name)
-        .unwrap_or_else(|| panic!("Not able to capture info from combined internal identifier {internal_combined_name}!"));
-
-    // Extract spawn method
-    let spawn_method = captures.get(1)
-        .map(|s| s.as_str())
-        .and_then(|sm| sm.strip_prefix('$'))
-        .map(|spawn_method| spawn_method.to_string());
-    let mut combined_name = captures.get(2).unwrap().as_str();
-
-    // Some teki have an 'F' at the beginning of their name, indicating that they're
-    // fixed in place (e.g. tower groink on scx7). Remove this if it's present.
-    if let Some(candidate) = combined_name.strip_prefix('F') {
-        if AssetManager::teki_list().expect("No teki list!").iter().any(|teki| candidate.to_ascii_lowercase().starts_with(teki)) {
-            combined_name = candidate;
-        }
+fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<String>) {
+    let spawn_method_match = SPAWN_METHOD_RE.find_at(internal_combined_name, 0);
+    let (spawn_method, internal_combined_name) = if let Some(mtch) = spawn_method_match {
+        (Some(mtch.as_str().strip_prefix('$').unwrap().to_owned()), &internal_combined_name[mtch.end()..])
     }
+    else {
+        (None, internal_combined_name)
+    };
 
-    // Attempt to separate the candidate name into a teki and treasure component.
-    // Teki carrying treasures are written as "Tekiname_Treasurename", but unfortunately
-    // both teki and treasures can have underscores as part of their names, so splitting
-    // the two is non-trivial. To make things worse, some treasure names are strict
-    // prefixes or suffixes of others ('fire', 'fire_helmet', 'suit_fire'). The only robust
-    // way I've found to ensure the right teki/treasure combination is extracted is to
-    // exhaustively check against all possible combinations of teki and treasure names.
-    // This is an expensive operation, but this should only have to be done at caveinfo
-    // loading time so it shouldn't affect performance where it matters.
-    if combined_name.contains('_') {
-        let combined_name_lower = combined_name.to_ascii_lowercase();
-        for (teki, treasure) in AssetManager::teki_list().expect("No teki list!")
-            .iter()
-            .cartesian_product(AssetManager::treasure_list().expect("No treasure list!").iter())
-        {
-            // Check full string equality rather than prefix/suffix because
-            // some treasure names are suffixes of others.
-            if format!("{}_{}", teki, treasure.internal_name) == combined_name_lower {
-                return (spawn_method, teki.clone(), Some(treasure.clone()));
-            }
-        }
-    }
+    let teki = internal_combined_name.split('_')
+        .enumerate()
+        .take_while(|(i, part)| i == &0 || part.chars().next().unwrap().is_ascii_uppercase() || part == &"s" || part == &"l")
+        .map(|(_, part)| part)
+        .join("_");
+    let treasure_name = internal_combined_name.split('_')
+        .enumerate()
+        .skip_while(|(i, part)| i == &0 || part.chars().next().unwrap().is_ascii_uppercase() || part == &"s" || part == &"l")
+        .map(|(_, part)| part)
+        .join("_");
+    let treasure = if treasure_name.is_empty() { None } else { Some(treasure_name) };
 
-    (spawn_method, combined_name.to_string(), None)
+    // Some special teki have an "F" variant that doesn't move. These are treated as separate
+    // teki in code but use the same assets, so we normalize them here.
+    let teki = match teki.as_str() {
+        "FminiHoudai" => "MiniHoudai".to_string(),
+        "Fkabuto" => "Kabuto".to_string(),
+        _ => teki,
+    };
+
+    (spawn_method, teki, treasure)
 }

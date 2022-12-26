@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
 use error_stack::{Result, ResultExt, Report, report, IntoReport};
@@ -153,5 +155,11 @@ impl Ord for Sublevel {
 impl PartialOrd for Sublevel {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.normalized_name().partial_cmp(&other.normalized_name())
+    }
+}
+
+impl Display for Sublevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.short_name())
     }
 }

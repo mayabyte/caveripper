@@ -16,7 +16,7 @@ use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use parse::parse_caveinfo;
 use serde::Serialize;
 use error_stack::{Result, Report, report, ResultExt};
-use crate::{errors::CaveripperError, assets::{Treasure, CaveConfig}, pikmin_math};
+use crate::{errors::CaveripperError, assets::CaveConfig, pikmin_math};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -109,7 +109,7 @@ impl Display for CaveInfo {
             }
             write!(f, ")")?;
             if let Some(carrying) = &tekiinfo.carrying {
-                write!(f, " Carrying: {}", carrying.internal_name)?;
+                write!(f, " Carrying: {carrying}")?;
             }
             writeln!(f)?;
         }
@@ -152,7 +152,7 @@ impl Display for CaveInfo {
 #[derive(Debug, Clone, Serialize)]
 pub struct TekiInfo {
     pub internal_name: String,
-    pub carrying: Option<Treasure>, // The object held by this Teki, if any.
+    pub carrying: Option<String>, // The object held by this Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u32, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
@@ -198,7 +198,7 @@ pub struct GateInfo {
 #[derive(Debug, Clone, Serialize)]
 pub struct CapInfo {
     pub internal_name: String,
-    pub carrying: Option<Treasure>, // The object held by this Cap Teki, if any.
+    pub carrying: Option<String>, // The object held by this Cap Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u8,                      // Does not control spawn location like it does in TekiInfo.
