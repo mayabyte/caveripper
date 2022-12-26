@@ -2,7 +2,7 @@ use std::{collections::HashMap, pin::Pin, hash::Hash, cell::UnsafeCell, sync::{R
 
 use rayon::prelude::IntoParallelIterator;
 
-/// Thread-safe, append-only HashMap that can provide immutable references to its 
+/// Thread-safe, append-only HashMap that can provide immutable references to its
 /// entries that don't block further additions to the map.
 #[derive(Debug)]
 pub struct PinMap<K: Eq + Hash, V> {
@@ -15,13 +15,13 @@ unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for PinMap<K, V> {}
 
 impl<K: Eq + Hash, V> PinMap<K, V> {
     pub fn new() -> Self {
-        Self { 
+        Self {
             inner: UnsafeCell::new(HashMap::new()),
             lock: RwLock::new(()),
         }
     }
 
-    /// Inserts a value into the map. Returns the value in the Err variant of the 
+    /// Inserts a value into the map. Returns the value in the Err variant of the
     /// return value if the key is already present.
     /// This method will block if there are other ongoing reads or writes to the map.
     pub fn insert(&self, key: K, value: V) -> Result<(), V> {
@@ -56,7 +56,7 @@ impl<K: Eq + Hash, V> PinMap<K, V> {
     /// Retrieves a reference to an entry in the map.
     /// The returned reference can be held for as long as the PinMap lives, even
     /// if there are insertions to the map afterwards.
-    pub fn get<'a, Q: Eq + Hash>(&'a self, key: &Q) -> Option<&'a V> where K: Borrow<Q> {
+    pub fn get<'a, Q: Eq + Hash + ?Sized>(&'a self, key: &Q) -> Option<&'a V> where K: Borrow<Q> {
         unsafe {
             // SAFETY: we ensure there are no ongoing reads or writes via the RwLock guard.
             let _lock = self.lock.read().expect("PinMap lock poisoned");
@@ -72,8 +72,8 @@ impl<K: Eq + Hash, V> PinMap<K, V> {
         unsafe {
             // SAFETY: since PinMapIterator holds a read guard, no new writes will
             // be able to occur while the iterator is alive.
-            PinMapIterator { 
-                inner: (*self.inner.get()).iter(), 
+            PinMapIterator {
+                inner: (*self.inner.get()).iter(),
                 _guard: self.lock.read().expect("PinMap lock poisoned"),
             }
         }
@@ -90,9 +90,9 @@ impl<K: Eq + Hash + Clone, V: Clone> Clone for PinMap<K, V> {
         unsafe {
             // SAFETY: we ensure there are no ongoing reads or writes via the RwLock guard.
             let _lock = self.lock.read().expect("PinMap lock poisoned");
-            PinMap { 
-                inner: UnsafeCell::new((*self.inner.get()).clone()), 
-                lock: RwLock::new(()), 
+            PinMap {
+                inner: UnsafeCell::new((*self.inner.get()).clone()),
+                lock: RwLock::new(()),
             }
         }
     }
@@ -134,7 +134,7 @@ impl<K: Eq + Hash, V> IntoIterator for PinMap<K, V> {
     }
 }
 
-impl<K: Eq + Hash + Sync, V: Sync> IntoParallelIterator for PinMap<K, V> 
+impl<K: Eq + Hash + Sync, V: Sync> IntoParallelIterator for PinMap<K, V>
 where HashMap<K, Pin<Box<V>>>: IntoParallelIterator
 {
     type Iter = <HashMap<K, Pin<Box<V>>> as IntoParallelIterator>::Iter;

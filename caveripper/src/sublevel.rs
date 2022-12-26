@@ -1,7 +1,8 @@
-use std::str::FromStr;
+use std::fmt::Display;
 
-use crate::errors::SublevelError;
+use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
+use error_stack::{Result, ResultExt, Report, report, IntoReport};
 use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
@@ -34,7 +35,7 @@ impl Sublevel {
     /// Constructs the short cave name of this sublevel, e.g. "SCx3" with no hyphen.
     /// For challenge mode sublevels, this forwards to the normalized_name implementation.
     pub fn short_name(&self) -> String {
-        if self.cfg.shortened_names.first().unwrap().ends_with(|c: char| c.is_numeric()) {
+        if self.cfg.is_challenge_mode {
             self.normalized_name()
         }
         else {
@@ -57,18 +58,8 @@ static WORDS: OnceCell<Regex> = OnceCell::new();
 static SUBLEVEL_COMPONENT: OnceCell<Regex> = OnceCell::new();
 
 impl TryFrom<&str> for Sublevel {
-    type Error = SublevelError;
-
-    /// sr4
-    /// sr-4
-    /// ch24-4
-    /// ch-sr4
-    /// Sniper Room 4
-    /// pikmin2:cm-sr4
-    /// pikmin2:sr4
-    /// pikmin2:sr-4
-    /// caveinfo:caveinfofile.txt-unitfile.txt-1
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
         let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
 
         let (game, input) = input.split_once(':')
@@ -84,7 +75,8 @@ impl TryFrom<&str> for Sublevel {
             [c1] => {
                 let (name, floor) = from_short_specifier(c1)?;
                 Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), false).map_err(Box::new)?.clone(),
+                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), false)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
                     floor
                 })
             },
@@ -93,28 +85,32 @@ impl TryFrom<&str> for Sublevel {
             [c1, c2] if c1 == "ch" || c1 == "cm" => {
                 let (name, floor) = from_short_specifier(c2)?;
                 Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), true).map_err(Box::new)?.clone(),
+                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), true)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
                     floor
                 })
             },
 
             // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
             [c1, c2] => {
-                let floor = c2.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+                let floor = c2.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
 
                 Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false).map_err(Box::new)?.clone(),
+                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
                     floor
                 })
             },
 
             // Direct mode caveinfo+unitfile specifier
             [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
-                let floor = floor.trim().parse().map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+                let floor = floor.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
                 Ok(Sublevel {
                     cfg: CaveConfig {
                         game: DIRECT_MODE_TAG.into(),
-                        full_name: format!("[Direct] {}", caveinfo_path),
+                        full_name: format!("[Direct] {caveinfo_path}"),
                         is_challenge_mode: caveinfo_path.starts_with("ch"),
                         shortened_names: vec!["direct".to_string()],
                         caveinfo_filename: caveinfo_path.into()
@@ -123,29 +119,29 @@ impl TryFrom<&str> for Sublevel {
                 })
             },
 
-            _ => Err(SublevelError::ParseError(format!("\"{}\": Too many dashes in input.", input)))
+            _ => Err(report!(CaveripperError::UnrecognizedSublevel))
         }
     }
 }
 
 impl Serialize for Sublevel {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where S: serde::Serializer {
         serializer.serialize_str(&self.short_name())
     }
 }
 
-fn from_short_specifier(input: &str) -> Result<(&str, usize), SublevelError> {
+fn from_short_specifier(input: &str) -> Result<(&str, usize), CaveripperError> {
     let words_re = WORDS.get_or_init(|| Regex::new(r"([[[:alpha:]]\s'_]+)").unwrap());
     let number_re = DIGIT.get_or_init(|| Regex::new(r"(\d+)").unwrap());
 
     let cave_name = words_re.find(input)
-        .ok_or(SublevelError::MissingCaveName)?
+        .ok_or(CaveripperError::UnrecognizedSublevel)?
         .as_str().trim();
     let floor = number_re.find(input)
-        .ok_or(SublevelError::MissingFloorNumber)?
+        .ok_or(CaveripperError::UnrecognizedSublevel)?
         .as_str().trim().parse()
-        .map_err(|e: <usize as FromStr>::Err| SublevelError::ParseError(e.to_string()))?;
+        .into_report().change_context(CaveripperError::UnrecognizedSublevel)?;
 
     Ok((cave_name, floor))
 }
@@ -159,5 +155,11 @@ impl Ord for Sublevel {
 impl PartialOrd for Sublevel {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.normalized_name().partial_cmp(&other.normalized_name())
+    }
+}
+
+impl Display for Sublevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.short_name())
     }
 }

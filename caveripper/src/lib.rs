@@ -7,6 +7,9 @@
 #![allow(stable_features)] // This feature is required to be able to build on NixOS for some reason.
 #![feature(let_chains)]
 
+use error_stack::{Report, report, IntoReport, ResultExt};
+use errors::CaveripperError;
+
 pub mod caveinfo;
 #[allow(clippy::bool_to_int_with_if)]
 pub mod layout;
@@ -19,12 +22,12 @@ pub mod search;
 pub mod errors;
 mod pinmap;
 
-pub fn parse_seed(src: &str) -> Result<u32, errors::SeedError> {
+pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
     let trimmed = src.strip_prefix("0x").unwrap_or(src);
     if trimmed.len() != 8 {
-        Err(errors::SeedError::InvalidLength)
+        Err(report!(CaveripperError::SeedError))
     }
     else {
-        u32::from_str_radix(trimmed, 16).map_err(|_| errors::SeedError::InvalidHexDigits)
+        u32::from_str_radix(trimmed, 16).into_report().change_context(CaveripperError::SeedError)
     }
 }

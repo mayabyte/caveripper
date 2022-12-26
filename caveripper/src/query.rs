@@ -2,13 +2,14 @@
 mod test;
 
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
+use error_stack::{Report, report, ResultExt, IntoReport};
 use itertools::Itertools;
 use pest::{Parser, iterators::{Pair, Pairs}};
 use pest_derive::Parser;
 use crate::{
-    errors::SearchConditionError,
+    errors::CaveripperError,
     layout::{Layout, SpawnObject},
-    caveinfo::{RoomType, CaveUnit},
+    caveinfo::{RoomType, CaveUnit, TekiInfo, CapInfo},
     assets::AssetManager,
     sublevel::Sublevel,
     pikmin_math::dist,
@@ -39,27 +40,30 @@ impl Query {
 /// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
 /// This effectively defines a DSL for search terms.
 impl TryFrom<&str> for Query {
-    type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
         let pairs = QueryParser::parse(Rule::query, input)
-            .map_err(|e| SearchConditionError::ParseError(e.to_string()))?;
+            .into_report().change_context(CaveripperError::QueryParseError)?;
         let mut sublevel: Option<Sublevel> = None;
         let mut clauses = Vec::new();
         for pair in pairs {
             match pair.as_rule() {
                 Rule::sublevel_ident => {
-                    sublevel = Some(pair.as_str().try_into()?);
+                    sublevel = Some(pair.as_str().try_into()
+                        .change_context(CaveripperError::QueryParseError)
+                        .attach_printable_lazy(|| pair.as_str().to_string())?);
                 },
                 Rule::expression => {
                     if let Some(sublevel) = sublevel.as_ref() {
                         clauses.push(QueryClause{sublevel: sublevel.clone(), querykind: pair.try_into()?});
                     }
                     else {
-                        return Err(SearchConditionError::ParseError("No sublevel provided".into()));
+                        return Err(report!(CaveripperError::QueryParseError));
                     }
                 },
                 Rule::EOI => {}, // The end-of-input rule gets matched as an explicit token, so we have to ignore it.
-                rule => return Err(SearchConditionError::ParseError(format!("Expected expression, got {:?} \"{}\"", rule, pair.as_str())))
+                rule => return Err(report!(CaveripperError::QueryParseError))
+                    .attach_printable_lazy(|| format!("unexpected rule {rule:?}"))
             }
         }
         Ok(Query{clauses})
@@ -69,7 +73,7 @@ impl TryFrom<&str> for Query {
 impl Display for Query {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, cond) in self.clauses.iter().enumerate() {
-            write!(f, "{}", cond)?;
+            write!(f, "{cond}")?;
             if i != self.clauses.len() - 1 {
                 write!(f, " & ")?;
             }
@@ -139,50 +143,55 @@ impl QueryKind {
 }
 
 impl TryFrom<Pair<'_, Rule>> for QueryKind {
-    type Error = SearchConditionError;
-    fn try_from(input: Pair<'_, Rule>) -> Result<Self, Self::Error> {
+    type Error = Report<CaveripperError>;
+    fn try_from(input: Pair<'_, Rule>) -> std::result::Result<Self, Self::Error> {
         if input.as_rule() != Rule::expression {
-            return Err(SearchConditionError::ParseError(format!("Expected expression, got {}", input.as_str())));
+            return Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.as_str().to_string());
         }
 
-        let full_txt = input.as_str();
+        let full_txt = input.as_str().to_string();
         let expr = input.into_inner().next().unwrap();
         match (expr.as_rule(), expr.into_inner()) {
             (Rule::compare, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
-                if AssetManager::teki_list()?.contains(&bare_name.to_ascii_lowercase())
-                || AssetManager::treasure_list()?.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))
+
+                let teki_list = AssetManager::combined_teki_list().change_context(CaveripperError::QueryParseError)?;
+                let treasure_list = AssetManager::combined_treasure_list().change_context(CaveripperError::QueryParseError)?;
+                let room_list = AssetManager::combined_room_list().change_context(CaveripperError::QueryParseError)?;
+
+                if teki_list.contains(&bare_name.to_ascii_lowercase())
+                || treasure_list.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))
                 {
                     Ok(QueryKind::CountEntity {
-                        entity_matcher: values[0].try_into()?,
+                        entity_matcher: values[0].into(),
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse()?,
+                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
-                else if AssetManager::room_list()?.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
+                else if room_list.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
                     Ok(QueryKind::CountRoom {
-                        unit_matcher: values[0].try_into()?,
+                        unit_matcher: values[0].into(),
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse()?,
+                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
                 else {
-                    Err(SearchConditionError::UnrecognizedName(values[0].into()))
+                    Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| full_txt.to_owned())
                 }
             },
             (Rule::straight_dist, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str()).collect();
                 Ok(QueryKind::StraightLineDist {
-                    entity1: values[0].try_into()?,
-                    entity2: values[1].try_into()?,
+                    entity1: values[0].into(),
+                    entity2: values[1].into(),
                     relationship: char_to_ordering(values[2]),
-                    req_dist: values[3].parse()?,
+                    req_dist: values[3].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                 })
             },
-            (Rule::room_path, inner) => Ok(QueryKind::RoomPath(inner.try_into()?)),
+            (Rule::room_path, inner) => Ok(QueryKind::RoomPath(inner.into())),
             _ => {
-                Err(SearchConditionError::ParseError(format!("Couldn't parse query \"{}\"", full_txt)))
+                Err(report!(CaveripperError::QueryParseError).attach_printable(full_txt))
             }
         }
     }
@@ -197,7 +206,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} {} {}", entity_matcher, order_char, amount)
+                write!(f, "{entity_matcher} {order_char} {amount}")
             },
             QueryKind::CountRoom { unit_matcher, relationship, amount } => {
                 let order_char = match relationship {
@@ -205,7 +214,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} {} {}", unit_matcher, order_char, amount)
+                write!(f, "{unit_matcher} {order_char} {amount}")
             },
             QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist: dist } => {
                 let order_char = match relationship {
@@ -213,7 +222,7 @@ impl Display for QueryKind {
                     Ordering::Equal => '=',
                     Ordering::Greater => '>'
                 };
-                write!(f, "{} straight dist {} {} {}", entity1, entity2, order_char, dist)
+                write!(f, "{entity1} straight dist {entity2} {order_char} {dist}")
             },
             QueryKind::RoomPath(room_path) => {
                 let mut first = true;
@@ -225,9 +234,9 @@ impl Display for QueryKind {
                         first = false;
                     }
 
-                    write!(f, "{}", unit_matcher)?;
+                    write!(f, "{unit_matcher}")?;
                     for em in entity_matchers.iter() {
-                        write!(f, " + {}", em)?;
+                        write!(f, " + {em}")?;
                     }
                 }
                 Ok(())
@@ -278,26 +287,24 @@ impl RoomPath {
     }
 }
 
-impl TryFrom<Pairs<'_, Rule>> for RoomPath {
-    type Error = SearchConditionError;
-    fn try_from(input: Pairs<'_, Rule>) -> Result<Self, Self::Error> {
-        let components = input.map(|component| -> Result<(UnitMatcher, Vec<EntityMatcher>), Self::Error> {
+impl From<Pairs<'_, Rule>> for RoomPath {
+    fn from(input: Pairs<'_, Rule>) -> Self {
+        let components = input.map(|component| {
             let mut pairs = component.into_inner();
-            Ok((
-                pairs.next().unwrap().as_str().try_into()?,
-                pairs.map(|e| e.as_str().try_into()).collect::<Result<Vec<_>, _>>()?
-            ))
+            (
+                pairs.next().unwrap().as_str().into(),
+                pairs.map(|e| e.as_str().into()).collect()
+            )
         })
-        .collect::<Result<Vec<(UnitMatcher, Vec<EntityMatcher>)>, _>>()?;
-        Ok(RoomPath{components})
+        .collect::<Vec<(UnitMatcher, Vec<EntityMatcher>)>>();
+        RoomPath{components}
     }
 }
 
 /// Matches entities or categories of entities.
 #[derive(Debug, Clone)]
 pub enum EntityMatcher {
-    Teki{name: String, carrying: Option<String>},
-    Treasure(String),
+    Entity{name: String, carrying: Option<String>},
     Hole,
     Geyser,
     Ship,
@@ -307,25 +314,18 @@ pub enum EntityMatcher {
 impl EntityMatcher {
     fn matches(&self, spawn_object: &SpawnObject) -> bool {
         match (self, spawn_object) {
-            (EntityMatcher::Teki{ name, carrying }, SpawnObject::Teki(tekiinfo, _)) => {
-                let name_matches = name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&tekiinfo.internal_name);
+            (EntityMatcher::Entity{ name, carrying }, SpawnObject::Teki(TekiInfo { internal_name, carrying: i_carrying, .. }, _)
+                                                    | SpawnObject::CapTeki(CapInfo { internal_name, carrying: i_carrying, .. }, _))
+            => {
+                let name_matches = name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(internal_name);
                 let carrying_matches = carrying.as_ref().map_or(true,
-                    |c1| tekiinfo.carrying.as_ref().map_or(c1.eq_ignore_ascii_case("any"),
-                        |c2| c1.eq_ignore_ascii_case(&c2.internal_name))
+                    |c1| i_carrying.as_ref().map_or(c1.eq_ignore_ascii_case("any"),
+                        |c2| c1.eq_ignore_ascii_case(c2))
                 );
                 name_matches && carrying_matches
             },
-            // TODO: consolidate TekiInfo and CapInfo somehow so I don't need to double up code like this
-            (EntityMatcher::Teki{ name, carrying }, SpawnObject::CapTeki(capinfo, _)) => {
-                let name_matches = name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&capinfo.internal_name);
-                let carrying_matches = carrying.as_ref().map_or(true,
-                    |c1| capinfo.carrying.as_ref().map_or(c1.eq_ignore_ascii_case("any"),
-                        |c2| c1.eq_ignore_ascii_case(&c2.internal_name))
-                );
-                name_matches && carrying_matches
-            },
-            (EntityMatcher::Treasure(name), SpawnObject::Item(iteminfo)) => {
-                name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&iteminfo.internal_name)
+            (EntityMatcher::Entity{ name, carrying }, SpawnObject::Item(iteminfo)) => {
+                (name.eq_ignore_ascii_case("any") || name.eq_ignore_ascii_case(&iteminfo.internal_name)) && carrying.is_none()
             },
             (EntityMatcher::Hole, SpawnObject::Hole(_)) => true,
             (EntityMatcher::Geyser, SpawnObject::Geyser(_)) => true,
@@ -336,37 +336,20 @@ impl EntityMatcher {
     }
 }
 
-impl TryFrom<&str> for EntityMatcher {
-    type Error = SearchConditionError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+impl From<&str> for EntityMatcher {
+    fn from(s: &str) -> Self {
         match s.to_ascii_lowercase().trim() {
-            "hole" => Ok(EntityMatcher::Hole),
-            "geyser" => Ok(EntityMatcher::Geyser),
-            "ship" => Ok(EntityMatcher::Ship),
-            "gate" => Ok(EntityMatcher::Gate),
+            "hole" => EntityMatcher::Hole,
+            "geyser" => EntityMatcher::Geyser,
+            "ship" => EntityMatcher::Ship,
+            "gate" => EntityMatcher::Gate,
             s => {
-                if AssetManager::treasure_list()?.iter()
-                    .map(|t| t.internal_name.trim())
-                    .contains(&s)
-                {
-                    Ok(EntityMatcher::Treasure(s.to_string()))
-                }
-                else if s.contains('/') {
+                if s.contains('/') {
                     let (name, carrying) = s.split_once('/').unwrap();
-                    if AssetManager::teki_list()?.contains(&name.to_string())
-                        && AssetManager::treasure_list()?.iter().map(|t| t.internal_name.trim()).contains(&carrying)
-                    {
-                        Ok(EntityMatcher::Teki { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) })
-                    }
-                    else {
-                        Err(SearchConditionError::UnrecognizedEntityName(s.into()))
-                    }
-                }
-                else if AssetManager::teki_list()?.contains(&s.to_string()) {
-                    Ok(EntityMatcher::Teki { name: s.to_string(), carrying: None })
+                    EntityMatcher::Entity { name: name.trim().to_string(), carrying: Some(carrying.trim().to_string()) }
                 }
                 else {
-                    Err(SearchConditionError::UnrecognizedEntityName(s.into()))
+                    EntityMatcher::Entity { name: s.to_string(), carrying: None }
                 }
             }
         }
@@ -380,8 +363,8 @@ impl Display for EntityMatcher {
             EntityMatcher::Geyser => write!(f, "geyser"),
             EntityMatcher::Ship => write!(f, "ship"),
             EntityMatcher::Gate => write!(f, "gate"),
-            EntityMatcher::Treasure(name) | EntityMatcher::Teki{name, carrying: None} => write!(f, "{}", name),
-            EntityMatcher::Teki{name, carrying: Some(carrying)} => write!(f, "{}/{}", name, carrying),
+            EntityMatcher::Entity{ name, carrying: None } => write!(f, "{name}"),
+            EntityMatcher::Entity{name, carrying: Some(carrying)} => write!(f, "{name}/{carrying}"),
         }
     }
 }
@@ -403,17 +386,13 @@ impl UnitMatcher {
     }
 }
 
-impl TryFrom<&str> for UnitMatcher {
-    type Error = SearchConditionError;
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
+impl From<&str> for UnitMatcher {
+    fn from(input: &str) -> Self {
         if let Ok(room_type) = RoomType::try_from(input) {
-            Ok(UnitMatcher::UnitType(room_type))
-        }
-        else if AssetManager::room_list()?.contains(&input.to_string()) || input.eq_ignore_ascii_case("any") {
-            Ok(UnitMatcher::Named(input.to_string()))
+            UnitMatcher::UnitType(room_type)
         }
         else {
-            Err(SearchConditionError::UnrecognizedUnitName(input.to_string()))
+            UnitMatcher::Named(input.to_string())
         }
     }
 }
@@ -421,9 +400,9 @@ impl TryFrom<&str> for UnitMatcher {
 impl Display for UnitMatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnitMatcher::UnitType(t) => write!(f, "{}", t),
+            UnitMatcher::UnitType(t) => write!(f, "{t}"),
             UnitMatcher::Named(name) if name.eq_ignore_ascii_case("any") => write!(f, "any(room)"),
-            UnitMatcher::Named(name) => write!(f, "{}", name)
+            UnitMatcher::Named(name) => write!(f, "{name}")
         }
     }
 }

@@ -51,7 +51,7 @@ impl BtiImage {
                 9  => decode_c8_block(img_data, offset, block_size, &colors),
                 10  => decode_c14x2_block(img_data, offset, block_size, &colors),
                 11 => decode_cmpr_block(img_data, offset),
-                _ => panic!("Unknown image format {}", format),
+                _ => panic!("Unknown image format {format}"),
             };
 
             for (i, pixel) in decoded_pixels.iter().enumerate() {
@@ -98,7 +98,7 @@ fn decode_palettes(palette_data: &[u8], palette_format: u8, num_colors: u16, img
             0 => ia8_to_color(raw_color),
             1 => rgb565_to_color(raw_color),
             2 => rgb5a3_to_color(raw_color),
-            _ => panic!("Invalid palette format: {}", palette_format),
+            _ => panic!("Invalid palette format: {palette_format}"),
         };
         colors.push(color);
     }

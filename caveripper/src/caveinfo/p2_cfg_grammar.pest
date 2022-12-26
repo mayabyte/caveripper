@@ -1,0 +1,19 @@
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+// `!` matchers don't consume input, so we have to 'test' for a non-eol
+// character before consuming that same character with ANY
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+number = @{ "-"? ~ (ASCII_DIGIT)+ ~ ("." ~ ASCII_DIGIT+)? }
+char = @ { ASCII_ALPHANUMERIC | "." | "_" | "-" | "$" }
+word = @{ char+ | "{" ~ char+ ~ "}" }
+line_item = @{ word }
+
+// The extra "}"s here are to support any malformed sections.
+// Newyear has some files like this.
+section = { number? ~ "}"* ~ "{" ~ section_line+ ~ "}" }
+
+section_line = ${
+    (" " | "\t")* ~ line_item
+    ~ ((" " | "\t")+ ~ line_item)*
+    ~ COMMENT?
+}
+section_file = { SOI ~ section+ ~ EOI }

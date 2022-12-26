@@ -8,7 +8,7 @@ room_path_component = { ident ~ ("+" ~ entity)* }
 
 // expressions
 compare = { entity ~ comparator ~ number }
-straight_dist = { entity ~ "straight dist" ~ entity ~ comparator ~ number }
+straight_dist = { entity ~ ^"straight dist" ~ entity ~ comparator ~ number }
 room_path = { room_path_component ~ ("->" ~ room_path_component)* }
 
 // top-level rules
