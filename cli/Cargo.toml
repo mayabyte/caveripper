@@ -6,17 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-simple_logger = {version="1.13", default-features=false, features=["colors"]}
-rayon = "1.5"
+simple_logger = {version="4.0", default-features=false, features=["colors"]}
+rayon = "1.6"
 indicatif = {version="0.17", features=["rayon"]}
 clap = {version="4.0", features=["derive"]}
 rand = "0.8"
 log = "0.4"
-crossbeam = "0.8.2"
+crossbeam = "0.8"
 atty = "0.2"
 yaz0 = "0.3"
 gc-gcm = "0.10"
-encoding_rs = "0.8.31"
+encoding_rs = "0.8"
 image = "0.24"
 anyhow = "1.0"
 regex = "1.7"
