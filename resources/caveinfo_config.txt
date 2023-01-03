@@ -85,7 +85,7 @@ newyear,    Blue Zone,             true,  ch_NARI_06start3hard.txt,         CH26
 newyear,    Hocotate Airlines,     true,  ch_MAT_flier.txt,                 CH27, ha
 newyear,    Timeless Realm,        true,  ch_MIYA_trap.txt,                 CH28, tr
 newyear,    Midway Arcade,         true,  ch_MUKI_bombing.txt,              CH29, ma
-newyear,    Boss All-Stars,        true,  ch_MUKI_king.txt,                 CH30, bas
+newyear,    Boss All Stars,        true,  ch_MUKI_king.txt,                 CH30, bas
 251,        Abandoned Toybox,      false, Abandoned_Toybox.txt,             AT
 251,        Aquatic Depths,        false, Aquatic_Depths.txt,               AD, aqd
 251,        Flaming Trench,        false, Flaming_Trench.txt,               FT
