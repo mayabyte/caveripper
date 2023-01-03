@@ -1053,28 +1053,36 @@ impl Textured for SpawnObject<'_> {
             SpawnObject::Item(iteminfo) => iteminfo.get_texture(game),
             SpawnObject::Gate(gateinfo) => gateinfo.get_texture(game),
             SpawnObject::Hole(plugged) => {
-                AssetManager::get_or_store_img("PLUGGED_HOLE".to_string(), || {
-                    let filename = "resources/enemytex_special/Cave_icon.png";
-                    let mut hole_icon = AssetManager::get_img(filename)?.clone();
-                    if *plugged {
-                        let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
-                        let plug_icon = resize(
-                            AssetManager::get_img(plug_filename)?,
-                            hole_icon.width(),
-                            hole_icon.height(),
-                            FilterType::Lanczos3,
-                        );
-                        overlay(&mut hole_icon, &plug_icon, 0, 0);
-                    }
+                let filename = "resources/enemytex_special/Cave_icon.png";
+                if !plugged {
+                    AssetManager::get_img(filename)
+                }
+                else {
+                    AssetManager::get_or_store_img("PLUGGED_HOLE".to_string(), || {
+                        let mut hole_icon = AssetManager::get_img(filename)?.clone();
+                        if *plugged {
+                            let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
+                            let plug_icon = resize(
+                                AssetManager::get_img(plug_filename)?,
+                                hole_icon.width(),
+                                hole_icon.height(),
+                                FilterType::Lanczos3,
+                            );
+                            overlay(&mut hole_icon, &plug_icon, 0, 0);
+                        }
 
-                    Ok(hole_icon)
-                })
+                        Ok(hole_icon)
+                    })
+                }
             },
             SpawnObject::Geyser(plugged) => {
-                AssetManager::get_or_store_img("PLUGGED_GEYSER".to_string(), || {
-                    let filename = "resources/enemytex_special/Geyser_icon.png";
-                    let mut hole_icon = AssetManager::get_img(filename)?.clone();
-                    if *plugged {
+                let filename = "resources/enemytex_special/Geyser_icon.png";
+                if !plugged {
+                    AssetManager::get_img(filename)
+                }
+                else {
+                    AssetManager::get_or_store_img("PLUGGED_GEYSER".to_string(), || {
+                        let mut hole_icon = AssetManager::get_img(filename)?.clone();
                         let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
                         let plug_icon = resize(
                             AssetManager::get_img(plug_filename)?,
@@ -1083,9 +1091,9 @@ impl Textured for SpawnObject<'_> {
                             FilterType::Lanczos3,
                         );
                         overlay(&mut hole_icon, &plug_icon, 0, 0);
-                    }
-                    Ok(hole_icon)
-                })
+                        Ok(hole_icon)
+                    })
+                }
             },
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
