@@ -9,6 +9,7 @@
 
 use error_stack::{Report, report, IntoReport, ResultExt};
 use errors::CaveripperError;
+use rand::random;
 
 pub mod caveinfo;
 #[allow(clippy::bool_to_int_with_if)]
@@ -23,6 +24,10 @@ pub mod errors;
 mod pinmap;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
+    if src.eq_ignore_ascii_case("random") {
+        return Ok(random())
+    }
+
     let trimmed = src.strip_prefix("0x").unwrap_or(src);
     if trimmed.len() != 8 {
         Err(report!(CaveripperError::SeedError))
