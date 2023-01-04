@@ -1109,6 +1109,7 @@ impl<'a> LayoutBuilder<'a> {
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
             map_units: self.map_units,
+            waypoint_graph: once_cell::unsync::OnceCell::new(),
         }
     }
 

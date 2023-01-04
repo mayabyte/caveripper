@@ -22,6 +22,7 @@ pub mod query;
 pub mod search;
 pub mod errors;
 mod pinmap;
+mod point;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
     if src.eq_ignore_ascii_case("random") {

@@ -1,23 +1,24 @@
 #[cfg(test)]
 mod test;
 
-use std::borrow::Cow;
-use std::cmp::max;
-use std::f32::consts::PI;
-use std::path::{Path, PathBuf};
-
-use crate::caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType};
-use crate::assets::{AssetManager, get_special_texture_name};
-use crate::errors::CaveripperError;
-use crate::layout::{Layout, SpawnObject, PlacedMapUnit};
+use std::{borrow::Cow, cmp::max, path::{Path, PathBuf}};
+use crate::{
+    caveinfo::{CapInfo, GateInfo, ItemInfo, TekiInfo, CaveInfo, CaveUnit, RoomType},
+    assets::{AssetManager, get_special_texture_name},
+    errors::CaveripperError,
+    layout::{Layout, SpawnObject, PlacedMapUnit},
+    point::Point
+};
 use clap::Args;
 use error_stack::{Result, ResultExt, IntoReport};
-use fontdue::layout::{Layout as FontLayout, TextStyle, LayoutSettings, VerticalAlign, HorizontalAlign, WrapStyle};
-use fontdue::{Font, FontSettings};
-use image::imageops::colorops::brighten_in_place;
-use image::imageops::{resize, rotate90, overlay};
-use image::{Rgba, RgbaImage};
-use image::{Pixel, imageops::FilterType};
+use fontdue::{
+    layout::{Layout as FontLayout, TextStyle, LayoutSettings, VerticalAlign, HorizontalAlign, WrapStyle},
+    Font, FontSettings
+};
+use image::{
+    imageops::{colorops::brighten_in_place, resize, rotate90, overlay, FilterType},
+    Rgba, RgbaImage, Pixel
+};
 use itertools::Itertools;
 use log::{info};
 use once_cell::sync::Lazy;
@@ -80,6 +81,14 @@ pub struct LayoutRenderOptions {
     /// Draws the score of each unit in the layout.
     #[clap(long, short='s')]
     pub draw_score: bool,
+
+    /// Draws waypoints and their connections in the layout
+    #[clap(long, short='w')]
+    pub draw_waypoints: bool,
+
+    /// Draw the paths treasures will take to the ship.
+    #[clap(long, short='p')]
+    pub draw_paths: bool,
 }
 
 #[derive(Default, Debug, Args)]
@@ -90,7 +99,7 @@ pub struct CaveinfoRenderOptions {
     pub draw_treasure_info: bool,
 
     /// Render pathing waypoints
-    #[clap(long, default_value_t=true, action=clap::ArgAction::Set)]
+    #[clap(long, short='w', default_value_t=true, action=clap::ArgAction::Set)]
     pub draw_waypoints: bool,
 
     /// Render waypoint distances. Useful for calculating Distance Score.
@@ -138,6 +147,27 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
                     let new_pix = canvas.get_pixel_mut(x, z);
                     new_pix.blend(&grid_color);
                 }
+            }
+        }
+    }
+
+    // Draw waypoints, if enabled
+    if options.draw_waypoints {
+        let wp_img = circle(16, WAYPOINT_COLOR.into());
+        for wp in layout.waypoint_graph().iter() {
+            let x = wp.x * COORD_FACTOR;
+            let z = wp.z * COORD_FACTOR;
+            overlay(
+                &mut canvas,
+                &wp_img,
+                x as i64 - wp_img.width() as i64 / 2,
+                z as i64 - wp_img.height() as i64 / 2
+            );
+
+            if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
+                let bx = backlink.x * COORD_FACTOR;
+                let bz = backlink.z * COORD_FACTOR;
+                draw_arrow_line(&mut canvas, Point{values:[x, z]}, Point{values:[bx, bz]}, CARRY_PATH_COLOR.into());
             }
         }
     }
@@ -567,8 +597,8 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
         if options.draw_waypoints {
             for waypoint in unit.waypoints.iter() {
-                let wp_x = (waypoint.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
-                let wp_z = (waypoint.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
+                let wp_x = waypoint.x * COORD_FACTOR;
+                let wp_z = waypoint.z * COORD_FACTOR;
                 let wp_img_radius = (waypoint.r * COORD_FACTOR).log2() * 3.0;
 
                 let wp_img = circle(wp_img_radius as u32, WAYPOINT_COLOR.into());
@@ -576,9 +606,9 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
                 for link in waypoint.links.iter() {
                     let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
-                    let dest_x = (dest_wp.x * COORD_FACTOR) + (unit_texture.width() as f32 / 2.0);
-                    let dest_z = (dest_wp.z * COORD_FACTOR) + (unit_texture.height() as f32 / 2.0);
-                    draw_arrow_line(&mut unit_texture, dest_x, dest_z, wp_x, wp_z, CARRY_PATH_COLOR.into());
+                    let dest_x = dest_wp.x * COORD_FACTOR;
+                    let dest_z = dest_wp.z * COORD_FACTOR;
+                    draw_arrow_line(&mut unit_texture, Point{values:[wp_x, wp_z]}, Point{values:[dest_x, dest_z]}, CARRY_PATH_COLOR.into());
 
                     if options.draw_waypoint_distances {
                         let distance_text = render_small_text(
@@ -666,45 +696,24 @@ fn draw_border(canvas: &mut RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
     }
 }
 
-fn draw_arrow_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut y2: f32, color: Rgba<u8>) {
-    let steep = (y2 - y1).abs() > (x2 - x1).abs();
-    if (steep && y1 > y2) || (!steep && x1 > x2) {
-        (x1, x2) = (x2, x1);
-        (y1, y2) = (y2, y1);
-    }
-    // Shorten the line slightly to make room for the arrows at the end
-    if steep {
-        let slope = (x2 - x1) / (y2 - y1);
-        y1 += slope.cos() * 6.0;
-        y2 -= slope.cos() * 6.0;
-        x1 += slope.sin() * 6.0;
-        x2 -= slope.sin() * 6.0;
-
-        // Draw an arrow at each end
-        draw_line(canvas, x2 - (slope + PI / 8.0).sin() * 8.0, y2 - (slope + PI / 8.0).cos() * 8.0, x2, y2, color);
-        draw_line(canvas, x2 - (slope - PI / 8.0).sin() * 8.0, y2 - (slope - PI / 8.0).cos() * 8.0, x2, y2, color);
-        draw_line(canvas, x1 + (slope + PI / 8.0).sin() * 8.0, y1 + (slope + PI / 8.0).cos() * 8.0, x1, y1, color);
-        draw_line(canvas, x1 + (slope - PI / 8.0).sin() * 8.0, y1 + (slope - PI / 8.0).cos() * 8.0, x1, y1, color);
-    }
-    else {
-        let slope = (y2 - y1) / (x2 - x1);
-        x1 += slope.cos() * 6.0;
-        x2 -= slope.cos() * 6.0;
-        y1 += slope.sin() * 6.0;
-        y2 -= slope.sin() * 6.0;
-
-        // Draw an arrow at each end
-        draw_line(canvas, x2 - (slope + PI / 8.0).cos() * 8.0, y2 - (slope + PI / 8.0).sin() * 8.0, x2, y2, color);
-        draw_line(canvas, x2 - (slope - PI / 8.0).cos() * 8.0, y2 - (slope - PI / 8.0).sin() * 8.0, x2, y2, color);
-        draw_line(canvas, x1 + (slope + PI / 8.0).cos() * 8.0, y1 + (slope + PI / 8.0).sin() * 8.0, x1, y1, color);
-        draw_line(canvas, x1 + (slope - PI / 8.0).cos() * 8.0, y1 + (slope - PI / 8.0).sin() * 8.0, x1, y1, color);
-    }
+fn draw_arrow_line(canvas: &mut RgbaImage, start: Point<2,f32>, end: Point<2,f32>, color: Rgba<u8>) {
+    // Shorten the line slightly on both sides
+    let vector = (end - start).normal() * 6.0;
+    let start = start + vector;
+    let end = end - vector;
 
     // Draw main line
-    draw_line(canvas, x1, y1, x2, y2, color);
+    draw_line(canvas, start, end, color);
+
+    // Draw arrow arms
+    let arrow_start_left = end - vector + (vector.perpendicular() / 2.0);
+    let arrow_start_right = end - vector - (vector.perpendicular() / 2.0);
+    draw_line(canvas, arrow_start_left, end, color);
+    draw_line(canvas, arrow_start_right, end, color);
 }
 
-fn draw_line(canvas: &mut RgbaImage, mut x1: f32, mut y1: f32, mut x2: f32, mut y2: f32, color: Rgba<u8>) {
+fn draw_line(canvas: &mut RgbaImage, start: Point<2,f32>, end: Point<2,f32>, color: Rgba<u8>) {
+    let (mut x1, mut y1, mut x2, mut y2) = (start[0], start[1], end[0], end[1]);
     let steep = (y2 - y1).abs() > (x2 - x1).abs();
 
     if (steep && y1 > y2) || (!steep && x1 > x2) {

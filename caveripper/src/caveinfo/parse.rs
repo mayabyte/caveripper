@@ -149,7 +149,14 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig) -> Result<CaveUnit, 
     let waypoints = parse_sections(waypoints_file_txt)
         .change_context(CaveInfoError::RouteFile)
         .attach_printable_lazy(|| format!("{unit_folder_name}/texts/route.txt"))?
-        .map(TryInto::try_into)
+        .map(<Waypoint as TryFrom::<Section>>::try_from)
+        .map(|r| {
+            r.map(|mut wp| {
+                wp.x += width as f32 * 170.0 / 2.0;
+                wp.z += height as f32 * 170.0 / 2.0;
+                wp
+            })
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't

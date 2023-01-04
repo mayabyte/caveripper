@@ -1,7 +1,10 @@
 mod generate;
+mod waypoint;
 
 use std::{cell::RefCell, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
+use waypoint::WaypointGraph;
+use once_cell::unsync::OnceCell;
 use serde::{Serialize, ser::SerializeStruct};
 
 use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, pikmin_math, sublevel::Sublevel};
@@ -18,6 +21,7 @@ pub struct Layout<'a> {
     pub starting_seed: u32,
     pub cave_name: String,
     pub map_units: Vec<PlacedMapUnit<'a>>,
+    waypoint_graph: OnceCell<WaypointGraph>,
 }
 
 impl<'a> Layout<'a> {
@@ -41,6 +45,10 @@ impl<'a> Layout<'a> {
                     }
                 })
             })
+    }
+
+    pub fn waypoint_graph(&self) -> &WaypointGraph {
+        self.waypoint_graph.get_or_init(|| WaypointGraph::build(self))
     }
 }
 

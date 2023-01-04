@@ -291,6 +291,25 @@ impl CaveUnit {
                 door.direction = (door.direction + rotation) % 4;
             });
 
+        // Rotate waypoints around the *center* of the room
+        new_unit.waypoints.iter_mut()
+            .for_each(|wp| {
+                match rotation {
+                    1 => {
+                        (wp.x, wp.z) = (wp.z, wp.x);
+                        wp.x = -wp.x + new_unit.width as f32 * 170.0;
+                    },
+                    2 => {
+                        wp.z = -wp.z + new_unit.height as f32 * 170.0;
+                    },
+                    3 => {
+                        (wp.x, wp.z) = (wp.z, wp.x);
+                        wp.z = -wp.z + new_unit.height as f32 * 170.0;
+                    },
+                    _ => {}
+                }
+            });
+
         new_unit
     }
 
@@ -317,8 +336,8 @@ pub struct Waypoint {
     pub y: f32,
     pub z: f32,
     pub r: f32,
-    pub index: u32,
-    pub links: Vec<u32>,
+    pub index: usize,
+    pub links: Vec<usize>,
 }
 
 impl Waypoint {
