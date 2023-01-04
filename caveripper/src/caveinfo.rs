@@ -300,6 +300,7 @@ impl CaveUnit {
                         wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
                     },
                     2 => {
+                        wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
                         wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
                     },
                     3 => {
