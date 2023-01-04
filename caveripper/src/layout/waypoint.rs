@@ -1,6 +1,8 @@
 use float_ord::FloatOrd;
 use itertools::Itertools;
 use petgraph::{Graph, Direction, visit::EdgeRef, prelude::NodeIndex};
+use crate::point::Point;
+
 use super::{Layout, SpawnObject};
 
 #[derive(Debug, Clone)]
@@ -21,9 +23,8 @@ impl WaypointGraph {
                             dist_to_start: f32::MAX,
                             idx: NodeIndex::new(0),
                             visited: false,
-                            x: wp.x + (map_unit.x as f32 * 170.0),
-                            y: wp.y,
-                            z: wp.z + (map_unit.z as f32 * 170.0)
+                            pos: wp.pos + Point([(map_unit.x as f32 * 170.0), 0.0, (map_unit.z as f32 * 170.0)]),
+                            r: wp.r,
                         });
                         graph[node].idx = node;
                         node
@@ -58,9 +59,7 @@ impl WaypointGraph {
         let start_wp = graph.node_indices()
             .min_by_key(|wp| {
                 let wp = &graph[*wp];
-                let dx = wp.x - start_location.0;
-                let dz = wp.z - start_location.1;
-                FloatOrd((dx.powi(2) + dz.powi(2)).sqrt())
+                FloatOrd(wp.pos.p2_dist(&start_location))
             }).unwrap();
         graph[start_wp].dist_to_start = 0.0;
 
@@ -69,9 +68,7 @@ impl WaypointGraph {
         while !frontier.is_empty() {
             frontier.sort_by_key(|wp| {
                 let wp = &graph[*wp];
-                let dx = wp.x - start_location.0;
-                let dz = wp.z - start_location.1;
-                FloatOrd((dx.powi(2) + dz.powi(2)).sqrt() * -1.0) // Sort backwards
+                FloatOrd(wp.pos.p2_dist(&start_location) * -1.0) // Sort backwards
             });
             let closest = frontier.pop().unwrap();
             graph[closest].visited = true;
@@ -117,16 +114,12 @@ pub struct WaypointGraphNode {
     pub dist_to_start: f32,
     idx: NodeIndex,
     visited: bool,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    pub pos: Point<3,f32>,
+    pub r: f32,
 }
 
 impl WaypointGraphNode {
     pub fn dist(&self, other: &Self) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        let dz = self.z - other.z;
-        (dx.powi(2) + dy.powi(2) + dz.powi(2)).sqrt()
+        self.pos.p2_dist(&other.pos)
     }
 }

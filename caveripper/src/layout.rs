@@ -1,5 +1,5 @@
 mod generate;
-mod waypoint;
+pub(crate) mod waypoint;
 
 use std::{cell::RefCell, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
@@ -7,7 +7,7 @@ use waypoint::WaypointGraph;
 use once_cell::unsync::OnceCell;
 use serde::{Serialize, ser::SerializeStruct};
 
-use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, pikmin_math, sublevel::Sublevel};
+use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, sublevel::Sublevel, point::Point};
 
 /// Represents a generated sublevel layout.
 /// Given a seed and a CaveInfo file, a layout can be generated using a
@@ -34,14 +34,14 @@ impl<'a> Layout<'a> {
     }
 
     /// Gets all SpawnObjects in the layout plus their global coordinates
-    pub fn get_spawn_objects_with_position(&self) -> impl Iterator<Item=(&SpawnObject<'a>, (f32, f32))> {
+    pub fn get_spawn_objects_with_position(&self) -> impl Iterator<Item=(&SpawnObject<'a>, Point<3,f32>)> {
         self.map_units.iter()
             .flat_map(|unit| unit.spawnpoints.iter())
             .flat_map(|sp| {
                 sp.contains.iter().map(|so| {
                     match so {
-                        SpawnObject::Teki(_, (dx, dz)) => (so, (sp.x + dx, sp.z + dz)),
-                        _ => (so, (sp.x, sp.z))
+                        SpawnObject::Teki(_, pos) => (so, sp.pos + *pos),
+                        _ => (so, sp.pos)
                     }
                 })
             })
@@ -79,15 +79,15 @@ impl Serialize for Layout<'_> {
 
         #[derive(Serialize)]
         struct PlacedTeki<'a> {
-            name: &'a str, x: f32, y: f32, carrying: Option<&'a str>,
+            name: &'a str, x: f32, z: f32, carrying: Option<&'a str>,
         }
 
         let teki = self.get_spawn_objects_with_position()
             .filter(|(so, _)| matches!(so, SpawnObject::Teki(..) | SpawnObject::CapTeki(..)))
             .map(|(so, pos)| PlacedTeki {
                 name: so.name(),
-                x: pos.0,
-                y: pos.1,
+                x: pos[0],
+                z: pos[2],
                 carrying: if let SpawnObject::Teki(info, _) = so { info.carrying.as_deref() } else { None }
             })
             .collect::<Vec<_>>();
@@ -95,18 +95,18 @@ impl Serialize for Layout<'_> {
 
         #[derive(Serialize)]
         struct PlacedObject<'a> {
-            name: &'a str, x: f32, y: f32
+            name: &'a str, x: f32, z: f32
         }
 
         let treasures = self.get_spawn_objects_with_position()
             .filter(|(so, _)| matches!(so, SpawnObject::Item(..)))
-            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos.0, y: pos.1 })
+            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos[0], z: pos[2] })
             .collect::<Vec<_>>();
         state.serialize_field("treasures", &treasures)?;
 
         let gates = self.get_spawn_objects_with_position()
             .filter(|(so, _)| matches!(so, SpawnObject::Gate(..)))
-            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos.0, y: pos.1 })
+            .map(|(so, pos)| PlacedObject { name: so.name(), x: pos[0], z: pos[2] })
             .collect::<Vec<_>>();
         state.serialize_field("gates", &gates)?;
 
@@ -160,16 +160,15 @@ impl<'a> PlacedMapUnit<'a> {
                 let base_x = (x as f32 + (unit.width as f32 / 2.0)) * 170.0;
                 let base_z = (z as f32 + (unit.height as f32 / 2.0)) * 170.0;
                 let (actual_x, actual_z) = match unit.rotation {
-                    0 => (base_x + sp.pos_x, base_z + sp.pos_z),
-                    1 => (base_x - sp.pos_z, base_z + sp.pos_x),
-                    2 => (base_x - sp.pos_x, base_z - sp.pos_z),
-                    3 => (base_x + sp.pos_z, base_z - sp.pos_x),
+                    0 => (base_x + sp.pos[0], base_z + sp.pos[2]),
+                    1 => (base_x - sp.pos[2], base_z + sp.pos[0]),
+                    2 => (base_x - sp.pos[0], base_z - sp.pos[2]),
+                    3 => (base_x + sp.pos[2], base_z - sp.pos[0]),
                     _ => panic!("Invalid room rotation")
                 };
                 let actual_angle = (sp.angle_degrees - unit.rotation as f32 * 90.0) % 360.0;
                 PlacedSpawnPoint {
-                    x: actual_x,
-                    z: actual_z,
+                    pos: Point([actual_x, sp.pos[1], actual_z]),
                     angle: actual_angle,
                     spawnpoint_unit: sp,
                     hole_score: 0,
@@ -247,29 +246,17 @@ impl<'a> PlacedDoor<'a> {
 #[derive(Debug, Clone)]
 pub struct PlacedSpawnPoint<'a> {
     pub spawnpoint_unit: &'a SpawnPoint,
-    pub x: f32,
-    pub z: f32,
+    pub pos: Point<3,f32>,
     pub angle: f32,
     pub hole_score: u32,
     pub treasure_score: u32,
     pub contains: Vec<SpawnObject<'a>>,
 }
 
-impl<'a> PlacedSpawnPoint<'a> {
-    fn dist(&self, other: &PlacedSpawnPoint) -> f32 {
-        let dx = self.x - other.x;
-        let dz = self.z - other.z;
-        let dy = self.spawnpoint_unit.pos_y - other.spawnpoint_unit.pos_y;
-
-        pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
-    }
-}
-
-
 /// Any object that can be placed in a SpawnPoint.
 #[derive(Debug, Clone)]
 pub enum SpawnObject<'a> {
-    Teki(&'a TekiInfo, (f32, f32)), // Teki, offset from spawnpoint
+    Teki(&'a TekiInfo, Point<3,f32>), // Teki, offset from spawnpoint
     CapTeki(&'a CapInfo, u32), // Cap Teki, num_spawned
     Item(&'a ItemInfo),
     Gate(&'a GateInfo),

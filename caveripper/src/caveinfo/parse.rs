@@ -9,7 +9,7 @@ use crate::{
         DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
         Waterbox, Waypoint
     },
-    assets::{AssetManager, CaveConfig}
+    assets::{AssetManager, CaveConfig}, point::Point
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -150,10 +150,11 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig) -> Result<CaveUnit, 
         .change_context(CaveInfoError::RouteFile)
         .attach_printable_lazy(|| format!("{unit_folder_name}/texts/route.txt"))?
         .map(<Waypoint as TryFrom::<Section>>::try_from)
+        // Move the coordinates so they're oriented around the center of the unit
         .map(|r| {
             r.map(|mut wp| {
-                wp.x += width as f32 * 170.0 / 2.0;
-                wp.z += height as f32 * 170.0 / 2.0;
+                wp.pos[0] += width as f32 * 170.0 / 2.0;
+                wp.pos[2] += height as f32 * 170.0 / 2.0;
                 wp
             })
         })
@@ -168,9 +169,7 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig) -> Result<CaveUnit, 
         spawnpoints.push(
             SpawnPoint {
                 group: 9,
-                pos_x: 0.0,
-                pos_y: 0.0,
-                pos_z: 0.0,
+                pos: Point::default(),
                 angle_degrees: 0.0,
                 radius: 0.0,
                 min_num: 1,
@@ -356,9 +355,11 @@ impl TryFrom<Section<'_>> for SpawnPoint {
         Ok(
             SpawnPoint {
                 group: section.get_line(0)?.get_line_item(0)?,
-                pos_x: section.get_line(1)?.get_line_item(0)?,
-                pos_y: section.get_line(1)?.get_line_item(1)?,
-                pos_z: section.get_line(1)?.get_line_item(2)?,
+                pos: Point([
+                    section.get_line(1)?.get_line_item(0)?,
+                    section.get_line(1)?.get_line_item(1)?,
+                    section.get_line(1)?.get_line_item(2)?,
+                ]),
                 angle_degrees: section.get_line(2)?.get_line_item(0)?,
                 radius: section.get_line(3)?.get_line_item(0)?,
                 min_num: section.get_line(4)?.get_line_item(0)?,
@@ -375,12 +376,16 @@ impl TryFrom<Section<'_>> for Vec<Waterbox> {
         let mut waterboxes = Vec::with_capacity(num_waterboxes);
         for i in 0..num_waterboxes {
             waterboxes.push(Waterbox {
-                x1: section.get_line(i+1)?.get_line_item(0)?,
-                y1: section.get_line(i+1)?.get_line_item(1)?,
-                z1: section.get_line(i+1)?.get_line_item(2)?,
-                x2: section.get_line(i+1)?.get_line_item(3)?,
-                y2: section.get_line(i+1)?.get_line_item(4)?,
-                z2: section.get_line(i+1)?.get_line_item(5)?,
+                p1: Point([
+                    section.get_line(i+1)?.get_line_item(0)?,
+                    section.get_line(i+1)?.get_line_item(1)?,
+                    section.get_line(i+1)?.get_line_item(2)?,
+                ]),
+                p2: Point([
+                    section.get_line(i+1)?.get_line_item(3)?,
+                    section.get_line(i+1)?.get_line_item(4)?,
+                    section.get_line(i+1)?.get_line_item(5)?,
+                ])
             });
         }
         Ok(waterboxes)
@@ -393,9 +398,11 @@ impl TryFrom<Section<'_>> for Waypoint {
         let num_links: usize = section.get_line(1)?.get_line_item(0)?;
         let coords_line = section.get_line(num_links + 2)?;
         Ok(Waypoint {
-            x: coords_line.get_line_item(0)?,
-            y: coords_line.get_line_item(1)?,
-            z: coords_line.get_line_item(2)?,
+            pos: Point([
+                coords_line.get_line_item(0)?,
+                coords_line.get_line_item(1)?,
+                coords_line.get_line_item(2)?,
+            ]),
             r: coords_line.get_line_item(3)?,
             index: section.get_line(0)?.get_line_item(0)?,
             links: (2..num_links+2).into_iter()

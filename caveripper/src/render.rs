@@ -153,21 +153,26 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
 
     // Draw waypoints, if enabled
     if options.draw_waypoints {
-        let wp_img = circle(16, WAYPOINT_COLOR.into());
         for wp in layout.waypoint_graph().iter() {
-            let x = wp.x * COORD_FACTOR;
-            let z = wp.z * COORD_FACTOR;
+            let wp_img = circle(((wp.r * COORD_FACTOR).log2() * 3.0) as u32, WAYPOINT_COLOR.into());
+            let pos = wp.pos * COORD_FACTOR;
             overlay(
                 &mut canvas,
                 &wp_img,
-                x as i64 - wp_img.width() as i64 / 2,
-                z as i64 - wp_img.height() as i64 / 2
+                pos[0] as i64 - wp_img.width() as i64 / 2,
+                pos[2] as i64 - wp_img.height() as i64 / 2
             );
+        }
 
+        // Draw the arrows afterwards so they appear on top
+        for wp in layout.waypoint_graph().iter() {
             if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-                let bx = backlink.x * COORD_FACTOR;
-                let bz = backlink.z * COORD_FACTOR;
-                draw_arrow_line(&mut canvas, Point{values:[x, z]}, Point{values:[bx, bz]}, CARRY_PATH_COLOR.into());
+                draw_arrow_line(
+                    &mut canvas,
+                    (wp.pos * COORD_FACTOR).into(),
+                    (backlink.pos * COORD_FACTOR).into(),
+                    CARRY_PATH_COLOR.into()
+                );
             }
         }
     }
@@ -176,16 +181,16 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
     for spawnpoint in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
         for spawn_object in spawnpoint.contains.iter() {
             match spawn_object {
-                SpawnObject::Teki(tekiinfo, (dx, dz)) => {
-                    draw_object_at(&mut canvas, tekiinfo, spawnpoint.x + dx, spawnpoint.z + dz, &layout.sublevel.cfg.game, &options)
+                SpawnObject::Teki(tekiinfo, pos) => {
+                    draw_object_at(&mut canvas, tekiinfo, (spawnpoint.pos + *pos).into(), &layout.sublevel.cfg.game, &options)
                     .change_context(CaveripperError::RenderingError)?;
                 },
                 SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    draw_object_at(&mut canvas, capinfo, spawnpoint.x - 30.0, spawnpoint.z - 30.0, &layout.sublevel.cfg.game, &options)
+                    draw_object_at(&mut canvas, capinfo, (spawnpoint.pos - 30.0).into(), &layout.sublevel.cfg.game, &options)
                     .change_context(CaveripperError::RenderingError)?;
                 },
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, spawnpoint.x, spawnpoint.z, &layout.sublevel.cfg.game, &options)
+                    draw_object_at(&mut canvas, spawn_object, spawnpoint.pos.into(), &layout.sublevel.cfg.game, &options)
                     .change_context(CaveripperError::RenderingError)?;
                 },
             }
@@ -212,17 +217,17 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
                         draw_object_at(
                             &mut canvas,
                             &WithCustomTexture{ inner: gateinfo, custom_texture: rotate90(texture) },
-                            x, z, &layout.sublevel.cfg.game, &options
+                            Point([x, z]), &layout.sublevel.cfg.game, &options
                         )
                         .change_context(CaveripperError::RenderingError)?;
                     }
                     else {
-                        draw_object_at(&mut canvas, gateinfo, x, z, &layout.sublevel.cfg.game, &options)
+                        draw_object_at(&mut canvas, gateinfo, Point([x, z]), &layout.sublevel.cfg.game, &options)
                         .change_context(CaveripperError::RenderingError)?;
                     }
                 }
                 _ => {
-                    draw_object_at(&mut canvas, spawn_object, x, z, &layout.sublevel.cfg.game, &options)
+                    draw_object_at(&mut canvas, spawn_object, Point([x, z]), &layout.sublevel.cfg.game, &options)
                     .change_context(CaveripperError::RenderingError)?;
                 },
             }
@@ -545,8 +550,8 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         );
 
         for spawnpoint in unit.spawnpoints.iter() {
-            let sp_x = (spawnpoint.pos_x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
-            let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
+            let sp_x = (spawnpoint.pos[0] * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
+            let sp_z = (spawnpoint.pos[2] * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
 
             let sp_img = match spawnpoint.group {
                 6 => colorize(resize(AssetManager::get_img("resources/enemytex_special/leaf_icon.png").change_context(CaveripperError::RenderingError)?, 10, 10, FilterType::Lanczos3), group_color(6).into()),
@@ -597,29 +602,27 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
 
         if options.draw_waypoints {
             for waypoint in unit.waypoints.iter() {
-                let wp_x = waypoint.x * COORD_FACTOR;
-                let wp_z = waypoint.z * COORD_FACTOR;
+                let wp_pos = waypoint.pos * COORD_FACTOR;
                 let wp_img_radius = (waypoint.r * COORD_FACTOR).log2() * 3.0;
 
                 let wp_img = circle(wp_img_radius as u32, WAYPOINT_COLOR.into());
-                overlay(&mut unit_texture, &wp_img, wp_x as i64 - (wp_img.width() / 2) as i64, wp_z as i64 - (wp_img.height() / 2) as i64);
+                overlay(&mut unit_texture, &wp_img, wp_pos[0] as i64 - (wp_img.width() / 2) as i64, wp_pos[2] as i64 - (wp_img.height() / 2) as i64);
 
                 for link in waypoint.links.iter() {
                     let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
-                    let dest_x = dest_wp.x * COORD_FACTOR;
-                    let dest_z = dest_wp.z * COORD_FACTOR;
-                    draw_arrow_line(&mut unit_texture, Point{values:[wp_x, wp_z]}, Point{values:[dest_x, dest_z]}, CARRY_PATH_COLOR.into());
+                    let dest_wp_pos = dest_wp.pos * COORD_FACTOR;
+                    draw_arrow_line(&mut unit_texture, wp_pos.into(), dest_wp_pos.into(), CARRY_PATH_COLOR.into());
 
                     if options.draw_waypoint_distances {
                         let distance_text = render_small_text(
-                            &format!("{}",waypoint.dist(dest_wp) as u32 / 10),
+                            &format!("{}",waypoint.pos.p2_dist(&dest_wp.pos) as u32 / 10),
                             10.0, WAYPOINT_DIST_TXT_COLOR.into()
                         );
                         overlay(
                             &mut unit_texture,
                             &distance_text,
-                            (wp_x - (wp_x - dest_x) / 2.0) as i64 - (distance_text.width() / 2) as i64,
-                            (wp_z - (wp_z - dest_z) / 2.0) as i64  - (distance_text.height() / 2) as i64
+                            (wp_pos[0] - (wp_pos[0] - dest_wp_pos[0]) / 2.0) as i64 - (distance_text.width() / 2) as i64,
+                            (wp_pos[2] - (wp_pos[2] - dest_wp_pos[2]) / 2.0) as i64  - (distance_text.height() / 2) as i64
                         )
                     }
                 }
@@ -627,8 +630,8 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> R
         }
 
         for spawnpoint in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
-            let sp_x = (spawnpoint.pos_x * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
-            let sp_z = (spawnpoint.pos_z * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
+            let sp_x = (spawnpoint.pos[0] * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
+            let sp_z = (spawnpoint.pos[2] * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
 
             let sp_img = match spawnpoint.group {
                 0 => circle((spawnpoint.radius * COORD_FACTOR) as u32, group_color(0).into()),
@@ -741,18 +744,18 @@ fn draw_line(canvas: &mut RgbaImage, start: Point<2,f32>, end: Point<2,f32>, col
     }
 }
 
-fn draw_ring(canvas: &mut RgbaImage, x: f32, y: f32, r: f32, color: Rgba<u8>) {
+fn draw_ring(canvas: &mut RgbaImage, pos: Point<2,f32>, r: f32, color: Rgba<u8>) {
     for i in 0..=(r as i32) {
         let offset = i as f32;
         let height = (r.powi(2) - offset.powi(2)).sqrt();
-        try_blend(canvas, (x - offset) as i64, (y + height) as i64, color);
-        try_blend(canvas, (x - offset) as i64, (y - height) as i64, color);
-        try_blend(canvas, (x + offset) as i64, (y + height) as i64, color);
-        try_blend(canvas, (x + offset) as i64, (y - height) as i64, color);
-        try_blend(canvas, (x - height) as i64, (y + offset) as i64, color);
-        try_blend(canvas, (x - height) as i64, (y - offset) as i64, color);
-        try_blend(canvas, (x + height) as i64, (y + offset) as i64, color);
-        try_blend(canvas, (x + height) as i64, (y - offset) as i64, color);
+        try_blend(canvas, (pos[0] - offset) as i64, (pos[1] + height) as i64, color);
+        try_blend(canvas, (pos[0] - offset) as i64, (pos[1] - height) as i64, color);
+        try_blend(canvas, (pos[0] + offset) as i64, (pos[1] + height) as i64, color);
+        try_blend(canvas, (pos[0] + offset) as i64, (pos[1] - height) as i64, color);
+        try_blend(canvas, (pos[0] - height) as i64, (pos[1] + offset) as i64, color);
+        try_blend(canvas, (pos[0] - height) as i64, (pos[1] - offset) as i64, color);
+        try_blend(canvas, (pos[0] + height) as i64, (pos[1] + offset) as i64, color);
+        try_blend(canvas, (pos[0] + height) as i64, (pos[1] - offset) as i64, color);
     }
 }
 
@@ -765,7 +768,7 @@ fn try_blend(canvas: &mut RgbaImage, x: i64, y: i64, color: Rgba<u8>) {
 }
 
 // x and z are world coordinates, not image or map unit coordinates
-fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32, z: f32, game: &str, options: &LayoutRenderOptions) -> Result<(), CaveripperError> {
+fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, pos: Point<2,f32>, game: &str, options: &LayoutRenderOptions) -> Result<(), CaveripperError> {
     let mut texture = Cow::Borrowed(obj.get_texture(game)?);
 
     // Modifiers to be applied before ('under') the main texture, or to the texture itself
@@ -777,8 +780,8 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
                 overlay(
                     image_buffer,
                     &circle_tex,
-                    ((x * COORD_FACTOR) - circle_size) as i64,
-                    ((z * COORD_FACTOR) - circle_size) as i64
+                    ((pos[0] * COORD_FACTOR) - circle_size) as i64,
+                    ((pos[1] * COORD_FACTOR) - circle_size) as i64
                 );
             },
             TextureModifier::Scale(xsize, zsize) => {
@@ -788,8 +791,8 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
         }
     }
 
-    let img_x = ((x * COORD_FACTOR) - (texture.width() as f32 / 2.0)) as i64;
-    let img_z = ((z * COORD_FACTOR) - (texture.height() as f32 / 2.0)) as i64;
+    let img_x = ((pos[0] * COORD_FACTOR) - (texture.width() as f32 / 2.0)) as i64;
+    let img_z = ((pos[1] * COORD_FACTOR) - (texture.height() as f32 / 2.0)) as i64;
 
     // Draw the main texture
     overlay(image_buffer, &*texture, img_x, img_z);
@@ -814,8 +817,8 @@ fn draw_object_at<Tex: Textured>(image_buffer: &mut RgbaImage, obj: &Tex, x: f32
             TextureModifier::GaugeRing if options.draw_gauge_range => {
                 let radius1 = 775.0 * COORD_FACTOR;  // Radius at which the gauge needle starts to go up
                 let radius2 = 450.0 * COORD_FACTOR;  // Radius at which you start to get audible pings
-                draw_ring(image_buffer, x * COORD_FACTOR, z * COORD_FACTOR, radius1, [210,0,240,120].into());
-                draw_ring(image_buffer, x * COORD_FACTOR, z * COORD_FACTOR, radius2, [210,0,120,120].into());
+                draw_ring(image_buffer, pos * COORD_FACTOR, radius1, [210,0,240,120].into());
+                draw_ring(image_buffer, pos * COORD_FACTOR, radius2, [210,0,120,120].into());
             },
             _ => {}
         }
@@ -1148,10 +1151,10 @@ impl Textured for CaveUnit {
 
         for waterbox in self.waterboxes.iter() {
             let (x1, z1, x2, z2) = match self.rotation {
-                0 => (waterbox.x1, waterbox.z1, waterbox.x2, waterbox.z2),
-                1 => (-waterbox.z2, waterbox.x1, -waterbox.x1, waterbox.x2),
-                2 => (-waterbox.x2, -waterbox.z2, -waterbox.x1, -waterbox.z1),
-                3 => (waterbox.z1, -waterbox.x2, waterbox.z2, -waterbox.x1),
+                0 => (waterbox.p1[0], waterbox.p1[2], waterbox.p2[0], waterbox.p2[2]),
+                1 => (-waterbox.p2[2], waterbox.p1[0], -waterbox.p1[0], waterbox.p2[0]),
+                2 => (-waterbox.p2[0], -waterbox.p2[2], -waterbox.p1[0], -waterbox.p1[2]),
+                3 => (waterbox.p1[2], -waterbox.p2[0], waterbox.p2[2], -waterbox.p1[0]),
                 _ => panic!("Invalid rotation"),
             };
             let x1 = x1 * COORD_FACTOR;

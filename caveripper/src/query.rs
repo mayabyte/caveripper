@@ -12,7 +12,6 @@ use crate::{
     caveinfo::{RoomType, CaveUnit, TekiInfo, CapInfo},
     assets::AssetManager,
     sublevel::Sublevel,
-    pikmin_math::dist,
 };
 
 #[derive(Parser)]
@@ -128,12 +127,12 @@ impl QueryKind {
             },
             QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist } => {
                 let e1s = layout.get_spawn_objects_with_position()
-                    .filter(|(so, (_, _))| entity1.matches(so));
+                    .filter(|(so, _)| entity1.matches(so));
                 let e2s = layout.get_spawn_objects_with_position()
-                    .filter(|(so, (_, _))| entity2.matches(so));
+                    .filter(|(so, _)| entity2.matches(so));
                 e1s.cartesian_product(e2s.collect_vec())
-                    .any(|((_, (x1, z1)), (_, (x2, z2)))| {
-                        let d = dist(x1, z1, x2, z2);
+                    .any(|((_, pos1), (_, pos2))| {
+                        let d = pos1.p2_dist(&pos2);
                         d.partial_cmp(req_dist).map(|ordering| ordering == *relationship).unwrap_or(false)
                     })
             },

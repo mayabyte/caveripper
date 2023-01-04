@@ -16,7 +16,7 @@ use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use parse::parse_caveinfo;
 use serde::Serialize;
 use error_stack::{Result, Report, report, ResultExt};
-use crate::{errors::CaveripperError, assets::CaveConfig, pikmin_math};
+use crate::{errors::CaveripperError, assets::CaveConfig, point::Point};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -296,15 +296,15 @@ impl CaveUnit {
             .for_each(|wp| {
                 match rotation {
                     1 => {
-                        (wp.x, wp.z) = (wp.z, wp.x);
-                        wp.x = -wp.x + new_unit.width as f32 * 170.0;
+                        wp.pos.swap(0, 2);
+                        wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
                     },
                     2 => {
-                        wp.z = -wp.z + new_unit.height as f32 * 170.0;
+                        wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
                     },
                     3 => {
-                        (wp.x, wp.z) = (wp.z, wp.x);
-                        wp.z = -wp.z + new_unit.height as f32 * 170.0;
+                        wp.pos.swap(0, 2);
+                        wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
                     },
                     _ => {}
                 }
@@ -322,31 +322,16 @@ impl CaveUnit {
 /// Defines a cuboid of water in a room tile.
 #[derive(Debug, Clone, Serialize)]
 pub struct Waterbox {
-    pub x1: f32,
-    pub y1: f32,
-    pub z1: f32,
-    pub x2: f32,
-    pub y2: f32,
-    pub z2: f32,
+    pub p1: Point<3,f32>,
+    pub p2: Point<3,f32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Waypoint {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    pub pos: Point<3,f32>,
     pub r: f32,
     pub index: usize,
     pub links: Vec<usize>,
-}
-
-impl Waypoint {
-    pub fn dist(&self, other: &Waypoint) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        let dz = self.z - other.z;
-        pikmin_math::sqrt(dx*dx + dy*dy + dz*dz)
-    }
 }
 
 
@@ -427,9 +412,7 @@ impl Display for RoomType {
 #[derive(Debug, Clone, Serialize)]
 pub struct SpawnPoint {
     pub group: u16,
-    pub pos_x: f32,  // Positions are all relative to the origin of the unit they belong to, NOT global coords.
-    pub pos_y: f32,
-    pub pos_z: f32,
+    pub pos: Point<3,f32>,  // Position is relative to the origin of the unit they belong to, NOT global coords.
     pub angle_degrees: f32,
     pub radius: f32,
     pub min_num: u16,

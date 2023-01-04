@@ -10,7 +10,7 @@ use crate::{
         PlacedSpawnPoint,
         Layout,
         boxes_overlap
-    }, sublevel::Sublevel,
+    }, sublevel::Sublevel, point::Point,
 };
 
 pub struct LayoutBuilder<'a> {
@@ -587,8 +587,8 @@ impl<'a> LayoutBuilder<'a> {
             map_unit.x -= min_x;
             map_unit.z -= min_z;
             for spawnpoint in map_unit.spawnpoints.iter_mut() {
-                spawnpoint.x -= (min_x as f32) * 170.0;
-                spawnpoint.z -= (min_z as f32) * 170.0;
+                spawnpoint.pos[0] -= (min_x as f32) * 170.0;
+                spawnpoint.pos[2] -= (min_z as f32) * 170.0;
             }
             for door in map_unit.doors.iter_mut() {
                 let mut door = door.borrow_mut();
@@ -607,7 +607,7 @@ impl<'a> LayoutBuilder<'a> {
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
             candidates[chosen].contains.push(SpawnObject::Ship);
             self.placed_start_point = Some(candidates[chosen].clone());
-            debug!("Placed ship pod at ({}, {}).", candidates[chosen].x, candidates[chosen].z);
+            debug!("Placed ship pod at {}.", candidates[chosen].pos);
         }
 
         self.set_score();
@@ -661,7 +661,7 @@ impl<'a> LayoutBuilder<'a> {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 5, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0))));
+                    chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn, Point::default())));
                     chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
                     self.placed_teki += 1;
                     debug!(
@@ -688,9 +688,9 @@ impl<'a> LayoutBuilder<'a> {
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 8
                     && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 150.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 150.0).unwrap_or(true)
+                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 150.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 150.0).unwrap_or(true)
                 })
                 .collect();
 
@@ -708,14 +708,9 @@ impl<'a> LayoutBuilder<'a> {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 8, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, Point::default()));
                     self.placed_teki += 1;
-                    debug!(
-                        "Placed Teki \'{}\' in Group 8 at ({}, {}).",
-                        teki_to_spawn.internal_name,
-                        chosen_spot.x,
-                        chosen_spot.z
-                    );
+                    debug!("Placed Teki \'{}\' in Group 8 at {}.", teki_to_spawn.internal_name, chosen_spot.pos);
                 }
                 else {
                     break;
@@ -732,9 +727,9 @@ impl<'a> LayoutBuilder<'a> {
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 1
                     && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.dist(spawnpoint) >= 200.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.dist(spawnpoint) >= 200.0).unwrap_or(true)
+                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
+                    && self.placed_exit_hole.as_ref().map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 200.0).unwrap_or(true)
+                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 200.0).unwrap_or(true)
                 })
                 .collect();
 
@@ -752,14 +747,9 @@ impl<'a> LayoutBuilder<'a> {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 1, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, Point::default()));
                     self.placed_teki += 1;
-                    debug!(
-                        "Placed Teki \'{}\' in Group 1 at ({}, {}).",
-                        teki_to_spawn.internal_name,
-                        chosen_spot.x,
-                        chosen_spot.z
-                    );
+                    debug!("Placed Teki \'{}\' in Group 1 at {}.", teki_to_spawn.internal_name, chosen_spot.pos);
                 }
                 else {
                     break;
@@ -776,7 +766,7 @@ impl<'a> LayoutBuilder<'a> {
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 0
                     && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().dist(spawnpoint) >= 300.0
+                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
                 })
                 .collect();
 
@@ -835,10 +825,9 @@ impl<'a> LayoutBuilder<'a> {
                         let angle = std::f32::consts::PI * 2.0 * self.rng.rand_f32();
 
                         // Note that sin and cos are opposite to what they would usually be.
-                        let initial_x_offset = angle.sin() * radius;
-                        let initial_z_offset = angle.cos() * radius;
+                        let offset = Point([angle.sin() * radius, 0.0, angle.cos() * radius]);
 
-                        to_spawn.push(SpawnObject::Teki(teki_to_spawn, (initial_x_offset, initial_z_offset)));
+                        to_spawn.push(SpawnObject::Teki(teki_to_spawn, offset));
                         num_spawned += 1;
                         self.placed_teki += 1;
                     }
@@ -862,22 +851,16 @@ impl<'a> LayoutBuilder<'a> {
                                     )
                                 };
 
-                                if let (SpawnObject::Teki(_, (t1x, t1z)), SpawnObject::Teki(_, (t2x, t2z))) = (t1, t2) {
-                                    let dx = *t1x - *t2x;
-                                    let dz = *t1z - *t2z;
+                                let (SpawnObject::Teki(_, pos1), SpawnObject::Teki(_, pos2)) = (t1, t2)
+                                    else { panic!(); /* should always succeed */};
 
-                                    let dist = pikmin_math::sqrt(dx*dx + dz*dz);
-                                    if dist > 0.0 && dist < 35.0 {
-                                        let multiplier = 0.5 * (35.0 - dist) / dist;
-                                        *t1x += dx * multiplier;
-                                        *t1z += dz * multiplier;
-                                        *t2x += dx * multiplier;
-                                        *t2z += dz * multiplier;
-                                    }
-                                }
-                                else {
-                                    // binding should always succeed
-                                    unreachable!();
+                                let delta = *pos1 - *pos2;
+                                let dist = pos1.p2_dist(pos2);
+
+                                if dist > 0.0 && dist < 35.0 {
+                                    let multiplier = 0.5 * (35.0 - dist) / dist;
+                                    *pos1 += delta * multiplier;
+                                    *pos2 += delta * multiplier;
                                 }
                             }
                         }
@@ -887,11 +870,10 @@ impl<'a> LayoutBuilder<'a> {
                     let num_spawned_final = to_spawn.len();
                     chosen_spot.contains.append(&mut to_spawn);
                     debug!(
-                        "Placed {} Teki \'{}\' in Group 0 near the spawnpoint at ({}, {}).",
+                        "Placed {} Teki \'{}\' in Group 0 near the spawnpoint at {}.",
                         num_spawned_final,
                         teki_to_spawn.internal_name,
-                        chosen_spot.x,
-                        chosen_spot.z
+                        chosen_spot.pos,
                     );
                 }
                 else {
@@ -934,13 +916,12 @@ impl<'a> LayoutBuilder<'a> {
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 6, num_spawned);
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
-                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, (0.0, 0.0)));
+                    chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, Point::default()));
                     self.placed_teki += 1;
                     debug!(
-                        "Placed Plant-Group Teki \'{}\' at ({}, {}).",
+                        "Placed Plant-Group Teki \'{}\' at {}.",
                         teki_to_spawn.internal_name,
-                        chosen_spot.x,
-                        chosen_spot.z
+                        chosen_spot.pos
                     );
                 }
                 else {
@@ -1021,7 +1002,8 @@ impl<'a> LayoutBuilder<'a> {
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
                     chosen_spot.contains.push(SpawnObject::Item(chosen_treasure));
-                    debug!("Placed treasure \"{}\" at ({}, {}) - score {}.", chosen_treasure.internal_name, chosen_spot.x, chosen_spot.z, chosen_spot.treasure_score);
+                    debug!("Placed treasure \"{}\" at {} - score {}.",
+                        chosen_treasure.internal_name, chosen_spot.pos, chosen_spot.treasure_score);
                 }
             }
         }
@@ -1046,7 +1028,7 @@ impl<'a> LayoutBuilder<'a> {
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, false) {
                     spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
                     num_spawned += num_to_spawn;
-                    debug!("Spawned Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
+                    debug!("Spawned Cap Teki \"{}\" in cap at {}.", teki_to_spawn.internal_name, spawnpoint.pos);
                 }
             }
 
@@ -1072,7 +1054,7 @@ impl<'a> LayoutBuilder<'a> {
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
                     spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
                     num_spawned += num_to_spawn;
-                    debug!("Spawned Falling Cap Teki \"{}\" in cap at ({}, {}).", teki_to_spawn.internal_name, spawnpoint.x, spawnpoint.z);
+                    debug!("Spawned Falling Cap Teki \"{}\" in cap at {}.", teki_to_spawn.internal_name, spawnpoint.pos);
                 }
             }
         }
@@ -1280,7 +1262,7 @@ impl<'a> LayoutBuilder<'a> {
                         continue;
                     }
 
-                    let dist_to_start = self.placed_start_point.as_ref().unwrap().dist(spawnpoint);
+                    let dist_to_start = self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos);
                     if (spawnpoint.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawnpoint.spawnpoint_unit.group == 9) {
                         spawnpoint.hole_score = score;
                         hole_spawnpoints.push(spawnpoint);
@@ -1317,11 +1299,11 @@ impl<'a> LayoutBuilder<'a> {
         match to_place {
             SpawnObject::Hole(_) => {
                 self.placed_exit_hole = Some(hole_location.to_owned());
-                debug!("Placed Exit Hole at ({}, {}).", hole_location.x, hole_location.z);
+                debug!("Placed Exit Hole at {}.", hole_location.pos);
             },
             SpawnObject::Geyser(_) => {
                 self.placed_exit_geyser = Some(hole_location.to_owned());
-                debug!("Placed Exit Geyser at ({}, {}).", hole_location.x, hole_location.z);
+                debug!("Placed Exit Geyser at {}.", hole_location.pos);
             },
             _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
         }
