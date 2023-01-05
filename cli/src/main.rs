@@ -21,7 +21,7 @@ use caveripper::{
         save_image,
         render_caveinfo
     },
-    search::find_matching_layouts_parallel,
+    query::find_matching_layouts_parallel,
     parse_seed, errors::CaveripperError
 };
 use simple_logger::SimpleLogger;

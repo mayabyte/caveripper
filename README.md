@@ -121,5 +121,5 @@ General guide to the most important parts of the source tree:
 - `caveripper/src/caveinfo/` contains everything relating to loading, reading, and parsing the game's Caveinfo files.
 - `caveripper/src/layout/generate.rs` contains the Cave Generation algorithm. This is currently a very straightforward port of the logic in JHawk's implementation, so reading it can be difficult in places.
 - `caveripper/src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
-- `caveripper/src/search.rs` is where the layout search conditions are defined. If you want to add a custom search condition, this file is probably the place to do it.
+- `caveripper/src/query/query.rs` is where the layout search conditions are defined. If you want to add a custom search condition, this file is probably the place to do it.
 - `reference/` contains reference implementations in Java of certain important functions for comparison against my own implementations. These are largely copied from JHawk's implementation of Cavegen.

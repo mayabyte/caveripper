@@ -24,7 +24,7 @@ use self::section::{Section, InfoLine};
 use super::error::CaveInfoError;
 
 #[derive(Parser)]
-#[grammar = "caveinfo/p2_cfg_grammar.pest"]
+#[grammar = "caveinfo/parse/p2_cfg_grammar.pest"]
 struct CaveinfoParser;
 
 

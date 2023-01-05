@@ -11,17 +11,29 @@ use error_stack::{Report, report, IntoReport, ResultExt};
 use errors::CaveripperError;
 use rand::random;
 
+
+// This module style is chosen to keep all related files grouped in the same folder
+// without introducing many files named "mod.rs".
+
+#[path = "caveinfo/caveinfo.rs"]
 pub mod caveinfo;
+
 #[allow(clippy::bool_to_int_with_if)]
+#[path = "layout/layout.rs"]
 pub mod layout;
-pub mod render;
-pub mod pikmin_math;
-pub mod assets;
-pub mod sublevel;
+
+#[path = "query/query.rs"]
 pub mod query;
-pub mod search;
+
+#[path = "assets/assets.rs"]
+pub mod assets;
+
+#[path = "render/render.rs"]
+pub mod render;
+
+pub mod sublevel;
 pub mod errors;
-mod pinmap;
+mod pikmin_math;
 mod point;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {

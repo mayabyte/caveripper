@@ -3,7 +3,7 @@ use num::{Zero, traits::real::Real};
 use serde::{Serialize, ser::SerializeSeq};
 use std::{ops::{Add, Mul, Div, Sub, AddAssign, Index, Neg, IndexMut}, fmt::Display};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Point<const N: usize, T>(pub [T; N]);
 
 impl<const N: usize, T> Point<N, T> {
@@ -69,14 +69,6 @@ impl<const N: usize, T> IndexMut<usize> for Point<N, T> {
     }
 }
 
-impl<const N: usize, T: Clone> Clone for Point<N, T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<const N: usize, T: Copy + Clone> Copy for Point<N, T> {}
-
 impl<const N: usize, T: Display> Display for Point<N, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({})", self.0.iter().join(", "))
@@ -89,7 +81,7 @@ impl<const N: usize, T: Default + Copy> Default for Point<N, T> {
     }
 }
 
-/// Conversion between 3D and 2D coordinates by removing Y.
+/// Conversion from 3D to 2D coordinates by removing Y.
 impl<T: Copy> From<Point<3,T>> for Point<2,T> {
     fn from(value: Point<3,T>) -> Self {
         Self([value[0], value[2]])

@@ -1,3 +1,5 @@
+mod pinmap;
+
 use std::collections::{HashSet, HashMap};
 use std::fs::{read_to_string, read_dir, read};
 use std::path::{Path, PathBuf};
@@ -11,7 +13,7 @@ use error_stack::{Result, IntoReport, ResultExt};
 
 use crate::caveinfo::CaveInfo;
 use crate::errors::CaveripperError;
-use crate::pinmap::PinMap;
+use pinmap::PinMap;
 use crate::sublevel::{Sublevel, DIRECT_MODE_TAG};
 
 static ASSETS: OnceCell<AssetManager> = OnceCell::new();

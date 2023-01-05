@@ -1,5 +1,9 @@
+mod search;
+
 #[cfg(test)]
 mod test;
+
+pub use search::find_matching_layouts_parallel;
 
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
 use error_stack::{Report, report, ResultExt, IntoReport};
