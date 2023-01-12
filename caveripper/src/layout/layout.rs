@@ -1,7 +1,7 @@
 mod generate;
 pub(crate) mod waypoint;
 
-use std::{cell::RefCell, rc::{Rc, Weak}};
+use std::{cell::{RefCell, Ref}, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
 use waypoint::WaypointGraph;
 use once_cell::unsync::OnceCell;
@@ -29,13 +29,9 @@ impl<'a> Layout<'a> {
         LayoutBuilder::generate(seed, caveinfo)
     }
 
-    pub fn get_spawn_objects<'b: 'a>(&'b self) -> impl Iterator<Item=&SpawnObject<'a>> + 'b {
-        self.map_units.iter().flat_map(|unit| unit.spawn_objects())
-    }
-
     /// Gets all SpawnObjects in the layout plus their global coordinates
-    pub fn get_spawn_objects_with_position(&self) -> impl Iterator<Item=(&SpawnObject<'a>, Point<3,f32>)> {
-        self.map_units.iter()
+    pub fn get_spawn_objects(&self) -> impl Iterator<Item=(&SpawnObject<'a>, Point<3,f32>)> {
+        let room_sps = self.map_units.iter()
             .flat_map(|unit| unit.spawnpoints.iter())
             .flat_map(|sp| {
                 sp.contains.iter().map(|so| {
@@ -44,7 +40,26 @@ impl<'a> Layout<'a> {
                         _ => (so, sp.pos)
                     }
                 })
-            })
+            });
+        let seam_sps = self.map_units.iter()
+            .flat_map(|unit| unit.doors.iter())
+            .filter_map(|door| {
+                // Doing this means these spawnpoints can never be mutably borrowed again, but that's
+                // fine since the layout is already fully generated and shouldn't require modification.
+                let door = Ref::leak(door.borrow());
+                Option::as_ref(&door.seam_spawnpoint)
+                    .map(|so| {
+                        let mut door_pos = Point([door.x as f32 * 170.0, 0.0, door.z as f32 * 170.0]);
+                        if door.door_unit.direction % 2 == 0 {
+                            door_pos[0] += 85.0;
+                        }
+                        else {
+                            door_pos[2] += 85.0;
+                        }
+                        (so, door_pos)
+                    })
+            });
+        room_sps.chain(seam_sps)
     }
 
     pub fn waypoint_graph(&self) -> &WaypointGraph {
@@ -60,17 +75,17 @@ impl Serialize for Layout<'_> {
         state.serialize_field("name", &self.sublevel.short_name())?;
         state.serialize_field("seed", &self.starting_seed)?;
         state.serialize_field("ship",
-            &self.get_spawn_objects_with_position()
+            &self.get_spawn_objects()
                 .find(|(so, _)| matches!(so, SpawnObject::Ship))
                 .map(|(_, pos)| pos)
         )?;
         state.serialize_field("hole",
-            &self.get_spawn_objects_with_position()
+            &self.get_spawn_objects()
                 .find(|(so, _)| matches!(so, SpawnObject::Hole(..)))
                 .map(|(_, pos)| pos)
         )?;
         state.serialize_field("geyser",
-            &self.get_spawn_objects_with_position()
+            &self.get_spawn_objects()
                 .find(|(so, _)| matches!(so, SpawnObject::Geyser(..)))
                 .map(|(_, pos)| pos)
         )?;
@@ -82,7 +97,7 @@ impl Serialize for Layout<'_> {
             name: &'a str, x: f32, z: f32, carrying: Option<&'a str>,
         }
 
-        let teki = self.get_spawn_objects_with_position()
+        let teki = self.get_spawn_objects()
             .filter(|(so, _)| matches!(so, SpawnObject::Teki(..) | SpawnObject::CapTeki(..)))
             .map(|(so, pos)| PlacedTeki {
                 name: so.name(),
@@ -98,13 +113,13 @@ impl Serialize for Layout<'_> {
             name: &'a str, x: f32, z: f32
         }
 
-        let treasures = self.get_spawn_objects_with_position()
+        let treasures = self.get_spawn_objects()
             .filter(|(so, _)| matches!(so, SpawnObject::Item(..)))
             .map(|(so, pos)| PlacedObject { name: so.name(), x: pos[0], z: pos[2] })
             .collect::<Vec<_>>();
         state.serialize_field("treasures", &treasures)?;
 
-        let gates = self.get_spawn_objects_with_position()
+        let gates = self.get_spawn_objects()
             .filter(|(so, _)| matches!(so, SpawnObject::Gate(..)))
             .map(|(so, pos)| PlacedObject { name: so.name(), x: pos[0], z: pos[2] })
             .collect::<Vec<_>>();
@@ -259,7 +274,7 @@ pub enum SpawnObject<'a> {
     Teki(&'a TekiInfo, Point<3,f32>), // Teki, offset from spawnpoint
     CapTeki(&'a CapInfo, u32), // Cap Teki, num_spawned
     Item(&'a ItemInfo),
-    Gate(&'a GateInfo),
+    Gate(&'a GateInfo, u16), // Rotation
     Hole(bool), // Plugged or not
     Geyser(bool), // Plugged or not
     Ship
@@ -271,7 +286,7 @@ impl<'a> SpawnObject<'a> {
             SpawnObject::Teki(info, _) => &info.internal_name,
             SpawnObject::CapTeki(info, _) => &info.internal_name,
             SpawnObject::Item(info) => &info.internal_name,
-            SpawnObject::Gate(_) => "gate",
+            SpawnObject::Gate(_, _) => "gate",
             SpawnObject::Hole(_) => "hole",
             SpawnObject::Geyser(_) => "geyser",
             SpawnObject::Ship => "ship",

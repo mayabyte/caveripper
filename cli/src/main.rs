@@ -93,7 +93,7 @@ fn main() -> Result<(), CaveripperError> {
 
             progress_bar.finish_and_clear();
             if atty::is(Stream::Stdout) {
-                eprintln!("🍞 Found {} matching seed(s) in {}s.", num_found, start_time.elapsed().as_secs());
+                eprintln!("🍞 Found {} matching seed(s) in {:0.3}s.", num_found, start_time.elapsed().as_secs_f32());
             }
         },
         Commands::Stats { query, num_to_search } => {

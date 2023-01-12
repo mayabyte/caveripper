@@ -1,3 +1,5 @@
+use std::iter;
+
 use float_ord::FloatOrd;
 use itertools::Itertools;
 use petgraph::{Graph, Direction, visit::EdgeRef, prelude::NodeIndex};
@@ -53,7 +55,7 @@ impl WaypointGraph {
         }
 
         // Find start point
-        let start_location = layout.get_spawn_objects_with_position()
+        let start_location = layout.get_spawn_objects()
             .find(|so| matches!(so.0, SpawnObject::Ship))
             .unwrap().1;
         let start_wp = graph.node_indices()
@@ -109,7 +111,7 @@ impl WaypointGraph {
     }
 
     /// The full chain of waypoints that should be taken from the provided point to get back to the ship
-    pub fn carry_path_wps(&self, pos: Point<3,f32>) -> impl Iterator<Item=&WaypointGraphNode> {
+    pub fn carry_path_wps(&self, pos: Point<3,f32>) -> impl Iterator<Item=Point<3,f32>> + '_ {
         let start_wp = self.iter()
             .flat_map(|wp| {
                 // Get segments between each combination of two adjacent waypoints
@@ -148,7 +150,7 @@ impl WaypointGraph {
                 ret.remove(ret.len()-2);
             }
         }
-        ret.into_iter()
+        iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
     }
 }
 

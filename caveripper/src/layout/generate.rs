@@ -1080,7 +1080,8 @@ impl<'a> LayoutBuilder<'a> {
                 let spawn_spot = self.get_gate_spawn_spot();
 
                 if let (Some(gate_to_spawn), Some(spawn_spot)) = (gate_to_spawn, spawn_spot) {
-                    spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn)));
+                    let rotation = spawn_spot.borrow().door_unit.direction;
+                    spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn, rotation)));
                     spawn_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint
                         = Rc::clone(&spawn_spot.borrow().seam_spawnpoint);
                 }

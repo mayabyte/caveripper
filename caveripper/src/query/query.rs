@@ -15,7 +15,7 @@ use crate::{
     layout::{Layout, SpawnObject},
     caveinfo::{RoomType, CaveUnit, TekiInfo, CapInfo},
     assets::AssetManager,
-    sublevel::Sublevel,
+    sublevel::Sublevel, point::Point,
 };
 
 #[derive(Parser)]
@@ -109,7 +109,10 @@ impl Display for QueryClause {
 pub enum QueryKind {
     CountEntity{ entity_matcher: EntityMatcher, relationship: Ordering, amount: usize },
     CountRoom{ unit_matcher: UnitMatcher, relationship: Ordering, amount: usize },
+    CarryDist{ entity: EntityMatcher, relationship: Ordering, req_dist: f32 },
     StraightLineDist{ entity1: EntityMatcher, entity2: EntityMatcher, relationship: Ordering, req_dist: f32 },
+    Gated(EntityMatcher),
+    NotGated(EntityMatcher),
     RoomPath(RoomPath),
 }
 
@@ -119,7 +122,7 @@ impl QueryKind {
         match self {
             QueryKind::CountEntity { entity_matcher, relationship, amount } => {
                 let entity_count = layout.get_spawn_objects()
-                    .filter(|entity| entity_matcher.matches(entity))
+                    .filter(|(entity, _pos)| entity_matcher.matches(entity))
                     .count();
                 entity_count.cmp(amount) == *relationship
             },
@@ -129,10 +132,23 @@ impl QueryKind {
                     .count();
                 unit_count.cmp(amount) == *relationship
             },
+            QueryKind::CarryDist { entity, relationship, req_dist } => {
+                layout.get_spawn_objects()
+                    .filter(|(so, _pos)| entity.matches(so))
+                    .map(|(_so, pos)| {
+                        layout.waypoint_graph().carry_path_wps(pos)
+                            .tuple_windows()
+                            .map(|(p1, p2)| p1.dist(&p2))
+                            .sum::<f32>()
+                    })
+                    .any(|d| d.partial_cmp(req_dist)
+                        .map(|ordering| ordering == *relationship)
+                        .unwrap_or(false))
+            },
             QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist } => {
-                let e1s = layout.get_spawn_objects_with_position()
+                let e1s = layout.get_spawn_objects()
                     .filter(|(so, _)| entity1.matches(so));
-                let e2s = layout.get_spawn_objects_with_position()
+                let e2s = layout.get_spawn_objects()
                     .filter(|(so, _)| entity2.matches(so));
                 e1s.cartesian_product(e2s.collect_vec())
                     .any(|((_, pos1), (_, pos2))| {
@@ -140,6 +156,39 @@ impl QueryKind {
                         d.partial_cmp(req_dist).map(|ordering| ordering == *relationship).unwrap_or(false)
                     })
             },
+            QueryKind::Gated(entity_matcher) => {
+                let gates = layout.get_spawn_objects()
+                    .filter(|(so, _pos)| matches!(so, SpawnObject::Gate(_, _)))
+                    .map(|(_so, pos)| pos)
+                    .collect_vec();
+                layout.get_spawn_objects()
+                    .filter(|(so, _pos)| entity_matcher.matches(so))
+                    .any(|(_so, pos)| layout.waypoint_graph()
+                        .carry_path_wps(pos)
+                        .tuple_windows()
+                        .any(|(p1, p2)| {
+                            gates.iter()
+                                .any(|gate_pos| point_to_line_dist(*gate_pos, p1, p2) < 80.0)
+                        })
+                    )
+            },
+            // TODO: "not" operator in queries
+            QueryKind::NotGated(entity_matcher) => {
+                let gates = layout.get_spawn_objects()
+                    .filter(|(so, _pos)| matches!(so, SpawnObject::Gate(_, _)))
+                    .map(|(_so, pos)| pos)
+                    .collect_vec();
+                layout.get_spawn_objects()
+                    .filter(|(so, _pos)| entity_matcher.matches(so))
+                    .all(|(_so, pos)| layout.waypoint_graph()
+                        .carry_path_wps(pos)
+                        .tuple_windows()
+                        .all(|(p1, p2)| {
+                            gates.iter()
+                                .all(|gate_pos| point_to_line_dist(*gate_pos, p1, p2) > 80.0)
+                        })
+                    )
+            }
             QueryKind::RoomPath(search_path) => search_path.matches(layout),
         }
     }
@@ -183,6 +232,14 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                     Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| full_txt.to_owned())
                 }
             },
+            (Rule::carry_dist, inner) => {
+                let values: Vec<&str> = inner.map(|v| v.as_str()).collect();
+                Ok(QueryKind::CarryDist {
+                    entity: values[0].into(),
+                    relationship: char_to_ordering(values[1]),
+                    req_dist: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
+                })
+            },
             (Rule::straight_dist, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str()).collect();
                 Ok(QueryKind::StraightLineDist {
@@ -192,6 +249,8 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                     req_dist: values[3].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                 })
             },
+            (Rule::gated, inner) => Ok(QueryKind::Gated(inner.as_str().into())),
+            (Rule::not_gated, inner) => Ok(QueryKind::NotGated(inner.as_str().into())),
             (Rule::room_path, inner) => Ok(QueryKind::RoomPath(inner.into())),
             _ => {
                 Err(report!(CaveripperError::QueryParseError).attach_printable(full_txt))
@@ -219,6 +278,14 @@ impl Display for QueryKind {
                 };
                 write!(f, "{unit_matcher} {order_char} {amount}")
             },
+            QueryKind::CarryDist { entity, relationship, req_dist: dist } => {
+                let order_char = match relationship {
+                    Ordering::Less => '<',
+                    Ordering::Equal => '=',
+                    Ordering::Greater => '>'
+                };
+                write!(f, "{entity} carry dist {order_char} {dist}")
+            },
             QueryKind::StraightLineDist { entity1, entity2, relationship, req_dist: dist } => {
                 let order_char = match relationship {
                     Ordering::Less => '<',
@@ -227,6 +294,8 @@ impl Display for QueryKind {
                 };
                 write!(f, "{entity1} straight dist {entity2} {order_char} {dist}")
             },
+            QueryKind::Gated(entity) => write!(f, "{entity} gated"),
+            QueryKind::NotGated(entity) => write!(f, "{entity} not gated"),
             QueryKind::RoomPath(room_path) => {
                 let mut first = true;
                 for (unit_matcher, entity_matchers) in room_path.components.iter() {
@@ -333,7 +402,7 @@ impl EntityMatcher {
             (EntityMatcher::Hole, SpawnObject::Hole(_)) => true,
             (EntityMatcher::Geyser, SpawnObject::Geyser(_)) => true,
             (EntityMatcher::Ship, SpawnObject::Ship) => true,
-            (EntityMatcher::Gate, SpawnObject::Gate(_)) => true,
+            (EntityMatcher::Gate, SpawnObject::Gate(_, _)) => true,
             _ => false,
         }
     }
@@ -416,6 +485,26 @@ fn char_to_ordering(c: &str) -> Ordering {
         "=" => Ordering::Equal,
         ">" => Ordering::Greater,
         _ => panic!("Invalid comparison character!"),
+    }
+}
+
+fn point_to_line_dist(p: Point<3,f32>, l1: Point<3,f32>, l2: Point<3,f32>) -> f32 {
+    let len = l1.dist(&l2);
+    if len <= 0.0 {
+        return f32::MAX;
+    }
+
+    let norm = (l1 - l2).normalized();
+    let t = norm.dot(p - l1) / len;
+
+    if t <= 0.0 {
+        p.dist(&l1)
+    }
+    else if t >= 1.0 {
+        p.dist(&l2)
+    }
+    else {
+        ((norm * len * t) + l1 - p).length()
     }
 }
 

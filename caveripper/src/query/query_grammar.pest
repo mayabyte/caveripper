@@ -8,9 +8,12 @@ room_path_component = { ident ~ ("+" ~ entity)* }
 
 // expressions
 compare = { entity ~ comparator ~ number }
-straight_dist = { entity ~ ^"straight dist" ~ entity ~ comparator ~ number }
+carry_dist = { entity ~ (^"carry dist" | ^"carry distance") ~ comparator ~ number }
+straight_dist = { entity ~ (^"straight dist" | ^"straight distance") ~ entity ~ comparator ~ number }
+gated = { entity ~ ^"gated" }
+not_gated = { entity ~ (^"not gated" | ^"!gated") }
 room_path = { room_path_component ~ ("->" ~ room_path_component)* }
 
 // top-level rules
-expression = { compare | straight_dist | room_path }
+expression = { compare | carry_dist | straight_dist | gated | not_gated | room_path }
 query = _{ SOI ~ sublevel_ident ~ expression ~ ("&" ~ sublevel_ident? ~ expression)* ~ EOI }
