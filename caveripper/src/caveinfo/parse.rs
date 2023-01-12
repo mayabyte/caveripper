@@ -132,7 +132,7 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig) -> Result<CaveUnit, 
 
     // Waterboxes file
     let waterboxes = match AssetManager::get_txt_file(
-        &PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/waterbox.txt")
+        PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/waterbox.txt")
     ) {
         Ok(waterboxes_file_txt) => {
             parse_sections(waterboxes_file_txt)?.next().unwrap().try_into()
@@ -144,7 +144,7 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig) -> Result<CaveUnit, 
 
     // route.txt file (Waypoints)
     let waypoints_file_txt = AssetManager::get_txt_file(
-        &PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/route.txt"))
+        PathBuf::from(&cave.game).join("mapunits").join(&unit_folder_name).join("texts/route.txt"))
         .change_context(CaveInfoError::FileRead)?;
     let waypoints = parse_sections(waypoints_file_txt)
         .change_context(CaveInfoError::RouteFile)
@@ -405,7 +405,7 @@ impl TryFrom<Section<'_>> for Waypoint {
             ]),
             r: coords_line.get_line_item(3)?,
             index: section.get_line(0)?.get_line_item(0)?,
-            links: (2..num_links+2).into_iter()
+            links: (2..num_links+2)
                 .map(|line_no| -> std::result::Result<_, Self::Error> {
                     section.get_line(line_no)?.get_line_item(0)
                 })

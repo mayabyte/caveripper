@@ -11,7 +11,7 @@ pub struct WaypointGraph {
 }
 
 impl WaypointGraph {
-    pub fn build(layout: &Layout) -> Self {
+    pub(super) fn build(layout: &Layout) -> Self {
         let mut graph = Graph::<WaypointGraphNode, f32>::new();
 
         // Connect waypoints within map units
@@ -33,7 +33,7 @@ impl WaypointGraph {
 
                 for (wp, node) in map_unit.unit.waypoints.iter().zip(nodes.iter()) {
                     for link in wp.links.iter() {
-                        graph.add_edge(*node, nodes[*link], graph[*node].dist(&graph[nodes[*link]]));
+                        graph.add_edge(*node, nodes[*link], graph[*node].p2_dist(&graph[nodes[*link]]));
                     }
                 }
 
@@ -79,21 +79,20 @@ impl WaypointGraph {
                 if graph[invert].dist_to_start == f32::MAX {
                     frontier.push(invert);
                 }
-                let dist = graph[closest].dist(&graph[invert]) + graph[closest].dist_to_start;
+                let dist = graph[closest].p2_dist(&graph[invert]) + graph[closest].dist_to_start;
                 if dist < graph[invert].dist_to_start {
-                    // Delete all the outgoing edges from this node so the only one is the one
-                    // towards the ship.
-                    let edges_to_remove = graph.edges_directed(invert, Direction::Outgoing)
-                        .map(|e| e.id())
-                        .collect_vec();
-                    edges_to_remove.into_iter()
-                        .for_each(|e| {graph.remove_edge(e);});
-
-                    graph.add_edge(invert, closest, graph[invert].dist(&graph[closest]));
+                    graph.add_edge(invert, closest, graph[invert].p2_dist(&graph[closest]));
                     graph[invert].dist_to_start = dist;
                 }
             }
         }
+
+        // Remove outgoing nodes from the start waypoint to prevent a cyclic path
+        let edges_to_remove = graph.edges_directed(start_wp, Direction::Outgoing)
+            .map(|e| e.id())
+            .collect_vec();
+        edges_to_remove.into_iter()
+            .for_each(|e| {graph.remove_edge(e);});
 
         Self { graph }
     }
@@ -102,10 +101,54 @@ impl WaypointGraph {
         self.graph.node_weights()
     }
 
+    /// The waypoint a carrier should take from this waypoint to get back to the ship
     pub fn backlink(&self, wp: &WaypointGraphNode) -> Option<&WaypointGraphNode> {
         self.graph.neighbors_directed(wp.idx, Direction::Outgoing)
             .next()
             .map(|idx| &self.graph[idx])
+    }
+
+    /// The full chain of waypoints that should be taken from the provided point to get back to the ship
+    pub fn carry_path_wps(&self, pos: Point<3,f32>) -> impl Iterator<Item=&WaypointGraphNode> {
+        let start_wp = self.iter()
+            .flat_map(|wp| {
+                // Get segments between each combination of two adjacent waypoints
+                self.graph.neighbors_directed(wp.idx, Direction::Incoming)
+                    .map(move |wp2| (wp, &self.graph[wp2]))
+            })
+            .map(|(wp1, wp2)| {
+                // Find the point's distance to each line segment
+                let len = wp1.pos.p2_dist(&wp2.pos);
+                if len <= 0.0 {
+                    return (wp1, f32::MAX);
+                }
+
+                let norm = (wp1.pos - wp2.pos).normalized();
+                let t = norm.dot(pos - wp1.pos) / len;
+
+                if t <= 0.0 {
+                    (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
+                }
+                else if t >= 1.0 {
+                    (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
+                }
+                else {
+                    let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r { wp1 }
+                        else { wp2 };
+                    (wp, ((norm * len * t) + wp1.pos - pos).p2_length() - ((1.0 - t) * wp1.r) - (t * wp2.r))
+                }
+            })
+            .min_by_key(|(_wp, dist)| FloatOrd(*dist))
+            .unwrap().0;
+
+        let mut ret = vec![start_wp];
+        while let Some(backlink) = self.backlink(ret.last().unwrap()) {
+            ret.push(backlink);
+            if ret[ret.len()-1].pos == ret[ret.len()-2].pos {
+                ret.remove(ret.len()-2);
+            }
+        }
+        ret.into_iter()
     }
 }
 
@@ -119,7 +162,7 @@ pub struct WaypointGraphNode {
 }
 
 impl WaypointGraphNode {
-    pub fn dist(&self, other: &Self) -> f32 {
+    pub fn p2_dist(&self, other: &Self) -> f32 {
         self.pos.p2_dist(&other.pos)
     }
 }

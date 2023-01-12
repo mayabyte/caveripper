@@ -1,9 +1,9 @@
 use itertools::Itertools;
-use num::{Zero, traits::real::Real};
+use num::{Zero, traits::real::Real, zero};
 use serde::{Serialize, ser::SerializeSeq};
-use std::{ops::{Add, Mul, Div, Sub, AddAssign, Index, Neg, IndexMut}, fmt::Display};
+use std::{ops::{Add, Mul, Div, Sub, AddAssign, Index, Neg, IndexMut}, fmt::Display, iter::Sum};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<const N: usize, T>(pub [T; N]);
 
 impl<const N: usize, T> Point<N, T> {
@@ -11,7 +11,7 @@ impl<const N: usize, T> Point<N, T> {
     pub fn dist(&self, other: &Self) -> T
     where T: Real + AddAssign<T>
     {
-        let mut sum = Zero::zero();
+        let mut sum = zero();
         for i in 0..N {
             let delta = self.0[i] - other.0[i];
             sum += delta * delta;
@@ -19,8 +19,14 @@ impl<const N: usize, T> Point<N, T> {
         <T as Real>::sqrt(sum)
     }
 
+    pub fn length(&self) -> T
+    where T: Real + AddAssign<T> + Zero
+    {
+        self.dist(&Point([zero();N]))
+    }
+
     /// Scale all values to be in the range [0,1].
-    pub fn normal(mut self) -> Self
+    pub fn normalized(mut self) -> Self
     where T: Real + Zero<Output=T> + AddAssign<T>,
     {
         let factor = Point([<T as Zero>::zero();N]).dist(&self);
@@ -32,6 +38,12 @@ impl<const N: usize, T> Point<N, T> {
 
     pub fn swap(&mut self, d1: usize, d2: usize) where T: Copy {
         (self[d1], self[d2]) = (self[d2], self[d1]);
+    }
+
+    pub fn dot(self, other: Self) -> T
+    where T: Mul + Sum<<T as Mul>::Output>
+    {
+        self.0.into_iter().zip(other.0.into_iter()).map(|(s, o)| s * o).sum()
     }
 }
 
@@ -53,6 +65,10 @@ impl<const N: usize> Point<N, f32> {
             sum += delta * delta;
         }
         crate::pikmin_math::sqrt(sum)
+    }
+
+    pub fn p2_length(&self) -> f32 {
+        self.p2_dist(&Point([0.0;N]))
     }
 }
 

@@ -177,6 +177,27 @@ pub fn render_layout(layout: &Layout, options: LayoutRenderOptions) -> Result<Rg
         }
     }
 
+    // Draw carry paths for treasures, if enabled
+    if options.draw_paths {
+        let treasure_locations = layout.get_spawn_objects_with_position()
+            .filter(|(so, _pos)| {
+                matches!(so, SpawnObject::Item(_))
+                || matches!(so, SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _))
+            })
+            .map(|(_, pos)| pos);
+        for pos in treasure_locations {
+            let wp_path = layout.waypoint_graph().carry_path_wps(pos);
+            for (wp1, wp2) in wp_path.tuple_windows() {
+                draw_arrow_line(
+                    &mut canvas,
+                    (wp1.pos * COORD_FACTOR).into(),
+                    (wp2.pos * COORD_FACTOR).into(),
+                    WAYPOINT_DIST_TXT_COLOR.into()
+                );
+            }
+        }
+    }
+
     // Draw spawned objects
     for spawnpoint in layout.map_units.iter().flat_map(|unit| unit.spawnpoints.iter()) {
         for spawn_object in spawnpoint.contains.iter() {
@@ -701,7 +722,7 @@ fn draw_border(canvas: &mut RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
 
 fn draw_arrow_line(canvas: &mut RgbaImage, start: Point<2,f32>, end: Point<2,f32>, color: Rgba<u8>) {
     // Shorten the line slightly on both sides
-    let vector = (end - start).normal() * 6.0;
+    let vector = (end - start).normalized() * 6.0;
     let start = start + vector;
     let end = end - vector;
 
