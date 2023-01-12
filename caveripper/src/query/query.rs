@@ -526,6 +526,10 @@ Currently available query conditions:
   straight-line distance between the two named entities matches the specified
   value. Note that this is distance 'as the crow flies' rather than distance
   along carry paths.
+- "INTERNAL_NAME carrt dist </=/> NUM". Checks whether the carry distance to the
+  ship through the waypoint graph matches the specified value.
+- "INTERNAL_NAME gated" or "INTERNAL_NAME not gated". Checks whether the carry
+  path between the ship and the specified entity has a gate blocking it.
 - "ROOM_NAME (+ ENTITY_NAME / CARRYING)* -> <repeated>". This is a 'room path'
   query where you can specify a chain of rooms that all must be connected to
   each other, each optionally containing specific entities. The room and entity
