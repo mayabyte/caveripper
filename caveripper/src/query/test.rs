@@ -72,3 +72,15 @@ fn test_parse_room_type_names() {
         Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }
+
+#[test]
+fn test_parse_count_queries() {
+    AssetManager::init_global("../assets", "..").expect("Couldn't init asset manager");
+    let query_strings = [
+        "fc2 room_saka1_1_snow = 2",
+        "scx7 room_ari1_3_metal < 2",
+    ];
+    for s in query_strings {
+        Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
+    }
+}

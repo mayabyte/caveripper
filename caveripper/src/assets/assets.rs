@@ -224,7 +224,7 @@ impl AssetManager {
 
     /// Combines the Room List from all known games. TODO: remove
     pub fn combined_room_list() -> Result<Vec<String>, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._combined_teki_list()
+        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._combined_room_list()
     }
 
     pub fn treasure_list(game: &str) -> Result<&'static [Treasure], CaveripperError> {
