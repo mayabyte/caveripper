@@ -68,7 +68,7 @@ name = "bindings"
 version = "0.0.0"
 dependencies = [
  "caveripper",
- "error-stack",
+ "error-stack 0.2.4",
  "pyo3",
  "serde_json",
 ]
@@ -146,7 +146,7 @@ dependencies = [
  "criterion",
  "crossbeam",
  "encoding_rs",
- "error-stack",
+ "error-stack 0.3.0",
  "float-ord",
  "fontdue",
  "image",
@@ -273,7 +273,7 @@ dependencies = [
  "clap 4.0.32",
  "crossbeam",
  "encoding_rs",
- "error-stack",
+ "error-stack 0.3.0",
  "gc-gcm",
  "image",
  "indicatif",
@@ -513,6 +513,16 @@ checksum = "859d224e04b2d93d974c08e375dac9b8d1a513846e44c6666450a57b1ed963f9"
 dependencies = [
  "anyhow",
  "owo-colors",
+ "rustc_version",
+]
+
+[[package]]
+name = "error-stack"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "158d2a98bf4040cf19d3116a2bae7b8093558dab7274f4196680a65194b97b40"
+dependencies = [
+ "anyhow",
  "rustc_version",
 ]
 

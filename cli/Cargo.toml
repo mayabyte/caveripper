@@ -20,7 +20,7 @@ encoding_rs = "0.8"
 image = "0.24"
 anyhow = "1.0"
 regex = "1.7"
-error-stack = "0.2"
+error-stack = "0.3"
 caveripper = {path="../caveripper"}
 
 [[bin]]
