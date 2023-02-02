@@ -84,3 +84,15 @@ fn test_parse_count_queries() {
         Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }
+
+#[test]
+fn test_room_path_whitespace() {
+    AssetManager::init_global("../assets", "..").expect("Couldn't init asset manager");
+    let query_strings = [
+        "fc2 any+ship->any+toy_ring_c_blue",
+        "fc2 any + ship -> any + toy_ring_c_blue",
+    ];
+    for s in query_strings {
+        Query::try_from(s).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
+    }
+}
