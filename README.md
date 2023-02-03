@@ -28,6 +28,8 @@ caveripper search "gk3 castanets = 0 & smc4 wealthy = 0" -t 0
 caveripper stats "sr5 BlackPom = 1"
 ```
 
+See [QUERY.md](QUERY.md) for a full explanation on Caveripper's query language.
+
 Caveripper only recognizes *internal names* for game objects at present. If you want to see the internal names for things on a given floor, there's a handy text-only Caveinfo command that can be of assistance:
 ```bash
 caveripper caveinfo fc3 --text

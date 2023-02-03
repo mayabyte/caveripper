@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use caveripper::{parse_seed, sublevel::Sublevel, query::{Query, QUERY_HELP}, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
+use caveripper::{parse_seed, sublevel::Sublevel, query::Query, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -71,7 +71,6 @@ pub enum Commands {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SEARCH_COND_HELP,
-            long_help = QUERY_HELP,
         )]
         query: Query,
 
@@ -107,8 +106,7 @@ pub enum Commands {
     Stats {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
-            help = SEARCH_COND_HELP,
-            long_help = QUERY_HELP,
+            help = SEARCH_COND_HELP
         )]
         query: Query,
 
@@ -129,8 +127,7 @@ pub enum Commands {
     Filter {
         #[clap(
             value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
-            help = SEARCH_COND_HELP,
-            long_help = QUERY_HELP,
+            help = SEARCH_COND_HELP
         )]
         query: Query,
 
