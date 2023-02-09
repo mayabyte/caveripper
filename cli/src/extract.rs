@@ -1,5 +1,9 @@
 /// File extraction from Pikmin 2 & romhack ISOs.
 
+mod rarc;
+mod bti;
+mod util;
+
 use std::{path::{Path, PathBuf}, fs::{create_dir_all, self, File}, io::{BufReader, Read, Seek, SeekFrom, Cursor}, panic::catch_unwind};
 use anyhow::anyhow;
 use gc_gcm::{GcmFile, DirEntry};
@@ -8,7 +12,8 @@ use log::warn;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use yaz0::Yaz0Archive;
-use crate::{rarc::Rarc, bti::BtiImage};
+use rarc::Rarc;
+use bti::BtiImage;
 
 
 pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progress: &ProgressBar) -> Result<(), anyhow::Error> {

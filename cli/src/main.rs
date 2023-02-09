@@ -1,8 +1,5 @@
 mod cli;
 mod extract;
-mod rarc;
-mod bti;
-mod util;
 
 use atty::Stream;
 use cli::*;

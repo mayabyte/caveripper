@@ -1,6 +1,6 @@
 use std::{borrow::Cow, path::PathBuf};
 
-use crate::util::{read_u32, read_u16, read_str_until_null};
+use super::util::{read_u32, read_u16, read_str_until_null};
 
 
 pub struct Rarc<'a> {

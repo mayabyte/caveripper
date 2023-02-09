@@ -1,4 +1,4 @@
-use crate::util::{read_u16, read_u32};
+use super::util::{read_u16, read_u32};
 
 type Color = [u8; 4];
 
