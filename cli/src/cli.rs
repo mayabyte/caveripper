@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use caveripper::{parse_seed, sublevel::Sublevel, query::Query, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
+use caveripper::{parse_seed, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -26,10 +26,9 @@ pub enum Commands {
     )]
     Generate {
         #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SUBLEVEL_HELP,
         )]
-        sublevel: Sublevel,
+        sublevel: String,
 
         #[clap(
             value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e:#?}")),
@@ -47,10 +46,9 @@ pub enum Commands {
     )]
     Caveinfo {
         #[clap(
-            value_parser = |s: &str| {<Sublevel as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SUBLEVEL_HELP,
         )]
-        sublevel: Sublevel,
+        sublevel: String,
 
         #[clap(
             short = 't',
@@ -69,10 +67,9 @@ pub enum Commands {
     )]
     Search {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SEARCH_COND_HELP,
         )]
-        query: Query,
+        query: String,
 
         #[clap(
             default_value_t = 10,
@@ -105,10 +102,9 @@ pub enum Commands {
     )]
     Stats {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SEARCH_COND_HELP
         )]
-        query: Query,
+        query: String,
 
         #[clap(
             default_value = "100000",
@@ -126,10 +122,9 @@ pub enum Commands {
     )]
     Filter {
         #[clap(
-            value_parser = |s: &str| {<Query as TryFrom<&str>>::try_from(s).map_err(|e| format!("{e:#?}"))},
             help = SEARCH_COND_HELP
         )]
-        query: Query,
+        query: String,
 
         #[clap(
             long_help = SEED_FILE_HELP,

@@ -16,7 +16,7 @@ use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
 use parse::parse_caveinfo;
 use serde::Serialize;
 use error_stack::{Result, Report, report, ResultExt};
-use crate::{errors::CaveripperError, assets::CaveConfig, point::Point};
+use crate::{errors::CaveripperError, assets::{CaveConfig, AssetManager}, point::Point};
 
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -68,8 +68,8 @@ impl CaveInfo {
         format!("{} {}", self.cave_cfg.full_name, self.floor_num+1)
     }
 
-    pub fn parse_from(cave: &CaveConfig) -> Result<Vec<CaveInfo>, CaveripperError> {
-        parse_caveinfo(cave)
+    pub fn parse_from(cave: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveripperError> {
+        parse_caveinfo(cave, mgr)
             .change_context(CaveripperError::CaveinfoError)
             .attach_printable_lazy(|| format!("{} ({}/{})", cave.full_name, cave.game, cave.caveinfo_filename))
     }

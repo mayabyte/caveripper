@@ -13,17 +13,18 @@ macro_rules! test_render {
             $(
                 #[test]
                 fn [<test_render_layouts_ $name>] () {
-                    AssetManager::init_global("../assets", "..").unwrap();
+                    let mgr = AssetManager::init().unwrap();
+                    let renderer = Renderer::new(&mgr);
 
                     let num_layouts = 4;
-                    let caveinfos = AssetManager::caveinfos_from_cave($name.replace('_', ":").as_str()).unwrap();
+                    let caveinfos = mgr.caveinfos_from_cave($name.replace('_', ":").as_str()).unwrap();
 
                     caveinfos.into_par_iter().panic_fuse().for_each(|caveinfo| {
                         let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
                         for _ in 0..num_layouts {
                             let seed: u32 = rng.gen();
                             let layout = Layout::generate(seed, &caveinfo);
-                            if let Err(cause) = render_layout(&layout, LayoutRenderOptions::default()) {
+                            if let Err(cause) = renderer.render_layout(&layout, LayoutRenderOptions::default()) {
                                 panic!("({}, {:#010X}) {}", $name, seed, cause);
                             }
                         }
@@ -32,10 +33,11 @@ macro_rules! test_render {
 
                 #[test]
                 fn [<test_render_caveinfo_ $name>] () {
-                    AssetManager::init_global("../assets", "..").unwrap();
-                    let caveinfos = AssetManager::caveinfos_from_cave($name.replace('_', ":").as_str()).unwrap();
+                    let mgr = AssetManager::init().unwrap();
+                    let renderer = Renderer::new(&mgr);
+                    let caveinfos = mgr.caveinfos_from_cave($name.replace('_', ":").as_str()).unwrap();
                     caveinfos.into_par_iter().panic_fuse().for_each(|caveinfo| {
-                        render_caveinfo(&caveinfo, CaveinfoRenderOptions::default()).unwrap();
+                        renderer.render_caveinfo(&caveinfo, CaveinfoRenderOptions::default()).unwrap();
                     });
                 }
             )*

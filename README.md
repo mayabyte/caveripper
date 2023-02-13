@@ -8,6 +8,8 @@ Caveripper is an implementation of the Pikmin 2 cave generation algorithm intend
 - Finding "interesting" seeds (high number of available bonus treasures, rare layout configurations, difficult score reads, etc.) for community races and practice.
 
 ## How to Use
+Make sure you extract Pikmin 2 game assets first!
+
 The CLI has comprehensive help messages:
 ```bash
 caveripper help
@@ -43,11 +45,9 @@ Game assets are not distributed in this repo, and as such you need to extract th
 caveripper extract path/to/pikmin2.iso
 ```
 
-This will extract all the necessary files from the ISO into the `assets/` directory. You should only need to do this once, but it is absolutely necessary in order to use Caveripper.
+This will extract all the necessary files from the ISO into `~/.config/caveripper/assets` so Caveripper can find them from any location. You should only need to do this once, but it is absolutely necessary in order to use Caveripper. If you're worried about bloating your home directory, worry not: only ~12MB of assets are extracted per ISO.
 
-If this process fails for some reason and you want to clean up and start from scratch, just delete the `assets/` folder.
-
-*Note*: I've only tested the extraction process on NTSC-U (US) Pikmin 2 ISOs. Other versions will likely work fine, but be warned that you may encounter some issues.
+If this process fails for some reason and you want to clean up and start from scratch, just delete the `assets/` folder in `~/.config/caveripper`, or simply re-extract your ISO and the extractor will clean up before extracting again.
 
 ## Project Status
 

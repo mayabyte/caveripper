@@ -1,43 +1,50 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use itertools::Itertools;
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use caveripper::{
     layout::Layout,
-    render::{render_layout, LayoutRenderOptions},
-    assets::AssetManager,
+    render::{Renderer, LayoutRenderOptions},
+    assets::AssetManager, caveinfo::CaveInfo,
 };
 
+fn preload_caveinfo(mgr: &AssetManager) -> Vec<CaveInfo> {
+    let mut caveinfo = Vec::new();
+    for cfg in mgr.cave_cfg.iter() {
+        caveinfo.extend(
+            mgr.caveinfos_from_cave(&format!("{}:{}", cfg.game, cfg.shortened_names.first().unwrap()))
+                .unwrap()
+                .into_iter()
+                .cloned()
+        );
+    }
+    caveinfo
+}
+
 pub fn benchmark_layout_generation(c: &mut Criterion) {
-    AssetManager::init_global("assets", ".").unwrap();
+    let mgr = AssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_all_caveinfo()
-        .expect("Failed to load caveinfo!");
-    let manager = AssetManager::all_sublevels().unwrap();
-    let all_sublevels = manager.iter().collect_vec();
+    let all_sublevels = preload_caveinfo(&mgr);
 
     c.bench_function("layout generation (reference)", |b| {
         b.iter(|| {
             let seed = rng.gen();
-            let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())].1;
+            let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())];
             black_box(Layout::generate(seed, caveinfo));
         })
     });
 }
 
 pub fn benchmark_layout_rendering(c: &mut Criterion) {
-    AssetManager::init_global("assets", ".").unwrap();
+    let mgr = AssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
-    AssetManager::preload_all_caveinfo()
-        .expect("Failed to load caveinfo!");
-    let manager = AssetManager::all_sublevels().unwrap();
-    let all_sublevels = manager.iter().collect_vec();
+    let all_sublevels = preload_caveinfo(&mgr);
+    let renderer = Renderer::new(&mgr);
 
     c.bench_function("layout generation + rendering", |b| {
         b.iter(|| {
             let seed = rng.gen();
-            let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())].1;
+            let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())];
             let layout = Layout::generate(seed, caveinfo);
-            black_box(render_layout(&layout, LayoutRenderOptions::default()))
+            black_box(renderer.render_layout(&layout, LayoutRenderOptions::default()))
         })
     });
 }

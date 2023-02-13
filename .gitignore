@@ -1,8 +1,7 @@
 target/
 *.class
 output/*
-assets/**/*.png
-assets/**/*.txt
+assets/**/*
 *.iso
 .vscode
 *.so

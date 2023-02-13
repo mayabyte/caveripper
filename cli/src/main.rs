@@ -14,12 +14,11 @@ use caveripper::{
     assets::AssetManager,
     layout::Layout,
     render::{
-        render_layout,
+        Renderer,
         save_image,
-        render_caveinfo
     },
-    query::find_matching_layouts_parallel,
-    parse_seed, errors::CaveripperError
+    query::{find_matching_layouts_parallel, Query},
+    parse_seed, errors::CaveripperError, sublevel::Sublevel
 };
 use simple_logger::SimpleLogger;
 
@@ -27,7 +26,8 @@ fn main() -> Result<(), CaveripperError> {
     // The asset manager has to be initialized as the very first thing because
     // command parsing can involve sublevel string parsing, which requires
     // loading assets.
-    AssetManager::init_global("assets", ".")?;
+    let mgr = AssetManager::init()?;
+    let renderer = Renderer::new(&mgr);
 
     let args = Cli::parse();
     match args.verbosity {
@@ -39,30 +39,33 @@ fn main() -> Result<(), CaveripperError> {
     // Run the desired command.
     match args.subcommand {
         Commands::Generate { sublevel, seed, render_options } => {
-            let caveinfo = AssetManager::get_caveinfo(&sublevel)?;
+            let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
+            let caveinfo = mgr.get_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, caveinfo);
             let _ = std::fs::create_dir("output");
             save_image(
-                &render_layout(&layout, render_options)?,
+                &renderer.render_layout(&layout, render_options)?,
                 format!("output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed)
             )?;
             println!("🍞 Saved layout image as \"output/{}_{:#010X}.png\"", layout.cave_name, layout.starting_seed);
         },
         Commands::Caveinfo { sublevel, text, render_options } => {
-            let caveinfo = AssetManager::get_caveinfo(&sublevel)?;
+            let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
+            let caveinfo = mgr.get_caveinfo(&sublevel)?;
             if text {
                 println!("{caveinfo}");
             }
             else {
                 let _ = std::fs::create_dir("output");
                 save_image(
-                    &render_caveinfo(caveinfo, render_options)?,
+                    &renderer.render_caveinfo(caveinfo, render_options)?,
                     format!("output/{}_Caveinfo.png", caveinfo.name())
                 )?;
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());
             }
         },
         Commands::Search { query, timeout_s, num, start_from } => {
+            let query = Query::try_parse(&query, &mgr)?;
             let start_time = Instant::now();
             let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
             let deadline = timeout.map(|t| Instant::now() + t);
@@ -76,6 +79,7 @@ fn main() -> Result<(), CaveripperError> {
 
             let result_recv = find_matching_layouts_parallel(
                 &query,
+                &mgr,
                 deadline,
                 (num > 0).then_some(num),
                 start_from,
@@ -94,11 +98,12 @@ fn main() -> Result<(), CaveripperError> {
             }
         },
         Commands::Stats { query, num_to_search } => {
+            let query = Query::try_parse(&query, &mgr)?;
             let num_matched = (0..num_to_search).into_par_iter()
                 .progress()
                 .filter(|_| {
                     let seed: u32 = random();
-                    query.matches(seed)
+                    query.matches(seed, &mgr)
                 })
                 .count();
             println!(
@@ -107,6 +112,7 @@ fn main() -> Result<(), CaveripperError> {
             );
         },
         Commands::Filter { query, file } => {
+            let query = Query::try_parse(&query, &mgr)?;
             // Read from a file. In this case, we can check the seeds in parallel.
             if let Some(filename) = file {
                 read_to_string(filename).unwrap().lines()
@@ -114,7 +120,7 @@ fn main() -> Result<(), CaveripperError> {
                     .into_par_iter()
                     .filter_map(|line| parse_seed(line).ok())
                     .filter(|seed| {
-                        query.matches(*seed)
+                        query.matches(*seed, &mgr)
                     })
                     .for_each(|seed| {
                         println!("{seed:#010X}");
@@ -125,7 +131,7 @@ fn main() -> Result<(), CaveripperError> {
                 stdin().lines()
                     .filter_map(|line| parse_seed(&line.ok()?).ok())
                     .filter(|seed| {
-                        query.matches(*seed)
+                        query.matches(*seed, &mgr)
                     })
                     .for_each(|seed| {
                         println!("{seed:#010X}");

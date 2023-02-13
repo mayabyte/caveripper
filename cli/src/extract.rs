@@ -14,17 +14,18 @@ use regex::Regex;
 use yaz0::Yaz0Archive;
 use rarc::Rarc;
 use bti::BtiImage;
+use caveripper::assets::ASSET_VERSION;
 
 
 pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progress: &ProgressBar) -> Result<(), anyhow::Error> {
-    progress.set_message("Reading ISO file system");
-    progress.inc(1);
-
     let iso_path = iso_path.as_ref();
     let iso = GcmFile::open(iso_path).map_err(|_| anyhow!("Couldn't parse ISO!"))?;
     let all_files = traverse_filesystem(&iso);
     let game_id_raw = format!("{:?}", iso.game_id);
     let game_id = game_id_raw.trim_matches('"');
+    let home_dir = dirs::home_dir()
+        .ok_or(anyhow!("Couldn't locate home directory!"))?;
+    let home_dir = home_dir.to_string_lossy().into_owned();
 
     let game_name = if let Some(override_name) = game_name {
         override_name
@@ -37,6 +38,13 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
             _ => return Err(anyhow!("Unrecognized game ISO {} and no game override provided", game_id))
         }.to_string()
     };
+
+    if PathBuf::from_iter(["assets", &game_name]).exists() {
+        warn!("Extracted filesystem for {game_name} already exists. It will be overwritten.");
+    }
+
+    progress.set_message("Reading ISO file system");
+    progress.inc(1);
 
     let matchers: Vec<DesiredFileMatcher> = match game_id {
         "PIKE25" => vec![
@@ -91,7 +99,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
 
                 for matcher in matchers.iter() {
                     if let Some(dest) = matcher.matches(&full_path) {
-                        let mut full_dest = PathBuf::from_iter(["assets", &game_name]);
+                        let mut full_dest = PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name]);
                         full_dest.push(dest);
                         write_file(&full_dest, data)?;
                         break;
@@ -103,7 +111,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
             for matcher in matchers.iter() {
                 if let Some(dest) = matcher.matches(&f.path) {
                     let data = f.read(&mut iso_reader)?;
-                    let mut full_dest = PathBuf::from_iter(["assets", &game_name]);
+                    let mut full_dest = PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name]);
                     full_dest.push(dest);
                     write_file(&full_dest, &data)?;
                     break;
@@ -112,6 +120,11 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
         }
         Ok(())
     })?;
+
+    write_file(
+        &PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name, ".cr_extract_version"]),
+        format!("{ASSET_VERSION}").as_bytes()
+    )?;
 
     Ok(())
 }

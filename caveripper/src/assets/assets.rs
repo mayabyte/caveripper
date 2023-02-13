@@ -7,7 +7,6 @@ use encoding_rs::SHIFT_JIS;
 use image::RgbaImage;
 use itertools::Itertools;
 use log::info;
-use once_cell::sync::OnceCell;
 use serde::Serialize;
 use error_stack::{Result, IntoReport, ResultExt};
 
@@ -16,13 +15,17 @@ use crate::errors::CaveripperError;
 use pinmap::PinMap;
 use crate::sublevel::{Sublevel, DIRECT_MODE_TAG};
 
-static ASSETS: OnceCell<AssetManager> = OnceCell::new();
+
+/// Version number written into extracted folders to allow programmatic
+/// compatibility checking between extracts and Caveripper binary versions.
+/// This number should be incremented any time the extraction process
+/// changes or improves.
+pub const ASSET_VERSION: u32 = 1;
 
 pub struct AssetManager {
-    asset_path: PathBuf, /// Folder that assets are kept in
-    resources_loc: PathBuf, /// Relative path to where the resources folder is located.
+    /// Folder that assets are kept in. This is in ~/.config/caveripper by default.
+    asset_dir: PathBuf,
 
-    txt_cache: PinMap<String, String>,
     caveinfo_cache: PinMap<Sublevel, CaveInfo>,
     img_cache: PinMap<String, RgbaImage>,
     pub cave_cfg: Vec<CaveConfig>,
@@ -38,16 +41,32 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
-    /// Initializes the global asset manager if it has not already been initialized.
-    /// This is a no-op if the manager has already been initialized.
-    pub fn init_global(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<(), CaveripperError> {
-        let manager = AssetManager::init(asset_path, resources_loc)?;
-        ASSETS.get_or_init(|| manager);
-        Ok(())
-    }
+    pub fn init() -> Result<AssetManager, CaveripperError> {
+        let mut asset_dir = dirs::home_dir()
+            .ok_or(CaveripperError::AssetLoadingError)
+            .into_report().attach_printable("Couldn't access home directory!")?;
+        asset_dir.push(".config/caveripper");
 
-    fn init(asset_path: impl AsRef<Path>, resources_loc: impl AsRef<Path>) -> Result<AssetManager, CaveripperError> {
-        let cave_cfg: Vec<CaveConfig> = read_to_string(resources_loc.as_ref().join("resources/caveinfo_config.txt"))
+        #[cfg(debug_assertions)]
+        {
+            use std::fs::create_dir_all;
+            use fs_extra::dir::{copy, CopyOptions};
+            println!("(!) Copying resource and assets folders to {}", asset_dir.to_str().unwrap());
+            create_dir_all(&asset_dir)
+                .expect("Couldn't create assets dir in HOME!");
+            let _ = copy(
+                PathBuf::from_iter([env!("CARGO_MANIFEST_DIR"), "..", "resources"]),
+                &asset_dir,
+                &CopyOptions { overwrite: true, ..Default::default() }
+            );
+            let _ = copy(
+                PathBuf::from_iter([env!("CARGO_MANIFEST_DIR"), "..", "assets"]),
+                &asset_dir,
+                &CopyOptions { overwrite: true, ..Default::default() }
+            );
+        }
+
+        let cave_cfg: Vec<CaveConfig> = read_to_string(asset_dir.join("resources/caveinfo_config.txt"))
             .into_report().change_context(CaveripperError::AssetLoadingError)?
             .lines()
             .map(|line| {
@@ -63,9 +82,7 @@ impl AssetManager {
             .collect::<Vec<_>>();
 
         Ok(Self {
-            asset_path: asset_path.as_ref().into(),
-            resources_loc: resources_loc.as_ref().into(),
-            txt_cache: PinMap::new(),
+            asset_dir,
             caveinfo_cache: PinMap::new(),
             img_cache: PinMap::new(),
             cave_cfg,
@@ -79,13 +96,13 @@ impl AssetManager {
         self.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect()
     }
 
-    fn treasures(&self, game: &str) -> Result<&Vec<Treasure>, CaveripperError> {
+    pub fn treasure_list(&self, game: &str) -> Result<&Vec<Treasure>, CaveripperError> {
         if let Some(treasure_list) = self.treasures.get(game) {
             Ok(treasure_list)
         }
         else {
-            let treasure_path = self.asset_path.join(game).join("otakara_config.txt");
-            let ek_treasure_path = self.asset_path.join(game).join("item_config.txt");
+            let treasure_path = self.asset_dir.join("assets").join(game).join("otakara_config.txt");
+            let ek_treasure_path = self.asset_dir.join("assets").join(game).join("item_config.txt");
 
             let treasures = SHIFT_JIS.decode(
                 read(&treasure_path)
@@ -107,7 +124,16 @@ impl AssetManager {
         }
     }
 
-    fn teki(&self, game: &str) -> Result<&Vec<String>, CaveripperError> {
+    // Combines the Teki List from all known games.
+    pub fn combined_treasure_list(&self) -> Result<Vec<Treasure>, CaveripperError> {
+        self.all_games().into_iter()
+            .try_fold(Vec::new(), |mut acc, game| {
+                acc.extend(self.treasure_list(game)?.clone());
+                Ok(acc)
+            })
+    }
+
+    pub fn teki_list(&self, game: &str) -> Result<&Vec<String>, CaveripperError> {
         if let Some(teki_list) = self.teki.get(game) {
             Ok(teki_list)
         }
@@ -115,7 +141,7 @@ impl AssetManager {
             // Eggs are not listed in enemytex, so they have to be added manually
             let mut all_teki = vec!["egg".to_string()];
 
-            let teki_path = self.asset_path.join(game).join("teki");
+            let teki_path = self.asset_dir.join("assets").join(game).join("teki");
             let teki = read_dir(&teki_path)
                 .into_report().change_context(CaveripperError::AssetLoadingError).attach(teki_path)?
                 .filter_map(|r| r.ok())
@@ -128,14 +154,23 @@ impl AssetManager {
         }
     }
 
-    fn rooms(&self, game: &str) -> Result<&Vec<String>, CaveripperError> {
+    // Combines the Teki List from all known games.
+    pub fn combined_teki_list(&self) -> Result<Vec<String>, CaveripperError> {
+        self.all_games().into_iter()
+            .try_fold(Vec::new(), |mut acc, game| {
+                acc.extend(self.teki_list(game)?.clone());
+                Ok(acc)
+            })
+    }
+
+    pub fn room_list(&self, game: &str) -> Result<&Vec<String>, CaveripperError> {
         if let Some(room_list) = self.rooms.get(game) {
             Ok(room_list)
         }
         else {
             let mut all_rooms = Vec::new();
 
-            let room_path = self.asset_path.join(game).join("mapunits");
+            let room_path = self.asset_dir.join("assets").join(game).join("mapunits");
             let rooms = read_dir(&room_path)
                 .into_report().change_context(CaveripperError::AssetLoadingError).attach(room_path)?
                 .filter_map(|r| r.ok())
@@ -148,112 +183,33 @@ impl AssetManager {
         }
     }
 
-    pub fn get_txt_file<P: AsRef<Path>>(path: P) -> Result<&'static str, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_txt_file(path)
-    }
-
-    pub fn get_caveinfo(sublevel: &Sublevel) -> Result<&'static CaveInfo, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_caveinfo(sublevel)
+    // Combines the Room List from all known games.
+    pub fn combined_room_list(&self) -> Result<Vec<String>, CaveripperError> {
+        self.all_games().into_iter()
+            .try_fold(Vec::new(), |mut acc, game| {
+                acc.extend(self.room_list(game)?.clone());
+                Ok(acc)
+            })
     }
 
     /// Get a file as raw bytes. Does not cache the file.
-    pub fn get_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CaveripperError> {
-        let manager = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
+    pub fn get_bytes<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>, CaveripperError> {
         let path = path.as_ref();
-        if path.starts_with("resources") {
-            read(manager.resources_loc.join(path))
+        read(self.asset_dir.join(path))
+            .into_report()
+            .change_context(CaveripperError::AssetLoadingError)
+            .attach_lazy(|| path.to_owned())
+    }
+
+    pub fn get_or_store_img(&self, key: String, generator: impl FnOnce() -> Result<RgbaImage, CaveripperError>) -> Result<&RgbaImage, CaveripperError> {
+        if self.img_cache.get(&key).is_none() {
+            self.store_img(key.clone(), generator()?);
         }
-        else {
-            read(manager.asset_path.join(path))
-        }
-        .into_report().change_context(CaveripperError::AssetLoadingError).attach_lazy(|| path.to_owned())
+        self.get_img(&key)
     }
 
-    pub fn get_img<P: AsRef<Path>>(path: P) -> Result<&'static RgbaImage, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._get_img(path)
-    }
-
-    pub fn get_or_store_img(key: String, generator: impl FnOnce() -> Result<RgbaImage, CaveripperError>) -> Result<&'static RgbaImage, CaveripperError> {
-        let manager = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
-        if manager.img_cache.get(&key).is_none() {
-            manager._store_img(key.clone(), generator()?);
-        }
-        manager._get_img(&key)
-    }
-
-    pub fn teki_list(game: &str) -> Result<&'static [String], CaveripperError> {
-        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.teki(game)?.as_slice())
-    }
-
-    // TODO: remove
-    fn _combined_teki_list(&self) -> Result<Vec<String>, CaveripperError> {
-        self.all_games().into_iter()
-            .try_fold(Vec::new(), |mut acc, game| {
-                acc.extend(self.teki(game)?.clone());
-                Ok(acc)
-            })
-    }
-
-    /// Combines the Teki List from all known games. TODO: remove
-    pub fn combined_teki_list() -> Result<Vec<String>, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._combined_teki_list()
-    }
-
-    // TODO: remove
-    fn _combined_treasure_list(&self) -> Result<Vec<Treasure>, CaveripperError> {
-        self.all_games().into_iter()
-            .try_fold(Vec::new(), |mut acc, game| {
-                acc.extend(self.treasures(game)?.clone());
-                Ok(acc)
-            })
-    }
-
-    /// Combines the Teki List from all known games. TODO: remove
-    pub fn combined_treasure_list() -> Result<Vec<Treasure>, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._combined_treasure_list()
-    }
-
-    // TODO: remove
-    fn _combined_room_list(&self) -> Result<Vec<String>, CaveripperError> {
-        self.all_games().into_iter()
-            .try_fold(Vec::new(), |mut acc, game| {
-                acc.extend(self.rooms(game)?.clone());
-                Ok(acc)
-            })
-    }
-
-    /// Combines the Room List from all known games. TODO: remove
-    pub fn combined_room_list() -> Result<Vec<String>, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?._combined_room_list()
-    }
-
-    pub fn treasure_list(game: &str) -> Result<&'static [Treasure], CaveripperError> {
-        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.treasures(game)?.as_slice())
-    }
-
-    pub fn room_list(game: &str) -> Result<&'static [String], CaveripperError> {
-        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.rooms(game)?.as_slice())
-    }
-
-    /// Forces the asset manager to load all the Caveinfo files in Vanilla Pikmin 2.
-    /// Most useful for testing and benchmarking purposes.
-    pub fn preload_all_caveinfo() -> Result<(), CaveripperError> {
-        let assets = ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?;
-        for cave in ALL_CAVES {
-            let (game, cave_name) = cave.split_once(':').unwrap_or(("pikmin2", cave));
-            assets.load_caveinfo(AssetManager::find_cave_cfg(cave_name, Some(game), false)?)?;
-        }
-        Ok(())
-    }
-
-    /// Clones the sublevel cache and returns it.
-    /// Most useful for testing.
-    pub fn all_sublevels() -> Result<PinMap<Sublevel, CaveInfo>, CaveripperError> {
-        Ok(ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.caveinfo_cache.clone())
-    }
-
-    pub(crate) fn find_cave_cfg(name: &str, game: Option<&str>, force_challenge_mode: bool) -> Result<&'static CaveConfig, CaveripperError> {
-        ASSETS.get().ok_or(CaveripperError::AssetMgrUninitialized)?.cave_cfg.iter()
+    pub(crate) fn find_cave_cfg(&self, name: &str, game: Option<&str>, force_challenge_mode: bool) -> Result<&CaveConfig, CaveripperError> {
+        self.cave_cfg.iter()
             .filter(|cfg| {
                 game.map(|game_name| cfg.game.eq_ignore_ascii_case(game_name)).unwrap_or(true) && (!force_challenge_mode || cfg.is_challenge_mode)
             })
@@ -265,46 +221,25 @@ impl AssetManager {
             .into_report().attach_printable_lazy(|| name.to_string())
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn caveinfos_from_cave(compound_name: &str) -> Result<Vec<&'static CaveInfo>, CaveripperError> {
-        let (game_name, cave_name) = compound_name.split_once(':').unwrap_or(("pikmin2", compound_name));
-        let cfg = AssetManager::find_cave_cfg(cave_name, Some(game_name), false)?;
-
-        let mut floor = 1;
-        let mut caveinfos = Vec::new();
-        while let Ok(caveinfo) = AssetManager::get_caveinfo(&Sublevel::from_cfg(cfg, floor)) {
-            caveinfos.push(caveinfo);
-            floor += 1;
-        }
-        Ok(caveinfos)
-    }
-
-    fn _get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<&str, CaveripperError> {
-        let p_str: String = path.as_ref().to_string_lossy().into();
-        if let Some(value) = self.txt_cache.get(&p_str) {
-            Ok(value)
+    pub fn get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<String, CaveripperError> {
+        let path = path.as_ref();
+        let p_str = path.to_string_lossy().into_owned();
+        info!("Loading {p_str}...");
+        let data = read(self.asset_dir.join(path))
+            .into_report().change_context(CaveripperError::AssetLoadingError)
+            .attach_printable_lazy(|| p_str.clone())?;
+        let text = if path.starts_with("assets") && let (text, _, false) = SHIFT_JIS.decode(&data) {
+            text.into_owned()
         }
         else {
-            info!("Loading {}...", &p_str);
-            if path.as_ref().starts_with("resources") {
-                let data = read(self.resources_loc.join(path))
-                    .into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
-                let _ = self.txt_cache.insert(
-                    p_str.clone(),
-                    String::from_utf8(data)
-                        .into_report().change_context(CaveripperError::AssetLoadingError)?
-                );
-            }
-            else {
-                let data = read(self.asset_path.join(path))
-                    .into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
-                let _ = self.txt_cache.insert(p_str.clone(), SHIFT_JIS.decode(data.as_slice()).0.into_owned());
-            }
-            Ok(self.txt_cache.get(&p_str).unwrap())
-        }
+            String::from_utf8(data).into_report()
+                .change_context(CaveripperError::AssetLoadingError)
+                .attach_printable_lazy(|| format!("Couldn't decode file {p_str}"))?
+        };
+        Ok(text)
     }
 
-    fn _get_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, CaveripperError> {
+    pub fn get_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, CaveripperError> {
         if let Some(value) = self.caveinfo_cache.get(sublevel) && !sublevel.cfg.game.eq_ignore_ascii_case(DIRECT_MODE_TAG) {
             Ok(value)
         }
@@ -315,13 +250,9 @@ impl AssetManager {
         }
     }
 
-    fn _get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, CaveripperError> {
+    pub fn get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, CaveripperError> {
         let p_str: String = path.as_ref().to_string_lossy().into();
-        let path: PathBuf = if path.as_ref().starts_with("resources") {
-            self.resources_loc.join(path.as_ref())
-        } else {
-            self.asset_path.join(path)
-        };
+        let path: PathBuf = self.asset_dir.join(path.as_ref());
 
         if let Some(value) = self.img_cache.get(&p_str) {
             Ok(value)
@@ -336,14 +267,14 @@ impl AssetManager {
         }
     }
 
-    fn _store_img(&self, key: String, img: RgbaImage) {
+    pub fn store_img(&self, key: String, img: RgbaImage) {
         let _ = self.img_cache.insert(key, img);
     }
 
     /// Loads, parses, and stores a CaveInfo file
     fn load_caveinfo(&self, cave: &CaveConfig) -> Result<(), CaveripperError> {
         info!("Loading CaveInfo for {}...", cave.full_name);
-        let caveinfos = CaveInfo::parse_from(cave)?;
+        let caveinfos = CaveInfo::parse_from(cave, self)?;
         for mut caveinfo in caveinfos.into_iter() {
             let sublevel = Sublevel::from_cfg(cave, (caveinfo.floor_num+1) as usize);
             caveinfo.cave_cfg = cave.clone();
@@ -355,6 +286,20 @@ impl AssetManager {
         }
 
         Ok(())
+    }
+
+    #[allow(dead_code)] // used in tests
+    pub fn caveinfos_from_cave(&self, compound_name: &str) -> Result<Vec<&CaveInfo>, CaveripperError> {
+        let (game_name, cave_name) = compound_name.split_once(':').unwrap_or(("pikmin2", compound_name));
+        let cfg = self.find_cave_cfg(cave_name, Some(game_name), false)?;
+
+        let mut floor = 1;
+        let mut caveinfos = Vec::new();
+        while let Ok(caveinfo) = self.get_caveinfo(&Sublevel::from_cfg(cfg, floor)) {
+            caveinfos.push(caveinfo);
+            floor += 1;
+        }
+        Ok(caveinfos)
     }
 }
 
@@ -374,7 +319,7 @@ impl CaveConfig {
             PathBuf::from(&self.caveinfo_filename)
         }
         else {
-            PathBuf::from(&self.game).join("caveinfo").join(&self.caveinfo_filename)
+            PathBuf::from_iter(["assets", &self.game, "caveinfo", &self.caveinfo_filename])
         }
     }
 }
@@ -397,20 +342,6 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
         _ => None
     }
 }
-
-static ALL_CAVES: [&str; 88] = [
-    "ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "smc", "coc", "hoh",
-    "dd", "exc", "nt", "ltb", "cg", "gh", "hh", "ba", "rc", "tg", "twg", "cc", "cm",
-    "cr", "dn", "ca", "sp", "tct", "ht", "csn", "gb", "rg", "sl", "hg", "ad", "str",
-    "bg", "cop", "bd", "snr", "er", "newyear:bg", "newyear:sk", "newyear:cwnn", "newyear:snd",
-    "newyear:ch", "newyear:rh", "newyear:ss", "newyear:sa", "newyear:aa", "newyear:ser",
-    "newyear:tc", "newyear:er", "newyear:cg", "newyear:sd", "newyear:ch1", "newyear:ch2",
-    "newyear:ch3", "newyear:ch4", "newyear:ch5", "newyear:ch6", "newyear:ch7", "newyear:ch8",
-    "newyear:ch9", "newyear:ch10", "newyear:ch11", "newyear:ch12", "newyear:ch13", "newyear:ch14",
-    "newyear:ch15", "newyear:ch16", "newyear:ch17", "newyear:ch18", "newyear:ch19", "newyear:ch20",
-    "newyear:ch21", "newyear:ch22", "newyear:ch23", "newyear:ch24", "newyear:ch25", "newyear:ch26",
-    "newyear:ch27", "newyear:ch28", "newyear:ch29", "newyear:ch30",
-];
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Treasure {

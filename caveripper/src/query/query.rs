@@ -6,7 +6,7 @@ mod test;
 pub use search::find_matching_layouts_parallel;
 
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
-use error_stack::{Report, report, ResultExt, IntoReport};
+use error_stack::{Result, report, ResultExt, IntoReport};
 use itertools::Itertools;
 use pest::{Parser, iterators::{Pair, Pairs}};
 use pest_derive::Parser;
@@ -28,23 +28,20 @@ pub struct Query {
 }
 
 impl Query {
-    pub fn matches(&self, seed: u32) -> bool {
+    pub fn matches(&self, seed: u32, mgr: &AssetManager) -> bool {
         let unique_sublevels: HashSet<&Sublevel> = self.clauses.iter().map(|clause| &clause.sublevel).collect();
         let layouts: HashMap<&Sublevel, Layout> = unique_sublevels.into_iter()
             .map(|sublevel| {
-                let caveinfo = AssetManager::get_caveinfo(sublevel).unwrap();
+                let caveinfo = mgr.get_caveinfo(sublevel).unwrap();
                 (sublevel, Layout::generate(seed, caveinfo))
             })
             .collect();
         self.clauses.iter().all(|clause| clause.matches(&layouts[&clause.sublevel]))
     }
-}
 
-/// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
-/// This effectively defines a DSL for search terms.
-impl TryFrom<&str> for Query {
-    type Error = Report<CaveripperError>;
-    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
+    /// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
+    /// This effectively defines a DSL for search terms.
+    pub fn try_parse(input: &str, mgr: &AssetManager) -> Result<Self, CaveripperError> {
         let pairs = QueryParser::parse(Rule::query, input)
             .into_report().change_context(CaveripperError::QueryParseError)?;
         let mut sublevel: Option<Sublevel> = None;
@@ -52,13 +49,13 @@ impl TryFrom<&str> for Query {
         for pair in pairs {
             match pair.as_rule() {
                 Rule::sublevel_ident => {
-                    sublevel = Some(pair.as_str().try_into()
+                    sublevel = Some(Sublevel::try_from_str(pair.as_str(), mgr)
                         .change_context(CaveripperError::QueryParseError)
                         .attach_printable_lazy(|| pair.as_str().to_string())?);
                 },
                 Rule::expression => {
                     if let Some(sublevel) = sublevel.as_ref() {
-                        clauses.push(QueryClause{sublevel: sublevel.clone(), querykind: pair.try_into()?});
+                        clauses.push(QueryClause{sublevel: sublevel.clone(), querykind: QueryKind::try_parse(pair, mgr)?});
                     }
                     else {
                         return Err(report!(CaveripperError::QueryParseError));
@@ -192,11 +189,8 @@ impl QueryKind {
             QueryKind::RoomPath(search_path) => search_path.matches(layout),
         }
     }
-}
 
-impl TryFrom<Pair<'_, Rule>> for QueryKind {
-    type Error = Report<CaveripperError>;
-    fn try_from(input: Pair<'_, Rule>) -> std::result::Result<Self, Self::Error> {
+    pub fn try_parse(input: Pair<'_, Rule>, mgr: &AssetManager) -> Result<Self, CaveripperError> {
         if input.as_rule() != Rule::expression {
             return Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.as_str().to_string());
         }
@@ -208,9 +202,9 @@ impl TryFrom<Pair<'_, Rule>> for QueryKind {
                 let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
 
-                let teki_list = AssetManager::combined_teki_list().change_context(CaveripperError::QueryParseError)?;
-                let treasure_list = AssetManager::combined_treasure_list().change_context(CaveripperError::QueryParseError)?;
-                let room_list = AssetManager::combined_room_list().change_context(CaveripperError::QueryParseError)?;
+                let teki_list = mgr.combined_teki_list().change_context(CaveripperError::QueryParseError)?;
+                let treasure_list = mgr.combined_treasure_list().change_context(CaveripperError::QueryParseError)?;
+                let room_list = mgr.combined_room_list().change_context(CaveripperError::QueryParseError)?;
 
                 if teki_list.contains(&bare_name.to_ascii_lowercase())
                 || treasure_list.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
-use error_stack::{Result, ResultExt, Report, report, IntoReport};
+use error_stack::{Result, ResultExt, report, IntoReport};
 use itertools::Itertools;
 use regex::Regex;
 use once_cell::sync::OnceCell;
@@ -22,6 +22,70 @@ pub struct Sublevel {
 impl Sublevel {
     pub fn from_cfg(cfg: &CaveConfig, floor: usize) -> Sublevel {
         Sublevel { cfg: cfg.clone(), floor }
+    }
+
+    pub fn try_from_str(input: &str, mgr: &AssetManager) -> Result<Self, CaveripperError> {
+        let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
+
+        let (game, input) = input.split_once(':')
+            .map(|(game, rest)| (Some(game.trim().to_ascii_lowercase()), rest.to_ascii_lowercase()))
+            .unwrap_or_else(|| (None, input.to_ascii_lowercase()));
+
+        let components = component_re.find_iter(&input)
+            .map(|c| c.as_str().trim())
+            .collect_vec();
+
+        match *components.as_slice() {
+            // Short sublevel specifier (e.g. "SH6") or full name specifier (e.g. "Snagret Hole 6")
+            [c1] => {
+                let (name, floor) = from_short_specifier(c1)?;
+                Ok(Sublevel {
+                    cfg: mgr.find_cave_cfg(name, game.as_deref(), false)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
+                    floor
+                })
+            },
+
+            // Short sublevel specifier with explicit Challenge Mode qualifier
+            [c1, c2] if c1 == "ch" || c1 == "cm" => {
+                let (name, floor) = from_short_specifier(c2)?;
+                Ok(Sublevel {
+                    cfg: mgr.find_cave_cfg(name, game.as_deref(), true)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
+                    floor
+                })
+            },
+
+            // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
+            [c1, c2] => {
+                let floor = c2.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
+
+                Ok(Sublevel {
+                    cfg: mgr.find_cave_cfg(c1.trim(), game.as_deref(), false)
+                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
+                    floor
+                })
+            },
+
+            // Direct mode caveinfo+unitfile specifier
+            [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
+                let floor = floor.trim().parse().into_report()
+                    .change_context(CaveripperError::UnrecognizedSublevel)?;
+                Ok(Sublevel {
+                    cfg: CaveConfig {
+                        game: DIRECT_MODE_TAG.into(),
+                        full_name: format!("[Direct] {caveinfo_path}"),
+                        is_challenge_mode: caveinfo_path.starts_with("ch"),
+                        shortened_names: vec!["direct".to_string()],
+                        caveinfo_filename: caveinfo_path.into()
+                    },
+                    floor
+                })
+            },
+
+            _ => Err(report!(CaveripperError::UnrecognizedSublevel))
+        }
     }
 
     /// Constructs the normalized name of this sublevel, i.e. one in the
@@ -56,73 +120,6 @@ impl Sublevel {
 static DIGIT: OnceCell<Regex> = OnceCell::new();
 static WORDS: OnceCell<Regex> = OnceCell::new();
 static SUBLEVEL_COMPONENT: OnceCell<Regex> = OnceCell::new();
-
-impl TryFrom<&str> for Sublevel {
-    type Error = Report<CaveripperError>;
-    fn try_from(input: &str) -> std::result::Result<Self, Self::Error> {
-        let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
-
-        let (game, input) = input.split_once(':')
-            .map(|(game, rest)| (Some(game.trim().to_ascii_lowercase()), rest.to_ascii_lowercase()))
-            .unwrap_or_else(|| (None, input.to_ascii_lowercase()));
-
-        let components = component_re.find_iter(&input)
-            .map(|c| c.as_str().trim())
-            .collect_vec();
-
-        match *components.as_slice() {
-            // Short sublevel specifier (e.g. "SH6") or full name specifier (e.g. "Snagret Hole 6")
-            [c1] => {
-                let (name, floor) = from_short_specifier(c1)?;
-                Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), false)
-                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
-                    floor
-                })
-            },
-
-            // Short sublevel specifier with explicit Challenge Mode qualifier
-            [c1, c2] if c1 == "ch" || c1 == "cm" => {
-                let (name, floor) = from_short_specifier(c2)?;
-                Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(name, game.as_deref(), true)
-                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
-                    floor
-                })
-            },
-
-            // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
-            [c1, c2] => {
-                let floor = c2.trim().parse().into_report()
-                    .change_context(CaveripperError::UnrecognizedSublevel)?;
-
-                Ok(Sublevel {
-                    cfg: AssetManager::find_cave_cfg(c1.trim(), game.as_deref(), false)
-                        .change_context(CaveripperError::UnrecognizedSublevel)?.clone(),
-                    floor
-                })
-            },
-
-            // Direct mode caveinfo+unitfile specifier
-            [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
-                let floor = floor.trim().parse().into_report()
-                    .change_context(CaveripperError::UnrecognizedSublevel)?;
-                Ok(Sublevel {
-                    cfg: CaveConfig {
-                        game: DIRECT_MODE_TAG.into(),
-                        full_name: format!("[Direct] {caveinfo_path}"),
-                        is_challenge_mode: caveinfo_path.starts_with("ch"),
-                        shortened_names: vec!["direct".to_string()],
-                        caveinfo_filename: caveinfo_path.into()
-                    },
-                    floor
-                })
-            },
-
-            _ => Err(report!(CaveripperError::UnrecognizedSublevel))
-        }
-    }
-}
 
 impl Serialize for Sublevel {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
