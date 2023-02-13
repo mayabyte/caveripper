@@ -79,6 +79,7 @@ fn test_parse_count_queries() {
     let query_strings = [
         "fc2 room_saka1_1_snow = 2",
         "scx7 room_ari1_3_metal < 2",
+        "bd1 geyser = 0",
     ];
     for s in query_strings {
         Query::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
@@ -91,6 +92,7 @@ fn test_room_path_whitespace() {
     let query_strings = [
         "fc2 any+ship->any+toy_ring_c_blue",
         "fc2 any + ship -> any + toy_ring_c_blue",
+        "fc2 any    +    ship   ->    any +        toy_ring_c_blue",
     ];
     for s in query_strings {
         Query::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));

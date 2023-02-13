@@ -201,13 +201,15 @@ impl QueryKind {
             (Rule::compare, inner) => {
                 let values: Vec<&str> = inner.map(|v| v.as_str().trim()).collect();
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
+                let bare_name_lowercase = bare_name.to_ascii_lowercase();
 
                 let teki_list = mgr.combined_teki_list().change_context(CaveripperError::QueryParseError)?;
                 let treasure_list = mgr.combined_treasure_list().change_context(CaveripperError::QueryParseError)?;
                 let room_list = mgr.combined_room_list().change_context(CaveripperError::QueryParseError)?;
 
-                if teki_list.contains(&bare_name.to_ascii_lowercase())
+                if teki_list.contains(&bare_name_lowercase)
                 || treasure_list.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))
+                || ["hole", "geyser", "ship", "gate"].contains(&bare_name_lowercase.as_str())
                 {
                     Ok(QueryKind::CountEntity {
                         entity_matcher: values[0].into(),
@@ -215,7 +217,7 @@ impl QueryKind {
                         amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
-                else if room_list.contains(&values[0].to_ascii_lowercase()) || RoomType::try_from(values[0]).is_ok() {
+                else if room_list.contains(&bare_name_lowercase) || RoomType::try_from(values[0]).is_ok() {
                     Ok(QueryKind::CountRoom {
                         unit_matcher: values[0].into(),
                         relationship: char_to_ordering(values[1]),
