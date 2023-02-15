@@ -86,14 +86,6 @@ pub enum Commands {
             help = "Number of seeds to attempt to find."
         )]
         num: usize,
-
-        #[clap(
-            value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e:#?}")),
-            short = 's',
-            long = "start",
-            help = "Search seeds sequentially starting from the given seed."
-        )]
-        start_from: Option<u32>,
     },
 
     /// Calculate statistics on what proportion of seeds match a given condition.

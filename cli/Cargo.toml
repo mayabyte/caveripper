@@ -12,7 +12,6 @@ indicatif = {version="0.17", features=["rayon"]}
 clap = {version="4.0", features=["derive"]}
 rand = "0.8"
 log = "0.4"
-crossbeam = "0.8"
 atty = "0.2"
 yaz0 = "0.3"
 gc-gcm = "0.10"

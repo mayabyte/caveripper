@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{cell::Cell, num::NonZeroU32};
 
 /// RNG instance for calling Pikmin 2's RNG function.

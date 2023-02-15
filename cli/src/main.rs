@@ -64,7 +64,7 @@ fn main() -> Result<(), CaveripperError> {
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());
             }
         },
-        Commands::Search { query, timeout_s, num, start_from } => {
+        Commands::Search { query, timeout_s, num } => {
             let query = Query::try_parse(&query, &mgr)?;
             let start_time = Instant::now();
             let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
@@ -77,24 +77,20 @@ fn main() -> Result<(), CaveripperError> {
                 progress_bar.finish_and_clear();
             }
 
-            let result_recv = find_matching_layouts_parallel(
+            find_matching_layouts_parallel(
                 &query,
                 &mgr,
                 deadline,
                 (num > 0).then_some(num),
-                start_from,
-                Some(&progress_bar)
+                Some(|| { progress_bar.inc(1); }),
+                |seed| {
+                    progress_bar.suspend(|| println!("{seed:#010X}"));
+                }
             );
-
-            let mut num_found = 0;
-            for seed in result_recv.iter().take(num) {
-                num_found += 1;
-                progress_bar.suspend(|| println!("{seed:#010X}"));
-            }
 
             progress_bar.finish_and_clear();
             if atty::is(Stream::Stdout) {
-                eprintln!("🍞 Found {} matching seed(s) in {:0.3}s.", num_found, start_time.elapsed().as_secs_f32());
+                eprintln!("🍞 Finished in {:0.3}s.", start_time.elapsed().as_secs_f32());
             }
         },
         Commands::Stats { query, num_to_search } => {
@@ -107,8 +103,8 @@ fn main() -> Result<(), CaveripperError> {
                 })
                 .count();
             println!(
-                "🍞 Searched {} layouts and found {} ({:.03}%) that match the condition '{}'.",
-                num_to_search, num_matched, (num_matched as f32 / num_to_search as f32) * 100.0, &query
+                "🍞 {num_matched} out of {num_to_search} ({:.03}%) match the condition '{query}'.",
+                (num_matched as f32 / num_to_search as f32) * 100.0
             );
         },
         Commands::Filter { query, file } => {
