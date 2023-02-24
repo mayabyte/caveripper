@@ -89,6 +89,9 @@ pub struct LayoutRenderOptions {
     /// Draw the paths treasures will take to the ship.
     #[clap(long, short='p')]
     pub draw_paths: bool,
+
+    #[clap(long, short='c')]
+    pub draw_comedown_square: bool,
 }
 
 #[derive(Default, Debug, Args)]
@@ -673,6 +676,19 @@ impl<'a> Renderer<'a> {
             overlay(&mut canvas_maptiles, unit_texture.as_ref(), base_x, base_y);
             draw_border(&mut canvas_maptiles, base_x as u32 - 1, base_y as u32 - 1, base_x as u32 + unit_texture.width(), base_y as u32 + unit_texture.height());
             overlay(&mut canvas_maptiles, &unit_name_text, base_x, base_y + unit_texture.height() as i64);
+
+            // Draw door indices
+            for (i, door) in unit.doors.iter().enumerate() {
+                let (x, y) = match door.direction {
+                    0 => (door.side_lateral_offset as i64 * GRID_FACTOR + 28, -5),
+                    1 => (unit.width as i64 * GRID_FACTOR - 10, door.side_lateral_offset as i64 * GRID_FACTOR + 20),
+                    2 => (door.side_lateral_offset as i64 * GRID_FACTOR + 28, unit.height as i64 * GRID_FACTOR - 20),
+                    3 => (0, door.side_lateral_offset as i64 * GRID_FACTOR + 20),
+                    _ => panic!("Invalid door direction")
+                };
+                let door_index_text = self.render_small_text(&format!("{i}"), 15.0, [255,0,0,255].into());
+                overlay(&mut canvas_maptiles, &door_index_text, base_x + x, base_y + y);
+            }
 
             max_y = max(max_y, base_y + unit_texture.height() as i64);
             base_x += unit_texture.width() as i64 + maptile_margin;
