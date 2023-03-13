@@ -55,35 +55,17 @@ This is a **work in progress** project. The cave generation implementation is no
 
 While the original and main goal of this project is seed finding, I've found myself wanting to use Caveripper as a base for a whole host of other things too. As such, sub-goals related to seed finding specifically (new Judge algorithm) are on a 'whenever I feel like it' schedule; many of the recent additions have been made with other uses in mind.
 
-## Building from source
-Caveripper is a Rust project, and as such building should be very straightforward. Make sure you have Rust installed using [Rustup](https://rustup.rs/):
+## Installation
+Pre-built binaries for Caveripper aren't provided currently. However, building from source is straightforward thanks to the install scripts (`install.sh` and `install.bat`) provided.
+
+Make sure you have Rust installed using [Rustup](https://rustup.rs/):
 ```bash
 rustup default nightly
 rustup update
 ```
-
 (Nightly Rust is required at the moment since Caveripper uses a few unstable language features.)
 
-Then you can build the Caveripper executable:
-```bash
-cargo build --release
-```
-
-The finished executable will be `target/release/caveripper` (Mac/Linux) or `target\release\caveripper.exe` (Windows). The `assets/` and `resources/` directories must be in the current working directory when run.
-
-### Running Tests and Benchmarks
-The test and benchmark suite is currently sparse, not especially comprehensive, and likely very fragile, and as such I'd recommend you don't bother with this unless you're trying to develop Caveripper yourself.
-
-Tests can be run as follows:
-```bash
-cargo test -- --nocapture
-```
-
-Benchmarks can be run like this:
-```bash
-cargo install cargo-criterion  # one-time installation of the benchmark harness
-cargo criterion  # run benchmarks
-```
+Then just run `install.sh` if you're on Linux/Macos/WSL or `install.bat` if you're on Windows. This will build the program, place the executable in your Cargo bin directory, and copy the Resources folder to `$HOME/.config/caveripper/resources` so it can be accessed from anywhere.
 
 ## Python Bindings
 Caveripper comes with some very simple Python bindings to the core cave generation algorithm. You can use them by following these steps:
