@@ -138,8 +138,8 @@ impl AssetManager {
             Ok(teki_list)
         }
         else {
-            // Eggs are not listed in enemytex, so they have to be added manually
-            let mut all_teki = vec!["egg".to_string()];
+            // Eggs and bombs are not listed in enemytex, so they have to be added manually
+            let mut all_teki = vec!["egg".to_string(), "bomb".to_string()];
 
             let teki_path = self.asset_dir.join("assets").join(game).join("teki");
             let teki = read_dir(&teki_path)
