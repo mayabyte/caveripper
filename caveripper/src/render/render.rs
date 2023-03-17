@@ -1,3 +1,5 @@
+mod sticker;
+
 #[cfg(test)]
 mod test;
 
@@ -21,6 +23,7 @@ use image::{
 };
 use itertools::Itertools;
 use log::{info};
+use sticker::*;
 
 
 const RENDER_SCALE: u32 = 8;
@@ -130,123 +133,125 @@ impl<'a> Renderer<'a> {
     pub fn render_layout(&self, layout: &Layout, options: LayoutRenderOptions) -> Result<RgbaImage, CaveripperError> {
         info!("Drawing layout image...");
 
-        // Find the minimum and maximum map tile coordinates in the layout.
-        let max_map_x = layout.map_units.iter().map(|unit| unit.x as i64 + unit.unit.width as i64).max()
-            .ok_or(CaveripperError::LayoutGenerationError)?;
-        let max_map_z = layout.map_units.iter().map(|unit| unit.z as i64 + unit.unit.height as i64).max()
-            .ok_or(CaveripperError::LayoutGenerationError)?;
+        // // Find the minimum and maximum map tile coordinates in the layout.
+        // let max_map_x = layout.map_units.iter().map(|unit| unit.x as i64 + unit.unit.width as i64).max()
+        //     .ok_or(CaveripperError::LayoutGenerationError)?;
+        // let max_map_z = layout.map_units.iter().map(|unit| unit.z as i64 + unit.unit.height as i64).max()
+        //     .ok_or(CaveripperError::LayoutGenerationError)?;
 
-        // Each map tile is 8x8 pixels on the radar.
-        // We scale this up further so teki and treasure textures can be rendered at a decent
-        // resolution on top of the generated layout images.
-        let mut canvas = RgbaImage::from_pixel(
-            max_map_x as u32 * 8 * RENDER_SCALE,
-            max_map_z as u32 * 8 * RENDER_SCALE,
-            [0, 0, 0, 255].into(),
-        );
+        // // Each map tile is 8x8 pixels on the radar.
+        // // We scale this up further so teki and treasure textures can be rendered at a decent
+        // // resolution on top of the generated layout images.
+        // let mut canvas = RgbaImage::from_pixel(
+        //     max_map_x as u32 * 8 * RENDER_SCALE,
+        //     max_map_z as u32 * 8 * RENDER_SCALE,
+        //     [0, 0, 0, 255].into(),
+        // );
 
-        // Draw map units
-        for map_unit in layout.map_units.iter() {
-            let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game, self.mgr)
-                //.change_context(CaveripperError::RenderingError)?;
-                .unwrap_or_else(|_| Cow::Borrowed(self.mgr.get_img("resources/enemytex_special/duck.png").unwrap()));
+        let mut map_unit_layer = Layer::new();
 
-            // Copy the pixels of the radar image to the buffer
-            let img_x = map_unit.x as i64 * GRID_FACTOR;
-            let img_z = map_unit.z as i64 * GRID_FACTOR;
-            overlay(&mut canvas, radar_image.as_ref(), img_x, img_z);
-        }
 
-        // Draw a map unit grid, if enabled
-        if options.draw_grid {
-            let grid_color: Rgba<u8> = [255, 0, 0, 150].into();
-            let grid_size = GRID_FACTOR as u32;
-            for x in 0..canvas.width() {
-                for z in 0..canvas.height() {
-                    if x % grid_size == 0 || z % grid_size == 0 {
-                        let new_pix = canvas.get_pixel_mut(x, z);
-                        new_pix.blend(&grid_color);
-                    }
-                }
-            }
-        }
+        // // Draw map units
+        // for map_unit in layout.map_units.iter() {
+        //     let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game, self.mgr)
+        //         .change_context(CaveripperError::RenderingError)?;
 
-        // Draw waypoints, if enabled
-        if options.draw_waypoints {
-            for wp in layout.waypoint_graph().iter() {
-                let wp_img = circle(((wp.r * COORD_FACTOR).log2() * 3.0) as u32, WAYPOINT_COLOR.into());
-                let pos = wp.pos * COORD_FACTOR;
-                overlay(
-                    &mut canvas,
-                    &wp_img,
-                    pos[0] as i64 - wp_img.width() as i64 / 2,
-                    pos[2] as i64 - wp_img.height() as i64 / 2
-                );
-            }
+        //     // Copy the pixels of the radar image to the buffer
+        //     let img_x = map_unit.x as i64 * GRID_FACTOR;
+        //     let img_z = map_unit.z as i64 * GRID_FACTOR;
+        //     overlay(&mut canvas, radar_image.as_ref(), img_x, img_z);
+        // }
 
-            // Draw the arrows afterwards so they appear on top
-            for wp in layout.waypoint_graph().iter() {
-                if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-                    draw_arrow_line(
-                        &mut canvas,
-                        (wp.pos * COORD_FACTOR).into(),
-                        (backlink.pos * COORD_FACTOR).into(),
-                        CARRY_PATH_COLOR.into()
-                    );
-                }
-            }
-        }
+        // // Draw a map unit grid, if enabled
+        // if options.draw_grid {
+        //     let grid_color: Rgba<u8> = [255, 0, 0, 150].into();
+        //     let grid_size = GRID_FACTOR as u32;
+        //     for x in 0..canvas.width() {
+        //         for z in 0..canvas.height() {
+        //             if x % grid_size == 0 || z % grid_size == 0 {
+        //                 let new_pix = canvas.get_pixel_mut(x, z);
+        //                 new_pix.blend(&grid_color);
+        //             }
+        //         }
+        //     }
+        // }
 
-        // Draw carry paths for treasures, if enabled
-        if options.draw_paths {
-            let treasure_locations = layout.get_spawn_objects()
-                .filter(|(so, _pos)| {
-                    matches!(so, SpawnObject::Item(_))
-                    || matches!(so, SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _))
-                    || matches!(so, SpawnObject::Hole(_))
-                })
-                .map(|(_, pos)| pos);
-            for pos in treasure_locations {
-                let wp_path = layout.waypoint_graph().carry_path_wps(pos);
-                for (wp1, wp2) in wp_path.tuple_windows() {
-                    draw_arrow_line(
-                        &mut canvas,
-                        (wp1 * COORD_FACTOR).into(),
-                        (wp2 * COORD_FACTOR).into(),
-                        WAYPOINT_DIST_TXT_COLOR.into()
-                    );
-                }
-            }
-        }
+        // // Draw waypoints, if enabled
+        // if options.draw_waypoints {
+        //     for wp in layout.waypoint_graph().iter() {
+        //         let wp_img = circle(((wp.r * COORD_FACTOR).log2() * 3.0) as u32, WAYPOINT_COLOR.into());
+        //         let pos = wp.pos * COORD_FACTOR;
+        //         overlay(
+        //             &mut canvas,
+        //             &wp_img,
+        //             pos[0] as i64 - wp_img.width() as i64 / 2,
+        //             pos[2] as i64 - wp_img.height() as i64 / 2
+        //         );
+        //     }
 
-        // Draw spawned objects
-        for (spawn_object, pos) in layout.get_spawn_objects() {
-            match spawn_object {
-                SpawnObject::Teki(tekiinfo, teki_offset) => {
-                    self.draw_object_at(&mut canvas, tekiinfo, (pos + *teki_offset).into(), &layout.sublevel.cfg.game, &options)
-                    .change_context(CaveripperError::RenderingError)?;
-                },
-                SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
-                    self.draw_object_at(&mut canvas, capinfo, (pos - 30.0).into(), &layout.sublevel.cfg.game, &options)
-                    .change_context(CaveripperError::RenderingError)?;
-                },
-                _ => {
-                    self.draw_object_at(&mut canvas, spawn_object, pos.into(), &layout.sublevel.cfg.game, &options)
-                    .change_context(CaveripperError::RenderingError)?;
-                },
-            }
-        }
+        //     // Draw the arrows afterwards so they appear on top
+        //     for wp in layout.waypoint_graph().iter() {
+        //         if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
+        //             draw_arrow_line(
+        //                 &mut canvas,
+        //                 (wp.pos * COORD_FACTOR).into(),
+        //                 (backlink.pos * COORD_FACTOR).into(),
+        //                 CARRY_PATH_COLOR.into()
+        //             );
+        //         }
+        //     }
+        // }
 
-        if options.draw_score {
-            for unit in layout.map_units.iter() {
-                let score_text = self.render_small_text(&format!("{}", unit.total_score), 16.0, [170, 50, 30, 255].into());
-                let img_x = ((unit.x as f32 + unit.unit.width as f32 / 2.0) * GRID_FACTOR as f32) as i64;
-                let img_z = ((unit.z as f32 + unit.unit.height as f32 / 2.0) * GRID_FACTOR as f32) as i64;
-                overlay(&mut canvas, &score_text, img_x - (score_text.width() / 2) as i64, img_z - (score_text.height() / 2) as i64);
-            }
-        }
+        // // Draw carry paths for treasures, if enabled
+        // if options.draw_paths {
+        //     let treasure_locations = layout.get_spawn_objects()
+        //         .filter(|(so, _pos)| {
+        //             matches!(so, SpawnObject::Item(_))
+        //             || matches!(so, SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _))
+        //             || matches!(so, SpawnObject::Hole(_))
+        //         })
+        //         .map(|(_, pos)| pos);
+        //     for pos in treasure_locations {
+        //         let wp_path = layout.waypoint_graph().carry_path_wps(pos);
+        //         for (wp1, wp2) in wp_path.tuple_windows() {
+        //             draw_arrow_line(
+        //                 &mut canvas,
+        //                 (wp1 * COORD_FACTOR).into(),
+        //                 (wp2 * COORD_FACTOR).into(),
+        //                 WAYPOINT_DIST_TXT_COLOR.into()
+        //             );
+        //         }
+        //     }
+        // }
 
-        Ok(canvas)
+        // // Draw spawned objects
+        // for (spawn_object, pos) in layout.get_spawn_objects() {
+        //     match spawn_object {
+        //         SpawnObject::Teki(tekiinfo, teki_offset) => {
+        //             self.draw_object_at(&mut canvas, tekiinfo, (pos + *teki_offset).into(), &layout.sublevel.cfg.game, &options)
+        //             .change_context(CaveripperError::RenderingError)?;
+        //         },
+        //         SpawnObject::CapTeki(capinfo, _) if capinfo.is_falling() => {
+        //             self.draw_object_at(&mut canvas, capinfo, (pos - 30.0).into(), &layout.sublevel.cfg.game, &options)
+        //             .change_context(CaveripperError::RenderingError)?;
+        //         },
+        //         _ => {
+        //             self.draw_object_at(&mut canvas, spawn_object, pos.into(), &layout.sublevel.cfg.game, &options)
+        //             .change_context(CaveripperError::RenderingError)?;
+        //         },
+        //     }
+        // }
+
+        // if options.draw_score {
+        //     for unit in layout.map_units.iter() {
+        //         let score_text = self.render_small_text(&format!("{}", unit.total_score), 16.0, [170, 50, 30, 255].into());
+        //         let img_x = ((unit.x as f32 + unit.unit.width as f32 / 2.0) * GRID_FACTOR as f32) as i64;
+        //         let img_z = ((unit.z as f32 + unit.unit.height as f32 / 2.0) * GRID_FACTOR as f32) as i64;
+        //         overlay(&mut canvas, &score_text, img_x - (score_text.width() / 2) as i64, img_z - (score_text.height() / 2) as i64);
+        //     }
+        // }
+
+        // Ok(canvas)
     }
 
     pub fn render_caveinfo(&self, caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
@@ -1242,4 +1247,10 @@ fn joke_time() -> bool {
         let time = now + Duration::hours(offset);
         time.month() == 4 && time.day() == 1
     })
+}
+
+impl Render for CaveUnit {
+    fn render(&self, image_fetcher: fn(&str) -> RgbaImage) -> RgbaImage {
+
+    }
 }
