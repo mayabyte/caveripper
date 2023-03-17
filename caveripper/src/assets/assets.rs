@@ -47,25 +47,6 @@ impl AssetManager {
             .into_report().attach_printable("Couldn't access home directory!")?;
         asset_dir.push(".config/caveripper");
 
-        #[cfg(debug_assertions)]
-        {
-            use std::fs::create_dir_all;
-            use fs_extra::dir::{copy, CopyOptions};
-            println!("(!) Copying resource and assets folders to {}", asset_dir.to_str().unwrap());
-            create_dir_all(&asset_dir)
-                .expect("Couldn't create assets dir in HOME!");
-            let _ = copy(
-                PathBuf::from_iter([env!("CARGO_MANIFEST_DIR"), "..", "resources"]),
-                &asset_dir,
-                &CopyOptions { overwrite: true, ..Default::default() }
-            );
-            let _ = copy(
-                PathBuf::from_iter([env!("CARGO_MANIFEST_DIR"), "..", "assets"]),
-                &asset_dir,
-                &CopyOptions { overwrite: true, ..Default::default() }
-            );
-        }
-
         let cave_cfg: Vec<CaveConfig> = read_to_string(asset_dir.join("resources/caveinfo_config.txt"))
             .into_report().change_context(CaveripperError::AssetLoadingError)?
             .lines()
