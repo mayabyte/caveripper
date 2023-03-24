@@ -88,6 +88,33 @@ pub enum Commands {
         num: usize,
     },
 
+    /// Search for matching seeds along sequential RNG calls. Useful for TAS RNG manipulation.
+    ///
+    /// This command is *single-threaded* so search large seed ranges with caution.
+    #[clap(
+        arg_required_else_help = true,
+    )]
+    SearchFrom {
+        #[clap(
+            help = "Start from this seed. Further seeds are obtained by calling Pikmin 2's RNG function.",
+            value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e:#?}")),
+        )]
+        start_from: u32,
+
+        #[clap(
+            help = SEARCH_COND_HELP,
+        )]
+        query: String,
+
+        #[clap(
+            default_value_t = 10_000,
+            short = 'm',
+            long = "max_distance",
+            help = "Maximum distance from the starting seed to search"
+        )]
+        max: usize,
+    },
+
     /// Calculate statistics on what proportion of seeds match a given condition.
     #[clap(
         arg_required_else_help = true,

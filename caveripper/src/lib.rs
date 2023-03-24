@@ -34,7 +34,7 @@ pub mod render;
 
 pub mod sublevel;
 pub mod errors;
-mod pikmin_math;
+pub mod pikmin_math;
 mod point;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {

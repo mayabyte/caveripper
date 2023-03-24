@@ -6,7 +6,7 @@ use cli::*;
 use clap::Parser;
 use error_stack::Result;
 use extract::extract_iso;
-use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle, ProgressIterator};
 use rand::prelude::*;
 use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
 use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}};
@@ -18,7 +18,7 @@ use caveripper::{
         save_image,
     },
     query::{find_matching_layouts_parallel, Query},
-    parse_seed, errors::CaveripperError, sublevel::Sublevel
+    parse_seed, errors::CaveripperError, sublevel::Sublevel, pikmin_math::PikminRng
 };
 use simple_logger::SimpleLogger;
 
@@ -93,6 +93,21 @@ fn main() -> Result<(), CaveripperError> {
                 eprintln!("🍞 Finished in {:0.3}s.", start_time.elapsed().as_secs_f32());
             }
         },
+        Commands::SearchFrom { start_from, query, max } => {
+            let query = Query::try_parse(&query, &mgr)?;
+            let rng = PikminRng::new(start_from);
+            let progress_bar = ProgressBar::new(max as u64);
+
+            rng.take(max)
+                .enumerate()
+                .progress_with(progress_bar.clone())
+                .filter(|(_, seed)| query.matches(*seed, &mgr))
+                .for_each(|(offset, seed)| {
+                    progress_bar.suspend(
+                        || println!("{seed:#010X}\tOffset: {} ({:#0X})", offset + 1, offset + 1)
+                    );
+                });
+        }
         Commands::Stats { query, num_to_search } => {
             let query = Query::try_parse(&query, &mgr)?;
             let num_matched = (0..num_to_search).into_par_iter()

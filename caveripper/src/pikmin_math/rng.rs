@@ -129,6 +129,14 @@ impl PikminRng {
     }
 }
 
+impl Iterator for PikminRng {
+    type Item = u32;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.rand_raw(); // Onl returns the bottom 15 bits so we can't return this directly.
+        Some(self.seed.get())
+    }
+}
+
 const PRECOMPUTED_A_N: [u32; 16] = [
     0x41C64E6D,
     0x41C64E6Du32.wrapping_pow(2),
