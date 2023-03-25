@@ -128,3 +128,17 @@ newyear,    Boss All Stars,        true,  ch_MUKI_king.txt,                 CH30
 251,        Royal Realm,           true,  ch28_emperor.txt,                 CH28, rr
 251,        Titan's Trench,        true,  ch29_bigtreasure.txt,             CH29, ttt, ttr
 251,        The Gauntlet,          true,  ch30_gauntlet.txt,                CH30, tg
+bikmin,     Overflowing Hole,      false, tutorial_1.txt,                   OH
+bikmin,     Lobotomite Loo,        false, tutorial_2.txt,                   LL
+bikmin,     Koridai Mines,         false, tutorial_3.txt,                   KM
+bikmin,     Frozen Catacombs,      false, forest_1.txt,                     FzC, fc
+bikmin,     Flood of Frogs,        false, forest_2.txt,                     FoF, ff
+bikmin,     Bup Nation,            false, forest_3.txt,                     BN
+bikmin,     Hyrule Tunnels,        false, forest_4.txt,                     HT
+bikmin,     Factory Jamboree,      false, yakushima_1.txt,                  FJ
+bikmin,     Bread Aisle,           false, yakushima_2.txt,                  BA, bra
+bikmin,     Vent Chamber,          false, yakushima_3.txt,                  VC
+bikmin,     The Annoying Hole,     false, yakushima_4.txt,                  TAH, ah
+bikmin,     J.N. Warehouse,        false, last_1.txt,                       JNW
+bikmin,     Atrocity Facility,     false, last_2.txt,                       AF
+bikmin,     Roche Limit,           false, last_3.txt,                       RL

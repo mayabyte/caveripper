@@ -148,7 +148,8 @@ impl<'a> Renderer<'a> {
         // Draw map units
         for map_unit in layout.map_units.iter() {
             let radar_image = map_unit.get_texture(&layout.sublevel.cfg.game, self.mgr)
-                .change_context(CaveripperError::RenderingError)?;
+                //.change_context(CaveripperError::RenderingError)?;
+                .unwrap_or_else(|_| Cow::Borrowed(self.mgr.get_img("resources/enemytex_special/duck.png").unwrap()));
 
             // Copy the pixels of the radar image to the buffer
             let img_x = map_unit.x as i64 * GRID_FACTOR;
@@ -358,7 +359,7 @@ impl<'a> Renderer<'a> {
                             let treasure = self.mgr.treasure_list(&caveinfo.cave_cfg.game)
                                 .change_context(CaveripperError::RenderingError)?.iter()
                                 .find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
-                                .expect("Teki carrying unknown or invalid treasure!");
+                                .unwrap_or_else(|| panic!("Teki carrying unknown or invalid treasure \"{carrying}\""));
 
                             let carried_treasure_icon = resize(
                                 self.mgr.get_img(
@@ -552,7 +553,8 @@ impl<'a> Renderer<'a> {
             .collect();
 
         for (i, unit) in caps.iter().enumerate() {
-            let unit_texture = unit.get_texture(&caveinfo.cave_cfg.game, self.mgr).change_context(CaveripperError::RenderingError)?;
+            let unit_texture = unit.get_texture(&caveinfo.cave_cfg.game, self.mgr)
+                .unwrap_or_else(|_| Cow::Borrowed(self.mgr.get_img("resources/enemytex_special/duck.png").unwrap()));
             let y = base_y + i as i64 * ((RENDER_SCALE * 8) as i64 + maptile_margin);
 
             if y + unit_texture.height() as i64 > canvas_maptiles.height() as i64 {
@@ -594,7 +596,9 @@ impl<'a> Renderer<'a> {
         }
 
         for unit in rooms {
-            let mut unit_texture = unit.get_texture(&caveinfo.cave_cfg.game, self.mgr).change_context(CaveripperError::RenderingError)?.clone();
+            let mut unit_texture = unit.get_texture(&caveinfo.cave_cfg.game, self.mgr)
+                .unwrap_or_else(|_| Cow::Borrowed(self.mgr.get_img("resources/enemytex_special/duck.png").unwrap()))
+                .clone();
 
             // If the unit is just too big, we have to expand the whole image
             if unit_texture.width() + 2 > canvas_maptiles.width() {

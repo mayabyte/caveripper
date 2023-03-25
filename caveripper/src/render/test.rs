@@ -60,4 +60,6 @@ test_render!("ec", "scx", "fc", "hob", "wfg", "bk", "sh", "cos", "gk", "sr", "sm
 "251_ch1", "251_ch2", "251_ch3", "251_ch4", "251_ch5", "251_ch6", "251_ch7", "251_ch8", "251_ch9",
 "251_ch10", "251_ch11", "251_ch12", "251_ch13", "251_ch14", "251_ch15", "251_ch16", "251_ch17",
 "251_ch18", "251_ch19", "251_ch20", "251_ch21", "251_ch22", "251_ch23", "251_ch24", "251_ch25",
-"251_ch26", "251_ch27", "251_ch28", "251_ch29", "251_ch30");
+"251_ch26", "251_ch27", "251_ch28", "251_ch29", "251_ch30", "bikmin_oh", "bikmin_ll", "bikmin_km",
+"bikmin_fzc", "bikmin_fof", "bikmin_bn", "bikmin_ht", "bikmin_fj", "bikmin_ba", "bikmin_vc",
+"bikmin_tah", "bikmin_jnw", "bikmin_af", "bikmin_rl");

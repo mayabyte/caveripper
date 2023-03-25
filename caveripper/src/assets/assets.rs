@@ -101,6 +101,7 @@ impl AssetManager {
             treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
 
             let _ = self.treasures.insert(game.to_string(), treasures);
+            println!("{:#?}", self.treasures.get(game).unwrap());
             Ok(self.treasures.get(game).unwrap())
         }
     }
@@ -336,15 +337,15 @@ fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
     config_txt.chars()
         .peekable()
         .batching(|chars| {
-            let val = chars.skip_while(|c| c != &'{')
-                .skip(1)
-                .take_while(|c| c != &'}')
-                .skip(1)
-                .collect::<String>();
             if chars.peek().is_none() {
                 None
             }
             else {
+                let val = chars.skip_while(|c| c != &'{')
+                    .skip(1)
+                    .take_while(|c| c != &'}')
+                    .skip(1)
+                    .collect::<String>();
                 Some(val)
             }
         })
