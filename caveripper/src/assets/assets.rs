@@ -101,7 +101,6 @@ impl AssetManager {
             treasures.sort_by(|t1, t2| t1.internal_name.cmp(&t2.internal_name));
 
             let _ = self.treasures.insert(game.to_string(), treasures);
-            println!("{:#?}", self.treasures.get(game).unwrap());
             Ok(self.treasures.get(game).unwrap())
         }
     }
