@@ -24,6 +24,7 @@ petgraph = "0.6"
 num = "0.4"
 dirs = "4.0"
 fs_extra = "1.3"
+chrono = {version="0.4", features=["clock"]}
 
 [dev-dependencies]
 criterion = "0.4"

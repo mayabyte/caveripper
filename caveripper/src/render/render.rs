@@ -1176,11 +1176,22 @@ impl Textured for SpawnObject<'_> {
 
 impl Textured for CaveUnit {
     fn get_texture<'a>(&self, game: &str, mgr: &'a AssetManager) -> Result<Cow<'a, RgbaImage>, CaveripperError> {
-        let filename = PathBuf::from_iter(["assets", game, "mapunits", &self.unit_folder_name, "arc", "texture.png"]);
+        let joke = self.unit_folder_name.contains("cap_") && joke_time();
+        let filename = if joke {
+            use rand::Rng;
+            let which = rand::thread_rng().gen_range(1..=4);
+            PathBuf::from_iter(["resources", "kaps", &format!("{which}.png")])
+        }
+        else {
+            PathBuf::from_iter(["assets", game, "mapunits", &self.unit_folder_name, "arc", "texture.png"])
+        };
         let mut img = mgr.get_img(&filename)?.to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
-        brighten_in_place(&mut img, 75);
+        if !joke {
+            brighten_in_place(&mut img, 75);
+        }
+
 
         for _ in 0..self.rotation {
             img = rotate90(&img);
@@ -1220,4 +1231,13 @@ impl Textured for CaveUnit {
     fn get_texture_modifiers(&self) -> Vec<TextureModifier> {
         Vec::new()
     }
+}
+
+fn joke_time() -> bool {
+    use chrono::{Datelike, Duration};
+    let now = chrono::Utc::now();
+    [-12, 0, 1].into_iter().any(|offset| {
+        let time = now + Duration::hours(offset);
+        time.month() == 4 && time.day() == 1
+    })
 }
