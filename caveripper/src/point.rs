@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use num::{traits::real::Real, zero, Float, Zero};
+use num::{traits::real::Real, zero, Zero};
 use serde::{ser::SerializeSeq, Serialize};
 use std::{
     fmt::Display,
@@ -62,20 +62,14 @@ impl<const N: usize, T> Point<N, T> {
     }
 }
 
-impl<T> Point<3, T> {
-    /// Rotates this point about the given point in the XZ plane only.
-    pub fn rotate_about_xz(&self, pivot: Point<2, T>, angle_rad: T) -> Self
-    where
-        T: Copy + Float,
-    {
+impl Point<3, f32> {
+    /// Rotates this point counter-clockwise about the given point in the XZ plane only.
+    pub fn rotate_about_xz(&self, pivot: Point<2, f32>, angle_rad: f32) -> Self {
         let p = self.two_d().rotate_about(pivot, angle_rad);
         Point([p[0], self[1], p[1]])
     }
 
-    pub fn two_d(&self) -> Point<2, T>
-    where
-        T: Copy,
-    {
+    pub fn two_d(&self) -> Point<2, f32> {
         Point([self[0], self[2]])
     }
 }
@@ -88,12 +82,11 @@ impl<T> Point<2, T> {
     {
         Self([-self[1], self[0]])
     }
+}
 
-    /// Rotates this point about the given point.
-    pub fn rotate_about(&self, pivot: Point<2, T>, angle_rad: T) -> Self
-    where
-        T: Copy + Float,
-    {
+impl Point<2, f32> {
+    /// Rotates this point counter-clockwise about the given point.
+    pub fn rotate_about(&self, pivot: Point<2, f32>, angle_rad: f32) -> Self {
         // Translate such that the pivot point is at the origin
         let p = *self - pivot;
 

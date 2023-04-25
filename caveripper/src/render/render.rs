@@ -7,9 +7,15 @@ use crate::{
     assets::{get_special_texture_name, AssetManager, Treasure},
     caveinfo::{CapInfo, CaveInfo, CaveUnit, GateInfo, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
-    layout::{Layout, PlacedMapUnit, SpawnObject},
+    layout::{
+        waypoint::{self, WaypointGraph},
+        Layout, PlacedMapUnit, SpawnObject,
+    },
     point::Point,
-    render::sticker::shapes::{Circle, Rectangle},
+    render::{
+        self,
+        sticker::shapes::{Circle, Rectangle},
+    },
 };
 use clap::Args;
 use error_stack::{IntoReport, Result, ResultExt};
@@ -155,92 +161,65 @@ impl<'a> Renderer<'a> {
 
         /* Map Units */
         let mut map_unit_layer = Layer::new();
-        let mut waterbox_layer = Layer::new();
         for map_unit in layout.map_units.iter() {
-            let key = format!(
-                "{}_{}",
-                map_unit.unit.unit_folder_name, map_unit.unit.rotation
+            render_map_unit(
+                &mut renderer,
+                &mut map_unit_layer,
+                map_unit.unit,
+                Point([
+                    map_unit.x as f32 * GRID_FACTOR,
+                    map_unit.z as f32 * GRID_FACTOR,
+                ]),
             );
-            let unit_img_width = map_unit.unit.width as f32 * GRID_FACTOR;
-            let unit_img_height = map_unit.unit.height as f32 * GRID_FACTOR;
-            let sticker = renderer.add_sticker_with(key, || {
-                Sticker::new(
-                    Renderable::Borrowed(map_unit.unit),
-                    Origin::TopLeft,
-                    Size::Absolute(unit_img_width, unit_img_height),
-                )
-            });
-            let map_img_x = map_unit.x as f32 * GRID_FACTOR;
-            let map_img_z = map_unit.z as f32 * GRID_FACTOR;
-            map_unit_layer.add(sticker, map_img_x, map_img_z);
+        }
+        renderer.add_layer(map_unit_layer);
 
-            // Waterboxes
-            for waterbox in map_unit.unit.waterboxes.iter() {
-                let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
-                let waterbox_sticker = renderer.add_sticker_with(key, || {
+        /* Waypoints */
+        if options.draw_waypoints {
+            let mut waypoint_circle_layer = Layer::new();
+            for wp in layout.waypoint_graph().iter() {
+                println!("{}", wp.pos);
+                let wp_sticker = renderer.add_sticker_with(format!("wp_{}", wp.r), || {
                     Sticker::new(
-                        Renderable::Owned(Box::new(Rectangle {
-                            width: waterbox.width() * COORD_FACTOR,
-                            height: waterbox.height() * COORD_FACTOR,
-                            color: WATERBOX_COLOR.into(),
+                        Renderable::Owned(Box::new(Circle {
+                            radius: wp.r * COORD_FACTOR / 1.7,
+                            color: WAYPOINT_COLOR.into(),
                         })),
-                        Origin::TopLeft,
+                        Origin::Center,
                         Size::Native,
                     )
                 });
-                waterbox_layer.add(
-                    waterbox_sticker,
-                    map_img_x + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
-                    map_img_z + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
+                waypoint_circle_layer.add(
+                    wp_sticker,
+                    wp.pos[0] * COORD_FACTOR,
+                    wp.pos[2] * COORD_FACTOR,
                 );
             }
+            renderer.add_layer(waypoint_circle_layer);
+
+            // Draw the arrows afterwards so they appear on top
+            // for wp in layout.waypoint_graph().iter() {
+            //     if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
+            //         draw_arrow_line(
+            //             &mut canvas,
+            //             (wp.pos * COORD_FACTOR).into(),
+            //             (backlink.pos * COORD_FACTOR).into(),
+            //             CARRY_PATH_COLOR.into(),
+            //         );
+            //     }
+            // }
         }
-        renderer.add_layer(map_unit_layer);
-        renderer.add_layer(waterbox_layer);
 
         /* Spawn Objects */
         let mut spawn_object_layer = Layer::new();
-        let mut spawn_object_background_layer = Layer::new();
+        let mut quickglance_circle_layer = Layer::new();
         for (spawn_object, pos) in layout.get_spawn_objects() {
-            let (key, size) = if let SpawnObject::Gate(_, rotation) = spawn_object {
-                (
-                    Cow::Owned(format!("{}_{}", spawn_object.name(), rotation)),
-                    GATE_SIZE,
-                )
-            } else {
-                (Cow::Borrowed(spawn_object.name()), TEKI_SIZE)
-            };
-            let sticker = renderer.add_sticker_with(key, || {
-                Sticker::new(
-                    Renderable::Borrowed(spawn_object),
-                    Origin::Center,
-                    Size::Absolute(size, size),
-                )
-            });
-            spawn_object_layer.add(sticker, pos[0] * COORD_FACTOR, pos[2] * COORD_FACTOR);
-
-            // Carrying Treasures
-            if let SpawnObject::Teki(
-                TekiInfo {
-                    carrying: Some(treasure),
-                    ..
-                },
-                _,
-            ) = spawn_object
-            {
-                let carrying_sticker = renderer.add_sticker_with(treasure, || {
-                    Sticker::new(
-                        Renderable::Owned(Box::new(TreasureRenderer(treasure))),
-                        Origin::Center,
-                        Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE),
-                    )
-                });
-                spawn_object_layer.add(
-                    carrying_sticker,
-                    pos[0] * COORD_FACTOR + (size * 0.4),
-                    pos[2] * COORD_FACTOR + (size * 0.4),
-                );
-            }
+            render_spawn_object(
+                &mut renderer,
+                &mut spawn_object_layer,
+                spawn_object,
+                pos.two_d(),
+            );
 
             // Quickglance Circles
             if options.quickglance {
@@ -282,7 +261,7 @@ impl<'a> Renderer<'a> {
                             )
                         },
                     );
-                    spawn_object_background_layer.add(
+                    quickglance_circle_layer.add(
                         qg_sticker,
                         pos[0] * COORD_FACTOR,
                         pos[2] * COORD_FACTOR,
@@ -290,7 +269,7 @@ impl<'a> Renderer<'a> {
                 }
             }
         }
-        renderer.add_layer(spawn_object_background_layer);
+        renderer.add_layer(quickglance_circle_layer);
         renderer.add_layer(spawn_object_layer);
 
         // TODO: grid
@@ -305,32 +284,6 @@ impl<'a> Renderer<'a> {
         //                 let new_pix = canvas.get_pixel_mut(x, z);
         //                 new_pix.blend(&grid_color);
         //             }
-        //         }
-        //     }
-        // }
-
-        // // Draw waypoints, if enabled
-        // if options.draw_waypoints {
-        //     for wp in layout.waypoint_graph().iter() {
-        //         let wp_img = circle(((wp.r * COORD_FACTOR).log2() * 3.0) as u32, WAYPOINT_COLOR.into());
-        //         let pos = wp.pos * COORD_FACTOR;
-        //         overlay(
-        //             &mut canvas,
-        //             &wp_img,
-        //             pos[0] as i64 - wp_img.width() as i64 / 2,
-        //             pos[2] as i64 - wp_img.height() as i64 / 2
-        //         );
-        //     }
-
-        //     // Draw the arrows afterwards so they appear on top
-        //     for wp in layout.waypoint_graph().iter() {
-        //         if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-        //             draw_arrow_line(
-        //                 &mut canvas,
-        //                 (wp.pos * COORD_FACTOR).into(),
-        //                 (backlink.pos * COORD_FACTOR).into(),
-        //                 CARRY_PATH_COLOR.into()
-        //             );
         //         }
         //     }
         // }
@@ -1501,6 +1454,93 @@ fn circle(radius: u32, color: Rgba<u8>) -> RgbaImage {
         }
     }
     buffer
+}
+
+fn render_map_unit<'k, 'i: 'k>(
+    renderer: &mut StickerRenderer<'k, 'i, AssetManager>,
+    layer: &mut Layer<'k>,
+    unit: &'i CaveUnit,
+    pos: Point<2, f32>,
+) {
+    let key = format!("{}_{}", unit.unit_folder_name, unit.rotation);
+    let unit_img_width = unit.width as f32 * GRID_FACTOR;
+    let unit_img_height = unit.height as f32 * GRID_FACTOR;
+    let sticker = renderer.add_sticker_with(key, || {
+        Sticker::new(
+            Renderable::Borrowed(unit),
+            Origin::TopLeft,
+            Size::Absolute(unit_img_width, unit_img_height),
+        )
+    });
+    layer.add(sticker, pos[0], pos[1]);
+
+    // Waterboxes
+    for waterbox in unit.waterboxes.iter() {
+        let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
+        let waterbox_sticker = renderer.add_sticker_with(key, || {
+            Sticker::new(
+                Renderable::Owned(Box::new(Rectangle {
+                    width: waterbox.width() * COORD_FACTOR,
+                    height: waterbox.height() * COORD_FACTOR,
+                    color: WATERBOX_COLOR.into(),
+                })),
+                Origin::TopLeft,
+                Size::Native,
+            )
+        });
+        layer.add(
+            waterbox_sticker,
+            pos[0] + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
+            pos[1] + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
+        );
+    }
+}
+
+fn render_spawn_object<'k, 'i: 'k>(
+    renderer: &mut StickerRenderer<'k, 'i, AssetManager>,
+    layer: &mut Layer<'k>,
+    spawn_object: &'i SpawnObject<'k>,
+    pos: Point<2, f32>,
+) {
+    let (key, size) = if let SpawnObject::Gate(_, rotation) = spawn_object {
+        (
+            Cow::Owned(format!("{}_{}", spawn_object.name(), rotation)),
+            GATE_SIZE,
+        )
+    } else {
+        (Cow::Borrowed(spawn_object.name()), TEKI_SIZE)
+    };
+    let sticker = renderer.add_sticker_with(key, || {
+        Sticker::new(
+            Renderable::Borrowed(spawn_object),
+            Origin::Center,
+            Size::Absolute(size, size),
+        )
+    });
+    layer.add(sticker, pos[0] * COORD_FACTOR, pos[1] * COORD_FACTOR);
+
+    // Carrying Treasures
+    if let SpawnObject::Teki(
+        TekiInfo {
+            carrying: Some(treasure),
+            ..
+        },
+        _,
+    ) = spawn_object
+    {
+        let carrying_sticker = renderer.add_sticker_with(treasure, || {
+            Sticker::new(
+                Renderable::Owned(Box::new(TreasureRenderer(treasure))),
+                Origin::Center,
+                Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE),
+            )
+        });
+        layer.add(
+            carrying_sticker,
+            pos[0] * COORD_FACTOR + (size * 0.4),
+            pos[1] * COORD_FACTOR + (size * 0.4),
+        );
+    }
 }
 
 enum TextureModifier {

@@ -1,24 +1,23 @@
 /// Parsing for CaveInfo files
-
 mod section;
 
 use crate::{
+    assets::{AssetManager, CaveConfig},
     caveinfo::{
         util::{expand_rotations, sort_cave_units},
-        CaveInfo, TekiInfo, ItemInfo, CapInfo, GateInfo,
-        DoorLink, DoorUnit, CaveUnit, SpawnPoint, RoomType,
-        Waterbox, Waypoint
+        CapInfo, CaveInfo, CaveUnit, DoorLink, DoorUnit, GateInfo, ItemInfo, RoomType, SpawnPoint,
+        TekiInfo, Waterbox, Waypoint,
     },
-    assets::{AssetManager, CaveConfig}, point::Point
+    point::Point,
 };
+use error_stack::{report, IntoReport, Report, Result, ResultExt};
 use itertools::Itertools;
 use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
 use std::{path::PathBuf, sync::OnceLock};
-use error_stack::{Result, ResultExt, IntoReport, report, Report};
 
-use self::section::{Section, InfoLine};
+use self::section::{InfoLine, Section};
 
 use super::error::CaveInfoError;
 
@@ -26,26 +25,37 @@ use super::error::CaveInfoError;
 #[grammar = "caveinfo/parse/p2_cfg_grammar.pest"]
 struct CaveinfoParser;
 
-
 fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section>, CaveInfoError> {
     let pairs = CaveinfoParser::parse(Rule::section_file, file_contents)
-        .into_report().change_context(CaveInfoError::MalformedFile)
+        .into_report()
+        .change_context(CaveInfoError::MalformedFile)
         .attach_printable("Couldn't parse file into sections")?
-        .next().unwrap();
+        .next()
+        .unwrap();
     Ok(pairs.into_inner().filter_map(|pair| pair.try_into().ok()))
 }
 
 /// Takes the entire raw text of a CaveInfo file and parses it into several
 /// CaveInfo structs - one for each floor - ready for passing to the generator.
-pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveInfoError> {
-    let caveinfo_txt = mgr.get_txt_file(cave_cfg.get_caveinfo_path())
+pub(crate) fn parse_caveinfo(
+    cave_cfg: &CaveConfig,
+    mgr: &AssetManager,
+) -> Result<Vec<CaveInfo>, CaveInfoError> {
+    let caveinfo_txt = mgr
+        .get_txt_file(cave_cfg.get_caveinfo_path())
         .change_context(CaveInfoError::FileRead)
         .attach_printable_lazy(|| cave_cfg.get_caveinfo_path().to_string_lossy().into_owned())?;
 
     let mut caveinfos = parse_sections(&caveinfo_txt)
-        .attach_printable_lazy(|| format!("Failed to parse {} into sections", cave_cfg.caveinfo_filename))?
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to parse {} into sections",
+                cave_cfg.caveinfo_filename
+            )
+        })?
         .skip(1)
-        .chunks(5).into_iter()
+        .chunks(5)
+        .into_iter()
         .map(|section_chunk| -> Result<CaveInfo, CaveInfoError> {
             let (header, teki, item, gate, cap) = section_chunk
                 .collect_tuple()
@@ -63,9 +73,11 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Resul
                 cap_probability: header.get_tag::<f32>("{f014}")? / 100f32,
                 has_geyser: header.get_tag::<u32>("{f007}")? > 0,
                 exit_plugged: header.get_tag::<u32>("{f010}")? > 0,
-                cave_units: expand_rotations(sort_cave_units(
-                        parse_unitfile(&header.get_tag::<String>("{f008}")?, cave_cfg, mgr)?
-                    )),
+                cave_units: expand_rotations(sort_cave_units(parse_unitfile(
+                    &header.get_tag::<String>("{f008}")?,
+                    cave_cfg,
+                    mgr,
+                )?)),
                 teki_info: teki.try_into()?,
                 item_info: item.try_into()?,
                 gate_info: gate.try_into()?,
@@ -80,9 +92,14 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Resul
     Ok(caveinfos)
 }
 
-fn parse_unitfile(unitfile: &str, cave_cfg: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveUnit>, CaveInfoError> {
+fn parse_unitfile(
+    unitfile: &str,
+    cave_cfg: &CaveConfig,
+    mgr: &AssetManager,
+) -> Result<Vec<CaveUnit>, CaveInfoError> {
     let unitfile_path = PathBuf::from_iter(["assets", &cave_cfg.game, "unitfiles", unitfile]);
-    let unitfile_txt = mgr.get_txt_file(&unitfile_path)
+    let unitfile_txt = mgr
+        .get_txt_file(&unitfile_path)
         .change_context(CaveInfoError::FileRead)?;
     let units = parse_sections(&unitfile_txt)
         .change_context(CaveInfoError::CaveUnitDefinition)
@@ -92,14 +109,15 @@ fn parse_unitfile(unitfile: &str, cave_cfg: &CaveConfig, mgr: &AssetManager) -> 
     Ok(units)
 }
 
-fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) -> Result<CaveUnit, CaveInfoError> {
+fn try_parse_caveunit(
+    section: &Section,
+    cave: &CaveConfig,
+    mgr: &AssetManager,
+) -> Result<CaveUnit, CaveInfoError> {
     let unit_folder_name: String = section.get_line(1)?.get_line_item(0)?;
     let width = section.get_line(2)?.get_line_item(0)?;
     let height = section.get_line(2)?.get_line_item(1)?;
-    let room_type = section
-        .get_line(3)?
-        .get_line_item::<usize>(0)?
-        .into();
+    let room_type = section.get_line(3)?.get_line_item::<usize>(0)?.into();
     let num_doors = section.get_line(5)?.get_line_item(0)?;
 
     // DoorUnits
@@ -118,46 +136,56 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) 
     };
 
     // Cave Unit Layout File (spawn points)
-    let layoutfile_path = PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "layout.txt"]);
+    let layoutfile_path = PathBuf::from_iter([
+        "assets",
+        &cave.game,
+        "mapunits",
+        &unit_folder_name,
+        "texts",
+        "layout.txt",
+    ]);
     let mut spawnpoints = match mgr.get_txt_file(&layoutfile_path) {
-        Ok(cave_unit_layout_file_txt) => {
-            parse_sections(&cave_unit_layout_file_txt)?
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<SpawnPoint>, CaveInfoError>>()
-                .change_context(CaveInfoError::LayoutFile)
-                .attach_printable_lazy(|| layoutfile_path.to_string_lossy().into_owned())?
-        },
+        Ok(cave_unit_layout_file_txt) => parse_sections(&cave_unit_layout_file_txt)?
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<SpawnPoint>, CaveInfoError>>()
+            .change_context(CaveInfoError::LayoutFile)
+            .attach_printable_lazy(|| layoutfile_path.to_string_lossy().into_owned())?,
         Err(_) => Vec::new(),
     };
 
     // Waterboxes file
-    let waterboxes = match mgr.get_txt_file(
-        PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "waterbox.txt"])
-    ) {
-        Ok(waterboxes_file_txt) => {
-            parse_sections(&waterboxes_file_txt)?.next().unwrap().try_into()
-                .change_context(CaveInfoError::WaterboxFile)
-                .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?
-        },
+    let waterboxes = match mgr.get_txt_file(PathBuf::from_iter([
+        "assets",
+        &cave.game,
+        "mapunits",
+        &unit_folder_name,
+        "texts",
+        "waterbox.txt",
+    ])) {
+        Ok(waterboxes_file_txt) => parse_sections(&waterboxes_file_txt)?
+            .next()
+            .unwrap()
+            .try_into()
+            .change_context(CaveInfoError::WaterboxFile)
+            .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?,
         Err(_) => Vec::new(),
     };
 
     // route.txt file (Waypoints)
-    let waypoints_file_txt = mgr.get_txt_file(
-        PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "route.txt"])
-    ).change_context(CaveInfoError::FileRead)?;
+    let waypoints_file_txt = mgr
+        .get_txt_file(PathBuf::from_iter([
+            "assets",
+            &cave.game,
+            "mapunits",
+            &unit_folder_name,
+            "texts",
+            "route.txt",
+        ]))
+        .change_context(CaveInfoError::FileRead)?;
     let waypoints = parse_sections(&waypoints_file_txt)
         .change_context(CaveInfoError::RouteFile)
         .attach_printable_lazy(|| format!("{unit_folder_name}/texts/route.txt"))?
-        .map(<Waypoint as TryFrom::<Section>>::try_from)
-        // Move the coordinates so they're oriented around the center of the unit
-        .map(|r| {
-            r.map(|mut wp| {
-                wp.pos[0] += width as f32 * 170.0 / 2.0;
-                wp.pos[2] += height as f32 * 170.0 / 2.0;
-                wp
-            })
-        })
+        .map(<Waypoint as TryFrom<Section>>::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
     // Add special Hole/Geyser spawnpoints to Cap and Hallway units. These aren't
@@ -165,17 +193,17 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) 
     // so adding them here is a simplification.
     // Group 9 is a special group specifically for these 'fake' hole/geyser spawnpoints.
     // It does not appear in the game code or on the TKB.
-    if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item")) || room_type == RoomType::Hallway {
-        spawnpoints.push(
-            SpawnPoint {
-                group: 9,
-                pos: Point::default(),
-                angle_degrees: 0.0,
-                radius: 0.0,
-                min_num: 1,
-                max_num: 1
-            }
-        );
+    if (room_type == RoomType::DeadEnd && unit_folder_name.starts_with("item"))
+        || room_type == RoomType::Hallway
+    {
+        spawnpoints.push(SpawnPoint {
+            group: 9,
+            pos: Point::default(),
+            angle_degrees: 0.0,
+            radius: 0.0,
+            min_num: 1,
+            max_num: 1,
+        });
     }
 
     Ok(CaveUnit {
@@ -352,20 +380,18 @@ impl TryFrom<&InfoLine<'_>> for DoorLink {
 impl TryFrom<Section<'_>> for SpawnPoint {
     type Error = Report<CaveInfoError>;
     fn try_from(section: Section) -> std::result::Result<SpawnPoint, Self::Error> {
-        Ok(
-            SpawnPoint {
-                group: section.get_line(0)?.get_line_item(0)?,
-                pos: Point([
-                    section.get_line(1)?.get_line_item(0)?,
-                    section.get_line(1)?.get_line_item(1)?,
-                    section.get_line(1)?.get_line_item(2)?,
-                ]),
-                angle_degrees: section.get_line(2)?.get_line_item(0)?,
-                radius: section.get_line(3)?.get_line_item(0)?,
-                min_num: section.get_line(4)?.get_line_item(0)?,
-                max_num: section.get_line(5)?.get_line_item(0)?,
-            }
-        )
+        Ok(SpawnPoint {
+            group: section.get_line(0)?.get_line_item(0)?,
+            pos: Point([
+                section.get_line(1)?.get_line_item(0)?,
+                section.get_line(1)?.get_line_item(1)?,
+                section.get_line(1)?.get_line_item(2)?,
+            ]),
+            angle_degrees: section.get_line(2)?.get_line_item(0)?,
+            radius: section.get_line(3)?.get_line_item(0)?,
+            min_num: section.get_line(4)?.get_line_item(0)?,
+            max_num: section.get_line(5)?.get_line_item(0)?,
+        })
     }
 }
 
@@ -377,15 +403,15 @@ impl TryFrom<Section<'_>> for Vec<Waterbox> {
         for i in 0..num_waterboxes {
             waterboxes.push(Waterbox {
                 p1: Point([
-                    section.get_line(i+1)?.get_line_item(0)?,
-                    section.get_line(i+1)?.get_line_item(1)?,
-                    section.get_line(i+1)?.get_line_item(2)?,
+                    section.get_line(i + 1)?.get_line_item(0)?,
+                    section.get_line(i + 1)?.get_line_item(1)?,
+                    section.get_line(i + 1)?.get_line_item(2)?,
                 ]),
                 p2: Point([
-                    section.get_line(i+1)?.get_line_item(3)?,
-                    section.get_line(i+1)?.get_line_item(4)?,
-                    section.get_line(i+1)?.get_line_item(5)?,
-                ])
+                    section.get_line(i + 1)?.get_line_item(3)?,
+                    section.get_line(i + 1)?.get_line_item(4)?,
+                    section.get_line(i + 1)?.get_line_item(5)?,
+                ]),
             });
         }
         Ok(waterboxes)
@@ -405,15 +431,14 @@ impl TryFrom<Section<'_>> for Waypoint {
             ]),
             r: coords_line.get_line_item(3)?,
             index: section.get_line(0)?.get_line_item(0)?,
-            links: (2..num_links+2)
+            links: (2..num_links + 2)
                 .map(|line_no| -> std::result::Result<_, Self::Error> {
                     section.get_line(line_no)?.get_line_item(0)
                 })
-                .collect::<Result<Vec<_>, _>>()?
+                .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
-
 
 // ************************
 //    Utility Functions
@@ -427,23 +452,41 @@ fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>,
     let spawn_method_match = SPAWN_METHOD_RE.get_or_init(|| Regex::new(r"(\$\d?)").unwrap())
         .find_at(internal_combined_name, 0);
     let (spawn_method, internal_combined_name) = if let Some(mtch) = spawn_method_match {
-        (Some(mtch.as_str().strip_prefix('$').unwrap().to_owned()), &internal_combined_name[mtch.end()..])
-    }
-    else {
+        (
+            Some(mtch.as_str().strip_prefix('$').unwrap().to_owned()),
+            &internal_combined_name[mtch.end()..],
+        )
+    } else {
         (None, internal_combined_name)
     };
 
-    let teki = internal_combined_name.split('_')
+    let teki = internal_combined_name
+        .split('_')
         .enumerate()
-        .take_while(|(i, part)| i == &0 || part.chars().next().unwrap().is_ascii_uppercase() || part == &"s" || part == &"l")
+        .take_while(|(i, part)| {
+            i == &0
+                || part.chars().next().unwrap().is_ascii_uppercase()
+                || part == &"s"
+                || part == &"l"
+        })
         .map(|(_, part)| part)
         .join("_");
-    let treasure_name = internal_combined_name.split('_')
+    let treasure_name = internal_combined_name
+        .split('_')
         .enumerate()
-        .skip_while(|(i, part)| i == &0 || part.chars().next().unwrap().is_ascii_uppercase() || part == &"s" || part == &"l")
+        .skip_while(|(i, part)| {
+            i == &0
+                || part.chars().next().unwrap().is_ascii_uppercase()
+                || part == &"s"
+                || part == &"l"
+        })
         .map(|(_, part)| part)
         .join("_");
-    let treasure = if treasure_name.is_empty() { None } else { Some(treasure_name) };
+    let treasure = if treasure_name.is_empty() {
+        None
+    } else {
+        Some(treasure_name)
+    };
 
     // Some special teki have an "F" variant that doesn't move. These are treated as separate
     // teki in code but use the same assets, so we normalize them here.

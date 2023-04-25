@@ -172,7 +172,6 @@ impl<'i, H> Sticker<'i, H> {
             Origin::TopLeft => (0.0, width, 0.0, height),
             Origin::TopRight => (-width, 0.0, 0.0, height),
             Origin::Center => (-width / 2.0, width / 2.0, -height / 2.0, height / 2.0),
-            _ => todo!(),
         }
     }
 }

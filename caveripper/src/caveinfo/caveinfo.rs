@@ -332,33 +332,17 @@ impl CaveUnit {
             door.direction = (door.direction + rotation) % 4;
         });
 
-        // Rotate waypoints around the *center* of the room
-        new_unit.waypoints.iter_mut().for_each(|wp| match rotation {
-            1 => {
-                wp.pos.swap(0, 2);
-                wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
-            }
-            2 => {
-                wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
-                wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
-            }
-            3 => {
-                wp.pos.swap(0, 2);
-                wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
-            }
-            _ => {}
+        // Waypoints and Waterboxes use coordinates based around the *center* of the room
+        new_unit.waypoints.iter_mut().for_each(|wp| {
+            wp.pos = wp
+                .pos
+                .rotate_about_xz(Point([0.0, 0.0]), rotation as f32 * PI / 2.0);
         });
 
         new_unit.waterboxes.iter_mut().for_each(|wb| {
             let rotate_by = rotation as f32 * PI / 2.0;
-            wb.p1 = wb.p1.rotate_about_xz(
-                Point([(self.width / 2) as f32, (self.height / 2) as f32]),
-                rotate_by,
-            );
-            wb.p2 = wb.p2.rotate_about_xz(
-                Point([(self.width / 2) as f32, (self.height / 2) as f32]),
-                rotate_by,
-            );
+            wb.p1 = wb.p1.rotate_about_xz(self.center(), rotate_by);
+            wb.p2 = wb.p2.rotate_about_xz(self.center(), rotate_by);
 
             // Points need to be the top left and bottom right respectively,
             // so we need to swap coords if they've been rotated out of this order.
@@ -377,6 +361,10 @@ impl CaveUnit {
         self.spawnpoints
             .iter()
             .any(|spawnpoint| spawnpoint.group == 7)
+    }
+
+    pub fn center(&self) -> Point<2, f32> {
+        Point([self.width as f32 / 2.0, self.height as f32 / 2.0])
     }
 }
 
