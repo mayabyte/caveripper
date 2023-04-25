@@ -21,3 +21,19 @@ impl<H> Render<H> for Circle {
         buffer
     }
 }
+
+pub struct Rectangle {
+    pub width: f32,
+    pub height: f32,
+    pub color: Rgba<u8>,
+}
+
+impl<H> Render<H> for Rectangle {
+    fn render(&self, _helper: &H) -> RgbaImage {
+        RgbaImage::from_pixel(
+            self.width.round() as u32,
+            self.height.round() as u32,
+            self.color,
+        )
+    }
+}

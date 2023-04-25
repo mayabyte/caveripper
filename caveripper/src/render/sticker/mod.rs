@@ -195,13 +195,7 @@ impl<H> Renderable<'_, H> {
 pub enum Origin {
     TopLeft,
     TopRight,
-    BottomLeft,
-    BottomRight,
     Center,
-    TopCenter,
-    BottomCenter,
-    LeftCenter,
-    RightCenter,
 }
 
 #[derive(Clone, Copy)]

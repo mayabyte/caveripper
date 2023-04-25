@@ -1,3 +1,5 @@
+mod error;
+mod parse;
 /// CaveInfo is a representation of the generation parameters for a given
 /// sublevel.
 /// For example, each sublevel's CaveInfo file specifies what treasures to
@@ -7,17 +9,22 @@
 ///
 /// For info on the CaveInfo file format, see
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
-
 mod util;
-mod parse;
-mod error;
 
-use std::{cmp::Ordering, fmt::{Display, Formatter}, collections::HashSet};
+use crate::{
+    assets::{AssetManager, CaveConfig},
+    errors::CaveripperError,
+    point::Point,
+};
+use error_stack::{report, Report, Result, ResultExt};
 use parse::parse_caveinfo;
 use serde::Serialize;
-use error_stack::{Result, Report, report, ResultExt};
-use crate::{errors::CaveripperError, assets::{CaveConfig, AssetManager}, point::Point};
-
+use std::{
+    cmp::Ordering,
+    collections::HashSet,
+    f32::consts::PI,
+    fmt::{Display, Formatter},
+};
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
 /// TekiInfo, ItemInfo, GateInfo, and CapInfo sections that follow it until
@@ -26,12 +33,12 @@ use crate::{errors::CaveripperError, assets::{CaveConfig, AssetManager}, point::
 /// generate one sublevel.
 #[derive(Debug, Clone, Serialize)]
 pub struct CaveInfo {
-    pub cave_cfg: CaveConfig,  // Not part of the file format
-    pub floor_num: u32, // 0-indexed
+    pub cave_cfg: CaveConfig, // Not part of the file format
+    pub floor_num: u32,       // 0-indexed
     pub max_main_objects: u32,
     pub max_treasures: u32,
     pub max_gates: u32,
-    pub num_rooms: u32,             // Excludes corridors and caps/alcoves.
+    pub num_rooms: u32,            // Excludes corridors and caps/alcoves.
     pub corridor_probability: f32, // In range [0-1]. Less of a probability and more a relative scale of the floor:room ratio on the sublevel.
     pub cap_probability: f32, // In range [0-1]. (?) Probability of a cap (no spawn point) being generated instead of an alcove (has one spawn point).
     pub has_geyser: bool,
@@ -42,36 +49,54 @@ pub struct CaveInfo {
     pub gate_info: Vec<GateInfo>,
     pub cap_info: Vec<CapInfo>,
     pub is_final_floor: bool,
-    pub waterwraith_timer: f32,  // How long, in seconds, it'll take for the waterwraith to fall. 0 = never.
+    pub waterwraith_timer: f32, // How long, in seconds, it'll take for the waterwraith to fall. 0 = never.
 }
 
 impl CaveInfo {
     /// Return all teki in a particular spawn group.
-    pub fn teki_group(&self, group: u32) -> impl Iterator<Item=&TekiInfo> {
-        self.teki_info.iter().filter(move |teki| teki.group == group)
+    pub fn teki_group(&self, group: u32) -> impl Iterator<Item = &TekiInfo> {
+        self.teki_info
+            .iter()
+            .filter(move |teki| teki.group == group)
     }
 
     /// Out of all the possible map tiles on this floor, finds the one with the highest
     /// number of doors and returns that number.
     pub fn max_num_doors_single_unit(&self) -> usize {
-        self.cave_units.iter().map(|unit| unit.num_doors).max().unwrap_or_default()
+        self.cave_units
+            .iter()
+            .map(|unit| unit.num_doors)
+            .max()
+            .unwrap_or_default()
     }
 
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        format!("{}{}", self.cave_cfg.shortened_names.first().unwrap(), self.floor_num+1)
+        format!(
+            "{}{}",
+            self.cave_cfg.shortened_names.first().unwrap(),
+            self.floor_num + 1
+        )
     }
 
     /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
     pub fn long_name(&self) -> String {
-        format!("{} {}", self.cave_cfg.full_name, self.floor_num+1)
+        format!("{} {}", self.cave_cfg.full_name, self.floor_num + 1)
     }
 
-    pub fn parse_from(cave: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveripperError> {
+    pub fn parse_from(
+        cave: &CaveConfig,
+        mgr: &AssetManager,
+    ) -> Result<Vec<CaveInfo>, CaveripperError> {
         parse_caveinfo(cave, mgr)
             .change_context(CaveripperError::CaveinfoError)
-            .attach_printable_lazy(|| format!("{} ({}/{})", cave.full_name, cave.game, cave.caveinfo_filename))
+            .attach_printable_lazy(|| {
+                format!(
+                    "{} ({}/{})",
+                    cave.full_name, cave.game, cave.caveinfo_filename
+                )
+            })
     }
 
     pub fn is_challenge_mode(&self) -> bool {
@@ -82,8 +107,12 @@ impl CaveInfo {
 impl Display for CaveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
-            f, "NumRooms: {}\tNumGates: {}\tCorridorBetweenRoomsProb: {}%\tCapVsHallProb: {}%",
-            self.num_rooms, self.max_gates, self.corridor_probability * 100.0, self.cap_probability * 100.0
+            f,
+            "NumRooms: {}\tNumGates: {}\tCorridorBetweenRoomsProb: {}%\tCapVsHallProb: {}%",
+            self.num_rooms,
+            self.max_gates,
+            self.corridor_probability * 100.0,
+            self.cap_probability * 100.0
         )?;
 
         if !self.is_final_floor {
@@ -100,7 +129,11 @@ impl Display for CaveInfo {
 
         writeln!(f, "Teki (max {}):", self.max_main_objects)?;
         for tekiinfo in self.teki_info.iter() {
-            write!(f, "\t{} (group: {}, num: {}", tekiinfo.internal_name, tekiinfo.group, tekiinfo.minimum_amount)?;
+            write!(
+                f,
+                "\t{} (group: {}, num: {}",
+                tekiinfo.internal_name, tekiinfo.group, tekiinfo.minimum_amount
+            )?;
             if tekiinfo.filler_distribution_weight > 0 {
                 write!(f, ", weight: {}", tekiinfo.filler_distribution_weight)?;
             }
@@ -116,12 +149,18 @@ impl Display for CaveInfo {
 
         writeln!(f, "Treasures:")?;
         for (i, iteminfo) in self.item_info.iter().enumerate() {
-            writeln!(f, "\t{}: {}", i+1, iteminfo.internal_name)?;
+            writeln!(f, "\t{}: {}", i + 1, iteminfo.internal_name)?;
         }
 
         writeln!(f, "Cap Teki:")?;
         for (i, capinfo) in self.cap_info.iter().enumerate() {
-            write!(f, "\t{}: {} (num: {}", i+1, capinfo.internal_name, capinfo.minimum_amount)?;
+            write!(
+                f,
+                "\t{}: {} (num: {}",
+                i + 1,
+                capinfo.internal_name,
+                capinfo.minimum_amount
+            )?;
             if capinfo.filler_distribution_weight > 0 {
                 write!(f, ", weight: {}", capinfo.filler_distribution_weight)?;
             }
@@ -132,7 +171,11 @@ impl Display for CaveInfo {
         }
 
         writeln!(f, "Rooms:")?;
-        let unique_units: HashSet<&str> = self.cave_units.iter().map(|unit| unit.unit_folder_name.as_ref()).collect();
+        let unique_units: HashSet<&str> = self
+            .cave_units
+            .iter()
+            .map(|unit| unit.unit_folder_name.as_ref())
+            .collect();
         for unit in unique_units.iter() {
             writeln!(f, "\t{unit}")?;
         }
@@ -140,7 +183,6 @@ impl Display for CaveInfo {
         Ok(())
     }
 }
-
 
 /// "Teki" ("敵") is a Japanese word literally meaning "opponent" or "threat". This
 /// is the game's internal name collectively given to enemies (Bulborbs,
@@ -159,7 +201,6 @@ pub struct TekiInfo {
     pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
-
 /// Defines 'loose' treasures, i.e. those that are not held by an enemy, but
 /// rather sitting out in the open or buried.
 #[derive(Debug, Clone, Serialize)]
@@ -169,14 +210,12 @@ pub struct ItemInfo {
     pub filler_distribution_weight: u32,
 }
 
-
 /// Defines gates. Very straightforward.
 #[derive(Debug, Clone, Serialize)]
 pub struct GateInfo {
     pub health: f32,
     pub spawn_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
 }
-
 
 /// CapInfo specifies what objects will spawn in dedicated Alcove spawn points.
 /// This is similar to TekiInfo, but with a few key differences:
@@ -201,7 +240,7 @@ pub struct CapInfo {
     pub carrying: Option<String>, // The object held by this Cap Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    pub group: u8,                      // Does not control spawn location like it does in TekiInfo.
+    pub group: u8, // Does not control spawn location like it does in TekiInfo.
     pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
@@ -221,7 +260,6 @@ impl CapInfo {
     }
 }
 
-
 /// Cave Unit Definition files record info about what map tiles can be
 /// generated on a given sublevel. Each CaveUnit represents one possible
 /// map tile.
@@ -237,9 +275,8 @@ pub struct CaveUnit {
     pub rotation: u16,
     pub spawnpoints: Vec<SpawnPoint>,
     pub waterboxes: Vec<Waterbox>,
-    pub waypoints: Vec<Waypoint>,  // Points in 3d space that guide carried objects
+    pub waypoints: Vec<Waypoint>, // Points in 3d space that guide carried objects
 }
-
 
 /// Implementations for (Partial)Eq and (Partial)Ord for CaveUnit.
 /// The generation algorithm sorts units by total size (breaking ties with
@@ -247,7 +284,8 @@ pub struct CaveUnit {
 
 impl PartialEq for CaveUnit {
     fn eq(&self, other: &Self) -> bool {
-        (self.width * self.height) == (other.width * other.height) && self.num_doors == other.num_doors
+        (self.width * self.height) == (other.width * other.height)
+            && self.num_doors == other.num_doors
     }
 }
 impl Eq for CaveUnit {}
@@ -279,73 +317,108 @@ impl CaveUnit {
             new_unit.height = self.width;
         }
 
-        new_unit.doors.iter_mut()
-            .for_each(|door| {
-                // I have no idea what this is doing, but I've copied it as faithfully as I can.
-                // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/MapUnit.java#L72
-                match door.direction {
-                    0 | 2 if rotation == 2 || rotation == 3 => { door.side_lateral_offset = self.width - 1 - door.side_lateral_offset; }
-                    1 | 3 if rotation == 1 || rotation == 2 => { door.side_lateral_offset = self.height - 1 - door.side_lateral_offset; },
-                    _ => {/* do nothing */}
+        new_unit.doors.iter_mut().for_each(|door| {
+            // I have no idea what this is doing, but I've copied it as faithfully as I can.
+            // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/MapUnit.java#L72
+            match door.direction {
+                0 | 2 if rotation == 2 || rotation == 3 => {
+                    door.side_lateral_offset = self.width - 1 - door.side_lateral_offset;
                 }
-                door.direction = (door.direction + rotation) % 4;
-            });
+                1 | 3 if rotation == 1 || rotation == 2 => {
+                    door.side_lateral_offset = self.height - 1 - door.side_lateral_offset;
+                }
+                _ => { /* do nothing */ }
+            }
+            door.direction = (door.direction + rotation) % 4;
+        });
 
         // Rotate waypoints around the *center* of the room
-        new_unit.waypoints.iter_mut()
-            .for_each(|wp| {
-                match rotation {
-                    1 => {
-                        wp.pos.swap(0, 2);
-                        wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
-                    },
-                    2 => {
-                        wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
-                        wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
-                    },
-                    3 => {
-                        wp.pos.swap(0, 2);
-                        wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
-                    },
-                    _ => {}
-                }
-            });
+        new_unit.waypoints.iter_mut().for_each(|wp| match rotation {
+            1 => {
+                wp.pos.swap(0, 2);
+                wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
+            }
+            2 => {
+                wp.pos[0] = -wp.pos[0] + (new_unit.width as f32 * 170.0);
+                wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
+            }
+            3 => {
+                wp.pos.swap(0, 2);
+                wp.pos[2] = -wp.pos[2] + (new_unit.height as f32 * 170.0);
+            }
+            _ => {}
+        });
+
+        new_unit.waterboxes.iter_mut().for_each(|wb| {
+            let rotate_by = rotation as f32 * PI / 2.0;
+            wb.p1 = wb.p1.rotate_about_xz(
+                Point([(self.width / 2) as f32, (self.height / 2) as f32]),
+                rotate_by,
+            );
+            wb.p2 = wb.p2.rotate_about_xz(
+                Point([(self.width / 2) as f32, (self.height / 2) as f32]),
+                rotate_by,
+            );
+
+            // Points need to be the top left and bottom right respectively,
+            // so we need to swap coords if they've been rotated out of this order.
+            if wb.p1[0] > wb.p2[0] {
+                (wb.p1[0], wb.p2[0]) = (wb.p2[0], wb.p1[0]);
+            }
+            if wb.p1[2] > wb.p2[2] {
+                (wb.p1[2], wb.p2[2]) = (wb.p2[2], wb.p1[2]);
+            }
+        });
 
         new_unit
     }
 
     pub fn has_start_spawnpoint(&self) -> bool {
-        self.spawnpoints.iter().any(|spawnpoint| spawnpoint.group == 7)
+        self.spawnpoints
+            .iter()
+            .any(|spawnpoint| spawnpoint.group == 7)
     }
 }
-
 
 /// Defines a cuboid of water in a room tile.
 #[derive(Debug, Clone, Serialize)]
 pub struct Waterbox {
-    pub p1: Point<3,f32>,
-    pub p2: Point<3,f32>,
+    pub p1: Point<3, f32>,
+    pub p2: Point<3, f32>,
+}
+
+impl Waterbox {
+    pub fn width(&self) -> f32 {
+        self.p2[0] - self.p1[0]
+    }
+
+    pub fn depth(&self) -> f32 {
+        self.p2[1] - self.p1[1]
+    }
+
+    pub fn height(&self) -> f32 {
+        self.p2[2] - self.p1[2]
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Waypoint {
-    pub pos: Point<3,f32>,
+    pub pos: Point<3, f32>,
     pub r: f32,
     pub index: usize,
     pub links: Vec<usize>,
 }
-
 
 /// Indicates position and other metadata about doors in each map unit, relative to its
 /// origin point. A 'door' is just an open spot in a map unit where other map units get
 /// connected. All doors are exactly 170 in-game units wide, i.e. 1 map unit.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DoorUnit {
-    pub direction: u16,         // 0, 1, 2, or 3
+    pub direction: u16,           // 0, 1, 2, or 3
     pub side_lateral_offset: u16, // Appears to be the offset from center on the side of the room it's facing?
-    pub waypoint_index: usize, // Index of the waypoint connected to this door
+    pub waypoint_index: usize,    // Index of the waypoint connected to this door
     pub num_links: usize,
-    pub door_links: Vec<DoorLink>,  // Door links are other doors that are reachable through the room that hosts this door.
+    pub door_links: Vec<DoorLink>, // Door links are other doors that are reachable through the room that hosts this door.
 }
 
 impl DoorUnit {
@@ -354,18 +427,16 @@ impl DoorUnit {
     }
 }
 
-
 /// DoorLinks are *straight lines* between two doors *in the same room*. There is one
 /// DoorLink for every unique pair of doors in a given room tile. These are primarily
 /// used for calculating Door Score.
 /// To clarify, DoorLinks are NOT links between two doors in separate rooms.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DoorLink {
-    pub distance: f32,  // Straight line distance. This can cross out-of-bounds and otherwise uncrossable obstacles.
+    pub distance: f32, // Straight line distance. This can cross out-of-bounds and otherwise uncrossable obstacles.
     pub door_id: usize, // Id of the other door
     pub tekiflag: bool, // Whether or not a teki should spawn in the seam of the origin door
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum RoomType {
@@ -392,7 +463,8 @@ impl TryFrom<&str> for RoomType {
             "room" => Ok(RoomType::Room),
             "cap" | "alcove" => Ok(RoomType::DeadEnd),
             "hall" | "hallway" => Ok(RoomType::Hallway),
-            _ => Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.to_owned())
+            _ => Err(report!(CaveripperError::QueryParseError))
+                .attach_printable_lazy(|| input.to_owned()),
         }
     }
 }
@@ -407,13 +479,12 @@ impl Display for RoomType {
     }
 }
 
-
 /// Spawn Points for everything that gets placed in sublevels, including the Research
 /// Pod, the exit hole/geyser, treasures, Teki, etc.
 #[derive(Debug, Clone, Serialize)]
 pub struct SpawnPoint {
     pub group: u16,
-    pub pos: Point<3,f32>,  // Position is relative to the origin of the unit they belong to, NOT global coords.
+    pub pos: Point<3, f32>, // Position is relative to the origin of the unit they belong to, NOT global coords.
     pub angle_degrees: f32,
     pub radius: f32,
     pub min_num: u16,

@@ -9,7 +9,7 @@ use crate::{
     errors::CaveripperError,
     layout::{Layout, PlacedMapUnit, SpawnObject},
     point::Point,
-    render::sticker::shapes::Circle,
+    render::sticker::shapes::{Circle, Rectangle},
 };
 use clap::Args;
 use error_stack::{IntoReport, Result, ResultExt};
@@ -51,6 +51,7 @@ const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
+const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 50];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
@@ -154,34 +155,53 @@ impl<'a> Renderer<'a> {
 
         /* Map Units */
         let mut map_unit_layer = Layer::new();
+        let mut waterbox_layer = Layer::new();
         for map_unit in layout.map_units.iter() {
             let key = format!(
                 "{}_{}",
                 map_unit.unit.unit_folder_name, map_unit.unit.rotation
             );
+            let unit_img_width = map_unit.unit.width as f32 * GRID_FACTOR;
+            let unit_img_height = map_unit.unit.height as f32 * GRID_FACTOR;
             let sticker = renderer.add_sticker_with(key, || {
                 Sticker::new(
                     Renderable::Borrowed(map_unit.unit),
                     Origin::TopLeft,
-                    Size::Absolute(
-                        map_unit.unit.width as f32 * GRID_FACTOR,
-                        map_unit.unit.height as f32 * GRID_FACTOR,
-                    ),
+                    Size::Absolute(unit_img_width, unit_img_height),
                 )
             });
-            map_unit_layer.add(
-                sticker,
-                map_unit.x as f32 * GRID_FACTOR,
-                map_unit.z as f32 * GRID_FACTOR,
-            );
+            let map_img_x = map_unit.x as f32 * GRID_FACTOR;
+            let map_img_z = map_unit.z as f32 * GRID_FACTOR;
+            map_unit_layer.add(sticker, map_img_x, map_img_z);
+
+            // Waterboxes
+            for waterbox in map_unit.unit.waterboxes.iter() {
+                let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
+                let waterbox_sticker = renderer.add_sticker_with(key, || {
+                    Sticker::new(
+                        Renderable::Owned(Box::new(Rectangle {
+                            width: waterbox.width() * COORD_FACTOR,
+                            height: waterbox.height() * COORD_FACTOR,
+                            color: WATERBOX_COLOR.into(),
+                        })),
+                        Origin::TopLeft,
+                        Size::Native,
+                    )
+                });
+                waterbox_layer.add(
+                    waterbox_sticker,
+                    map_img_x + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
+                    map_img_z + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
+                );
+            }
         }
         renderer.add_layer(map_unit_layer);
+        renderer.add_layer(waterbox_layer);
 
         /* Spawn Objects */
         let mut spawn_object_layer = Layer::new();
         let mut spawn_object_background_layer = Layer::new();
         for (spawn_object, pos) in layout.get_spawn_objects() {
-            // Spawn Objects
             let (key, size) = if let SpawnObject::Gate(_, rotation) = spawn_object {
                 (
                     Cow::Owned(format!("{}_{}", spawn_object.name(), rotation)),
@@ -1872,53 +1892,6 @@ impl Render<AssetManager> for CaveUnit {
 
         for _ in 0..self.rotation {
             img = rotate90(&img);
-        }
-
-        // Need to scale up to game unit resolution to render
-        // waterboxes with enough clarity
-        let img_width = self.width as f32 * 170.0;
-        let img_height = self.height as f32 * 170.0;
-        img = resize(
-            &img,
-            img_width as u32,
-            img_height as u32,
-            FilterType::Nearest,
-        );
-
-        // TODO: reify waterbox positions in caveinfo rather than here
-        for waterbox in self.waterboxes.iter() {
-            let (x1, z1, x2, z2) = match self.rotation {
-                0 => (
-                    waterbox.p1[0],
-                    waterbox.p1[2],
-                    waterbox.p2[0],
-                    waterbox.p2[2],
-                ),
-                1 => (
-                    -waterbox.p2[2],
-                    waterbox.p1[0],
-                    -waterbox.p1[0],
-                    waterbox.p2[0],
-                ),
-                2 => (
-                    -waterbox.p2[0],
-                    -waterbox.p2[2],
-                    -waterbox.p1[0],
-                    -waterbox.p1[2],
-                ),
-                3 => (
-                    waterbox.p1[2],
-                    -waterbox.p2[0],
-                    waterbox.p2[2],
-                    -waterbox.p1[0],
-                ),
-                _ => panic!("Invalid rotation"),
-            };
-            let w = img_width / 2.0;
-            let h = img_width / 2.0;
-            let square =
-                RgbaImage::from_pixel((x2 - x1) as u32, (z2 - z1) as u32, [0, 100, 230, 50].into());
-            overlay(&mut img, &square, (x1 + w) as i64, (z1 + h) as i64);
         }
 
         img
