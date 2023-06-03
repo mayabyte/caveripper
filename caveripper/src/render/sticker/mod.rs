@@ -1,6 +1,6 @@
 pub mod shapes;
 
-use std::{borrow::Cow, cmp::max, collections::HashMap};
+use std::{borrow::Cow, cmp::max, collections::HashMap, cell::OnceCell};
 
 use float_ord::FloatOrd;
 use image::{
@@ -8,7 +8,7 @@ use image::{
     Rgba, RgbaImage,
 };
 use itertools::Itertools;
-use once_cell::sync::OnceCell;
+
 
 pub struct StickerRenderer<'k, 'i, H> {
     stickers: HashMap<Cow<'k, str>, Sticker<'i, H>>,
