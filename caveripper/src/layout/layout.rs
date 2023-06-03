@@ -1,10 +1,9 @@
 mod generate;
 pub(crate) mod waypoint;
 
-use std::{cell::{RefCell, Ref}, rc::{Rc, Weak}};
+use std::{cell::{RefCell, Ref, OnceCell}, rc::{Rc, Weak}};
 use generate::LayoutBuilder;
 use waypoint::WaypointGraph;
-use once_cell::unsync::OnceCell;
 use serde::{Serialize, ser::SerializeStruct};
 
 use crate::{caveinfo::{CapInfo, CaveUnit, DoorUnit, CaveInfo, GateInfo, ItemInfo, SpawnPoint, TekiInfo}, sublevel::Sublevel, point::Point};

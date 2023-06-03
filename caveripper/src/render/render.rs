@@ -772,6 +772,7 @@ impl<'a> Renderer<'a> {
         layout.reset(&LayoutSettings {
             x: 0f32,
             y: 0f32,
+            line_height: 1.0,
             max_width: max_width.map(|w| w as f32),
             max_height: None,
             horizontal_align: HorizontalAlign::Left,
@@ -813,6 +814,7 @@ impl<'a> Renderer<'a> {
         layout.reset(&LayoutSettings {
             x: 0f32,
             y: 0f32,
+            line_height: 1.0,
             max_width: None,
             max_height: None,
             horizontal_align: HorizontalAlign::Left,

@@ -280,7 +280,7 @@ impl CaveUnit {
         }
 
         new_unit.doors.iter_mut()
-            .for_each(|mut door| {
+            .for_each(|door| {
                 // I have no idea what this is doing, but I've copied it as faithfully as I can.
                 // https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/MapUnit.java#L72
                 match door.direction {

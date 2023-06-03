@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = ["caveripper", "cli", "bindings"]
 
 # bindings are not built by default

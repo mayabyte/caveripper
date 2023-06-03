@@ -1,11 +1,11 @@
 use std::fmt::Display;
+use std::sync::OnceLock;
 
 use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
 use error_stack::{Result, ResultExt, report, IntoReport};
 use itertools::Itertools;
 use regex::Regex;
-use once_cell::sync::OnceCell;
 use serde::Serialize;
 
 
@@ -69,7 +69,7 @@ impl Sublevel {
             },
 
             // Direct mode caveinfo+unitfile specifier
-            [caveinfo_path, _unitfile_path, floor] if game.contains(&DIRECT_MODE_TAG) => {
+            [caveinfo_path, _unitfile_path, floor] if game.is_some_and(|game_name| game_name.eq_ignore_ascii_case(DIRECT_MODE_TAG)) => {
                 let floor = floor.trim().parse().into_report()
                     .change_context(CaveripperError::UnrecognizedSublevel)?;
                 Ok(Sublevel {
@@ -117,9 +117,9 @@ impl Sublevel {
     }
 }
 
-static DIGIT: OnceCell<Regex> = OnceCell::new();
-static WORDS: OnceCell<Regex> = OnceCell::new();
-static SUBLEVEL_COMPONENT: OnceCell<Regex> = OnceCell::new();
+static DIGIT: OnceLock<Regex> = OnceLock::new();
+static WORDS: OnceLock<Regex> = OnceLock::new();
+static SUBLEVEL_COMPONENT: OnceLock<Regex> = OnceLock::new();
 
 impl Serialize for Sublevel {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

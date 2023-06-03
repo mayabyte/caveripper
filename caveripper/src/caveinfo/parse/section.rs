@@ -54,7 +54,7 @@ impl<'a> Section<'a> {
 
     fn get_tagged_line(&self, tag: &str) -> Result<&InfoLine, CaveInfoError> {
         self.lines.iter()
-            .find(|line| line.tag.contains(&tag))
+            .find(|line| line.tag.is_some_and(|t| t.eq_ignore_ascii_case(tag)))
             .ok_or(report!(CaveInfoError::MissingItem))
             .attach_printable_lazy(|| format!("tag {tag}"))
     }

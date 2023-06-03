@@ -1,4 +1,4 @@
-use std::{rc::Rc, cell::RefCell, cmp::{min, max}};
+use std::{rc::Rc, cell::{RefCell, OnceCell}, cmp::{min, max}};
 use log::debug;
 use crate::{
     pikmin_math::{PikminRng, self},
@@ -1094,14 +1094,14 @@ impl<'a> LayoutBuilder<'a> {
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
             map_units: self.map_units,
-            waypoint_graph: once_cell::unsync::OnceCell::new(),
+            waypoint_graph: OnceCell::new(),
         }
     }
 
     // Calculate Score, which is an internal value used to place the exits and treasures in 'hard' locations.
     fn set_score(&mut self) {
         // Reset all scores first
-        for mut map_unit in self.map_units.iter_mut() {
+        for map_unit in self.map_units.iter_mut() {
             map_unit.total_score = std::u32::MAX;
             map_unit.teki_score = 0;
             for door in map_unit.doors.iter() {
@@ -1119,7 +1119,7 @@ impl<'a> LayoutBuilder<'a> {
         // are located.
         // Teki Score is primarily used to determine where to place treasures.
         // https://github.com/JHaack4/CaveGen/blob/16c79605d5d9dfcbf27c04e9e682c8e7e12bf40d/CaveGen.java#L1558
-        for mut map_unit in self.map_units.iter_mut() {
+        for map_unit in self.map_units.iter_mut() {
             // Set Teki Score for each map tile
             for spawnpoint in map_unit.spawnpoints.iter() {
                 for spawn_object in spawnpoint.contains.iter() {
@@ -1260,7 +1260,7 @@ impl<'a> LayoutBuilder<'a> {
                     unit.total_score
                 };
 
-                for mut spawnpoint in unit.spawnpoints.iter_mut() {
+                for spawnpoint in unit.spawnpoints.iter_mut() {
                     if !spawnpoint.contains.is_empty() {
                         continue;
                     }

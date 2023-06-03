@@ -12,11 +12,10 @@ use crate::{
     assets::{AssetManager, CaveConfig}, point::Point
 };
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 use error_stack::{Result, ResultExt, IntoReport, report, Report};
 
 use self::section::{Section, InfoLine};
@@ -420,12 +419,13 @@ impl TryFrom<Section<'_>> for Waypoint {
 //    Utility Functions
 // ************************
 
-static SPAWN_METHOD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\$\d?)").unwrap());
+static SPAWN_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 
 /// Retrieves Spawn Method, Internal Name, and Carrying Item from a combined
 /// internal identifier as used by TekiInfo and CapInfo.
 fn extract_internal_identifier(internal_combined_name: &str) -> (Option<String>, String, Option<String>) {
-    let spawn_method_match = SPAWN_METHOD_RE.find_at(internal_combined_name, 0);
+    let spawn_method_match = SPAWN_METHOD_RE.get_or_init(|| Regex::new(r"(\$\d?)").unwrap())
+        .find_at(internal_combined_name, 0);
     let (spawn_method, internal_combined_name) = if let Some(mtch) = spawn_method_match {
         (Some(mtch.as_str().strip_prefix('$').unwrap().to_owned()), &internal_combined_name[mtch.end()..])
     }

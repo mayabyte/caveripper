@@ -20,7 +20,7 @@ image = "0.24"
 anyhow = "1.0"
 regex = "1.7"
 error-stack = "0.3"
-dirs = "4.0"
+dirs = "5.0"
 caveripper = {path="../caveripper"}
 
 [[bin]]
