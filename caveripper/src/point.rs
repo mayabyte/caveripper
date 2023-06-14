@@ -4,7 +4,7 @@ use serde::{ser::SerializeSeq, Serialize};
 use std::{
     fmt::Display,
     iter::Sum,
-    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -181,6 +181,12 @@ impl<const N: usize, T: Sub<Output = T> + Copy> Sub<T> for Point<N, T> {
             self[i] = self[i] - rhs;
         }
         self
+    }
+}
+
+impl<const N: usize, T: Sub<Output = T> + Copy> SubAssign for Point<N, T> {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }
 

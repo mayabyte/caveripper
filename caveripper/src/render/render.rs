@@ -13,8 +13,7 @@ use crate::{
     },
     point::Point,
     render::{
-        self,
-        sticker::shapes::{Circle, Rectangle},
+        sticker::shapes::{Circle, Rectangle, Line},
     },
 };
 use clap::Args;
@@ -37,6 +36,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use sticker::*;
+
+use self::sticker::canvas::CanvasView;
 
 /// Controls how scaled up the whole image is.
 /// Only change this to increase or decrease the resolution;
@@ -178,7 +179,6 @@ impl<'a> Renderer<'a> {
         if options.draw_waypoints {
             let mut waypoint_circle_layer = Layer::new();
             for wp in layout.waypoint_graph().iter() {
-                println!("{}", wp.pos);
                 let wp_sticker = renderer.add_sticker_with(format!("wp_{}", wp.r), || {
                     Sticker::new(
                         Renderable::Owned(Box::new(Circle {
@@ -197,17 +197,27 @@ impl<'a> Renderer<'a> {
             }
             renderer.add_layer(waypoint_circle_layer);
 
-            // Draw the arrows afterwards so they appear on top
-            // for wp in layout.waypoint_graph().iter() {
-            //     if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-            //         draw_arrow_line(
-            //             &mut canvas,
-            //             (wp.pos * COORD_FACTOR).into(),
-            //             (backlink.pos * COORD_FACTOR).into(),
-            //             CARRY_PATH_COLOR.into(),
-            //         );
-            //     }
-            // }
+            let mut waypoint_arrow_layer = Layer::new();
+            for wp in layout.waypoint_graph().iter() {
+                if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
+                    let wp_arrow_sticker = renderer.add_sticker_with(format!("wp_arrow_{}_{}", wp.pos, backlink.pos), || {
+                        Sticker::new(
+                            Renderable::Owned(Box::new(Line {
+                                start: (wp.pos * COORD_FACTOR).two_d(),
+                                end: (backlink.pos * COORD_FACTOR).two_d(),
+                                shorten_start: 6.0,
+                                shorten_end: 6.0,
+                                forward_arrow: true,
+                                color: CARRY_PATH_COLOR.into()
+                            })),
+                            Origin::TopLeft,
+                            Size::Native,
+                        )
+                    });
+                    waypoint_arrow_layer.add(wp_arrow_sticker, wp.pos[0] * COORD_FACTOR, wp.pos[2] * COORD_FACTOR);
+                }
+            }
+            renderer.add_layer(waypoint_arrow_layer);
         }
 
         /* Spawn Objects */
@@ -1469,7 +1479,7 @@ fn render_map_unit<'k, 'i: 'k>(
         Sticker::new(
             Renderable::Borrowed(unit),
             Origin::TopLeft,
-            Size::Absolute(unit_img_width, unit_img_height),
+            Size::Absolute(unit_img_width, unit_img_height, FilterType::Nearest),
         )
     });
     layer.add(sticker, pos[0], pos[1]);
@@ -1514,7 +1524,7 @@ fn render_spawn_object<'k, 'i: 'k>(
         Sticker::new(
             Renderable::Borrowed(spawn_object),
             Origin::Center,
-            Size::Absolute(size, size),
+            Size::Absolute(size, size, FilterType::Lanczos3),
         )
     });
     layer.add(sticker, pos[0] * COORD_FACTOR, pos[1] * COORD_FACTOR);
@@ -1532,7 +1542,7 @@ fn render_spawn_object<'k, 'i: 'k>(
             Sticker::new(
                 Renderable::Owned(Box::new(TreasureRenderer(treasure))),
                 Origin::Center,
-                Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE),
+                Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE, FilterType::Lanczos3),
             )
         });
         layer.add(
@@ -1915,7 +1925,7 @@ fn joke_time() -> bool {
 
 
 impl Render<AssetManager> for CaveUnit {
-    fn render(&self, helper: &AssetManager) -> RgbaImage {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         // TODO: pass game somehow
         let filename = PathBuf::from_iter([
             "assets",
@@ -1934,12 +1944,17 @@ impl Render<AssetManager> for CaveUnit {
             img = rotate90(&img);
         }
 
-        img
+        canvas.overlay(&img, 0, 0);
     }
+
+    fn dimensions(&self) -> (f32, f32) {
+        (self.width as f32 * 8.0, self.height as f32 * 8.0)
+    }
+
 }
 
 impl Render<AssetManager> for SpawnObject<'_> {
-    fn render(&self, helper: &AssetManager) -> RgbaImage {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         match self {
             SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => {
                 let filename = match get_special_texture_name(self.name()) {
@@ -1953,16 +1968,16 @@ impl Render<AssetManager> for SpawnObject<'_> {
                         &format!("{}.png", self.name().to_ascii_lowercase()),
                     ]),
                 };
-                helper.get_img(filename).unwrap().clone()
+                canvas.overlay(&resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3), 0, 0);
             }
-            SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).render(helper),
+            SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
                 let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
-                let img = helper.get_img(filename).unwrap().clone();
+                let img = helper.get_img(filename).unwrap();
                 if rotation % 2 == 1 {
-                    rotate90(&img)
+                    canvas.overlay(&rotate90(img), 0, 0);
                 } else {
-                    img
+                    canvas.overlay(img, 0, 0);
                 }
             }
             SpawnObject::Hole(plugged) | SpawnObject::Geyser(plugged) => {
@@ -1971,7 +1986,8 @@ impl Render<AssetManager> for SpawnObject<'_> {
                     SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
                     _ => unreachable!(),
                 };
-                let mut img = helper.get_img(filename).unwrap().clone();
+                let img = helper.get_img(filename).unwrap();
+                canvas.overlay(img, 0, 0);
                 if *plugged {
                     let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
                     let plug_icon = resize(
@@ -1980,28 +1996,47 @@ impl Render<AssetManager> for SpawnObject<'_> {
                         img.height(),
                         FilterType::Lanczos3,
                     );
-                    overlay(&mut img, &plug_icon, 0, 0);
+                    canvas.overlay(&plug_icon, 0, 0);
                 }
-                img
             }
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
-                helper.get_img(filename).unwrap().clone()
+                canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
             }
         }
     }
+
+    fn dimensions(&self) -> (f32, f32) {
+        match self {
+            // TODO: Boss teki and potentially some romhack teki have larger
+            // image dimensions. Currently these are all scaled to 40x40 but
+            // quality could be better if this can be avoided.
+            SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => (40.0, 40.0),
+            SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).dimensions(),
+            SpawnObject::Gate(_, _rotation) => (48.0, 48.0),
+            SpawnObject::Hole(_) => (32.0, 32.0),
+            SpawnObject::Geyser(_) => (40.0, 40.0),
+            SpawnObject::Ship => (30.0, 30.0),
+        }
+    }
+
 }
 
 /// Helper to reduce asset manager lookups
 struct TreasureRenderer<'a>(pub &'a str);
 impl Render<AssetManager> for TreasureRenderer<'_> {
-    fn render(&self, helper: &AssetManager) -> RgbaImage {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         let filename = PathBuf::from_iter([
             "assets",
             "pikmin2",
             "treasures",
             &format!("{}.png", self.0.to_ascii_lowercase()),
         ]);
-        helper.get_img(filename).unwrap().clone()
+        canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
     }
+
+    fn dimensions(&self) -> (f32, f32) {
+        (32.0, 32.0)
+    }
+
 }

@@ -1,13 +1,16 @@
 pub mod shapes;
+pub mod canvas;
 
 use std::{borrow::Cow, cmp::max, collections::HashMap, cell::OnceCell};
 
 use float_ord::FloatOrd;
 use image::{
-    imageops::{overlay, resize, FilterType},
+    imageops::{overlay, FilterType},
     Rgba, RgbaImage,
 };
 use itertools::Itertools;
+
+use self::canvas::{Canvas, CanvasView};
 
 
 pub struct StickerRenderer<'k, 'i, H> {
@@ -93,7 +96,7 @@ impl<'k> Layer<'k> {
             .iter()
             .map(|(sticker_name, x, y)| {
                 let (mut min_x, mut max_x, mut min_y, mut max_y) =
-                    stickers[sticker_name].extents(helper);
+                    stickers[sticker_name].extents();
                 min_x += x;
                 max_x += x;
                 min_y += y;
@@ -117,13 +120,13 @@ impl<'k> Layer<'k> {
         let mut canvas = Canvas::new(canvas_w, canvas_h);
 
         for (sticker_name, x, y) in self.stickers.iter() {
-            let (x_offset, _, y_offset, _) = stickers[sticker_name].extents(helper);
+            let (x_offset, _, y_offset, _) = stickers[sticker_name].extents();
             let img_x = (x + x_offset - min_x) as i64;
             let img_y = (y + y_offset - min_y) as i64;
-            canvas.draw(&stickers[sticker_name], helper, img_x, img_y);
+            canvas.draw_sticker(&stickers[sticker_name], helper, img_x, img_y);
         }
 
-        (canvas.0, min_x, min_y)
+        (canvas.into_inner(), min_x, min_y)
     }
 }
 
@@ -131,7 +134,7 @@ pub struct Sticker<'i, H> {
     obj: Renderable<'i, H>,
     origin: Origin,
     size: Size,
-    rendered: OnceCell<RgbaImage>,
+    rendered: OnceCell<Canvas>,
 }
 
 impl<'i, H> Sticker<'i, H> {
@@ -144,29 +147,33 @@ impl<'i, H> Sticker<'i, H> {
         }
     }
 
-    fn render(&self, helper: &H) -> &RgbaImage {
+    fn render(&self, helper: &H) -> &Canvas {
         self.rendered.get_or_init(|| {
-            let img = self.obj.get().render(helper);
+            let dimensions = self.obj.get().dimensions();
+            let mut canvas = Canvas::new(dimensions.0 as u32, dimensions.1 as u32);
+            self.obj.get().render(canvas.view(0.0, 0.0), helper);
             match self.size {
-                Size::Native => img,
-                Size::Scaled(factor) => resize(
-                    &img,
-                    (img.width() as f32 * factor) as u32,
-                    (img.height() as f32 * factor) as u32,
-                    FilterType::Lanczos3, // TODO: make this configurable?
+                Size::Native => canvas,
+                Size::Scaled(factor, filter_type) => canvas.resize(
+                    (dimensions.0 * factor) as u32,
+                    (dimensions.1 * factor) as u32,
+                    filter_type
                 ),
-                Size::Absolute(w, h) => resize(&img, w as u32, h as u32, FilterType::Nearest),
+                Size::Absolute(w, h, filter_type) => canvas.resize(w as u32, h as u32, filter_type),
             }
         })
     }
 
-    /// Calculates the highest and lowest offsets of the rendered Sticker
-    /// given its Origin configuration.
+    /// Calculates the highest and lowest offsets the rendered Sticker
+    /// will have given its Origin and Size configuration.
     /// Return values are (min_x, max_x, min_y, max_y)
-    fn extents(&self, helper: &H) -> (f32, f32, f32, f32) {
-        let rendered = self.render(helper);
-        let width = rendered.width() as f32;
-        let height = rendered.height() as f32;
+    fn extents(&self) -> (f32, f32, f32, f32) {
+        let (base_width, base_height) = self.obj.get().dimensions();
+        let (width, height) = match self.size {
+            Size::Native => (base_width, base_height),
+            Size::Scaled(factor, _) => (base_width * factor, base_height * factor),
+            Size::Absolute(width, height, _) => (width, height)
+        };
 
         match self.origin {
             Origin::TopLeft => (0.0, width, 0.0, height),
@@ -203,25 +210,13 @@ pub enum Size {
     Native,
 
     /// Multiplies the native size of the image
-    Scaled(f32),
+    Scaled(f32, FilterType),
 
     /// Sets the size of the image to an absolute quantity
-    Absolute(f32, f32),
-}
-
-struct Canvas(RgbaImage);
-
-impl Canvas {
-    pub fn new(w: u32, h: u32) -> Self {
-        Self(RgbaImage::from_pixel(w, h, [0, 0, 0, 0].into()))
-    }
-
-    pub fn draw<H>(&mut self, sticker: &Sticker<H>, helper: &H, x: i64, y: i64) {
-        let sticker_rendered = sticker.render(helper);
-        overlay(&mut self.0, sticker_rendered, x, y);
-    }
+    Absolute(f32, f32, FilterType),
 }
 
 pub trait Render<H> {
-    fn render(&self, helper: &H) -> RgbaImage;
+    fn render(&self, canvas: CanvasView, helper: &H);
+    fn dimensions(&self) -> (f32, f32);
 }
