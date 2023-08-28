@@ -47,6 +47,13 @@ impl AssetManager {
             .attach_printable("Couldn't access home directory!")?;
         asset_dir.push(".config/caveripper");
 
+        let resources_dir = asset_dir.join("resources");
+        if !resources_dir.is_dir() {
+            fs_extra::copy_items(&["./resources"], &resources_dir, &fs_extra::dir::CopyOptions::default().copy_inside(true))
+                .change_context(CaveripperError::AssetLoadingError)
+                .attach_printable("Couldn't initialize resources folder in home directory!")?;
+        }
+
         let cave_cfg: Vec<CaveConfig> = read_to_string(asset_dir.join("resources/caveinfo_config.txt"))
             .change_context(CaveripperError::AssetLoadingError)?
             .lines()
