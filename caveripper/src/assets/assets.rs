@@ -8,7 +8,7 @@ use image::RgbaImage;
 use itertools::Itertools;
 use log::info;
 use serde::Serialize;
-use error_stack::{Result, IntoReport, ResultExt};
+use error_stack::{Result, ResultExt};
 
 use crate::caveinfo::CaveInfo;
 use crate::errors::CaveripperError;
@@ -44,11 +44,11 @@ impl AssetManager {
     pub fn init() -> Result<AssetManager, CaveripperError> {
         let mut asset_dir = dirs::home_dir()
             .ok_or(CaveripperError::AssetLoadingError)
-            .into_report().attach_printable("Couldn't access home directory!")?;
+            .attach_printable("Couldn't access home directory!")?;
         asset_dir.push(".config/caveripper");
 
         let cave_cfg: Vec<CaveConfig> = read_to_string(asset_dir.join("resources/caveinfo_config.txt"))
-            .into_report().change_context(CaveripperError::AssetLoadingError)?
+            .change_context(CaveripperError::AssetLoadingError)?
             .lines()
             .map(|line| {
                 let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
@@ -87,12 +87,12 @@ impl AssetManager {
 
             let treasures = SHIFT_JIS.decode(
                 read(&treasure_path)
-                .into_report().change_context(CaveripperError::AssetLoadingError).attach(treasure_path)?
+                .change_context(CaveripperError::AssetLoadingError).attach(treasure_path)?
                 .as_slice()
             ).0.into_owned();
             let ek_treasures = SHIFT_JIS.decode(
                 read(&ek_treasure_path)
-                .into_report().change_context(CaveripperError::AssetLoadingError).attach(ek_treasure_path)?
+                .change_context(CaveripperError::AssetLoadingError).attach(ek_treasure_path)?
                 .as_slice()
             ).0.into_owned();
 
@@ -124,7 +124,7 @@ impl AssetManager {
 
             let teki_path = self.asset_dir.join("assets").join(game).join("teki");
             let teki = read_dir(&teki_path)
-                .into_report().change_context(CaveripperError::AssetLoadingError).attach(teki_path)?
+                .change_context(CaveripperError::AssetLoadingError).attach(teki_path)?
                 .filter_map(|r| r.ok())
                 .filter(|entry| entry.path().is_file())
                 .map(|file_entry| file_entry.file_name().into_string().unwrap().strip_suffix(".png").unwrap().to_ascii_lowercase());
@@ -153,7 +153,7 @@ impl AssetManager {
 
             let room_path = self.asset_dir.join("assets").join(game).join("mapunits");
             let rooms = read_dir(&room_path)
-                .into_report().change_context(CaveripperError::AssetLoadingError).attach(room_path)?
+                .change_context(CaveripperError::AssetLoadingError).attach(room_path)?
                 .filter_map(|r| r.ok())
                 .filter(|dir_entry| dir_entry.path().is_dir())
                 .map(|dir_entry| dir_entry.file_name().into_string().unwrap().to_ascii_lowercase());
@@ -177,7 +177,7 @@ impl AssetManager {
     pub fn get_bytes<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>, CaveripperError> {
         let path = path.as_ref();
         read(self.asset_dir.join(path))
-            .into_report()
+            
             .change_context(CaveripperError::AssetLoadingError)
             .attach_lazy(|| path.to_owned())
     }
@@ -199,7 +199,7 @@ impl AssetManager {
                 || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
             })
             .ok_or(CaveripperError::UnrecognizedSublevel)
-            .into_report().attach_printable_lazy(|| name.to_string())
+            .attach_printable_lazy(|| name.to_string())
     }
 
     pub fn get_txt_file<P: AsRef<Path>>(&self, path: P) -> Result<String, CaveripperError> {
@@ -207,13 +207,13 @@ impl AssetManager {
         let p_str = path.to_string_lossy().into_owned();
         info!("Loading {p_str}...");
         let data = read(self.asset_dir.join(path))
-            .into_report().change_context(CaveripperError::AssetLoadingError)
+            .change_context(CaveripperError::AssetLoadingError)
             .attach_printable_lazy(|| p_str.clone())?;
         let text = if path.starts_with("assets") && let (text, _, false) = SHIFT_JIS.decode(&data) {
             text.into_owned()
         }
         else {
-            String::from_utf8(data).into_report()
+            String::from_utf8(data)
                 .change_context(CaveripperError::AssetLoadingError)
                 .attach_printable_lazy(|| format!("Couldn't decode file {p_str}"))?
         };
@@ -227,7 +227,7 @@ impl AssetManager {
         else {
             self.load_caveinfo(&sublevel.cfg)?;
             self.caveinfo_cache.get(sublevel).ok_or(CaveripperError::UnrecognizedSublevel)
-                .into_report().attach_printable_lazy(|| sublevel.clone())
+                .attach_printable_lazy(|| sublevel.clone())
         }
     }
 
@@ -240,8 +240,8 @@ impl AssetManager {
         }
         else {
             info!("Loading image {}...", &p_str);
-            let data = read(path).into_report().change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
-            let img = image::load_from_memory(data.as_slice()).into_report().change_context(CaveripperError::AssetLoadingError)?
+            let data = read(path).change_context(CaveripperError::AssetLoadingError).attach_printable_lazy(|| p_str.clone())?;
+            let img = image::load_from_memory(data.as_slice()).change_context(CaveripperError::AssetLoadingError)?
                 .into_rgba8();
             let _ = self.img_cache.insert(p_str.clone(), img);
             Ok(self.img_cache.get(&p_str).unwrap())

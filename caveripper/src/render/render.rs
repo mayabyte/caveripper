@@ -10,7 +10,7 @@ use crate::{
     point::Point
 };
 use clap::Args;
-use error_stack::{Result, ResultExt, IntoReport};
+use error_stack::{Result, ResultExt};
 use fontdue::{
     layout::{Layout as FontLayout, TextStyle, LayoutSettings, VerticalAlign, HorizontalAlign, WrapStyle},
     Font, FontSettings
@@ -20,7 +20,7 @@ use image::{
     Rgba, RgbaImage, Pixel
 };
 use itertools::Itertools;
-use log::{info};
+use log::info;
 
 
 const RENDER_SCALE: u32 = 8;
@@ -853,7 +853,7 @@ impl<'a> Renderer<'a> {
 /// Filename must end with a `.png` extension.
 pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), CaveripperError> {
     img.save_with_format(&filename, image::ImageFormat::Png)
-        .into_report().change_context(CaveripperError::RenderingError)?;
+        .change_context(CaveripperError::RenderingError)?;
     Ok(())
 }
 

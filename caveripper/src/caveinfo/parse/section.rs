@@ -1,6 +1,6 @@
 use std::{str::FromStr, error::Error, any::type_name};
 
-use error_stack::{Result, report, ResultExt, IntoReport, bail, Report};
+use error_stack::{Result, report, ResultExt, bail, Report};
 use pest::iterators::Pair;
 use crate::caveinfo::{parse::Rule, error::CaveInfoError};
 
@@ -81,14 +81,13 @@ impl InfoLine<'_> {
         let item = self.items.get(idx)
             .ok_or(report!(CaveInfoError::MissingItem))
             .attach_printable_lazy(|| format!("line item {idx}"))?;
-        item.parse()
+        item.parse::<T>()
             // Some float values in New Year are incorrectly formatted as "5.6.0000"
             // and this is needed to support those. The game parses them correctly.
             .or_else(|err| {
                 let Some(first_part) = item.rsplit_once('.') else {return Err(err)};
                 first_part.0.parse()
             })
-            .into_report()
             .change_context(CaveInfoError::ParseValue)
             .attach_printable_lazy(|| format!("{item:?} -> {}", type_name::<T>()))
     }
