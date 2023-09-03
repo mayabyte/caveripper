@@ -6,6 +6,7 @@ use crate::point::Point;
 
 use super::Sticker;
 
+#[derive(Clone)]
 pub struct Canvas {
     buffer: RgbaImage, // TODO: store in a RwLock or something so stickers can be rendered in parallel
 }
@@ -27,6 +28,14 @@ impl Canvas {
             offset_x,
             offset_y,
         }
+    }
+
+    pub fn width(&self) -> u32 {
+        self.buffer.width()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.buffer.height()
     }
 
     /// Expands the right and bottom of the canvas to reach the desired width and height.
@@ -66,7 +75,7 @@ impl Canvas {
         }
     }
 
-    pub fn overlay(&mut self, top: &RgbaImage, x: u32, y: u32) {
+    pub fn overlay(&mut self, top: &RgbaImage, x: f32, y: f32) {
         overlay(&mut self.buffer, top, x as i64, y as i64);
     }
 }
@@ -91,7 +100,7 @@ impl<'c> CanvasView<'c> {
         self.canvas.fill(start + offset, end + offset, color);
     }
 
-    pub fn overlay(&mut self, top: &RgbaImage, x: u32, y: u32) {
-        self.canvas.overlay(top, x + self.offset_x as u32, y + self.offset_y as u32);
+    pub fn overlay(&mut self, top: &RgbaImage, x: f32, y: f32) {
+        self.canvas.overlay(top, x + self.offset_x, y + self.offset_y);
     }
 }

@@ -1,4 +1,5 @@
 mod sticker;
+mod text;
 
 #[cfg(test)]
 mod test;
@@ -11,7 +12,7 @@ use crate::{
         Layout, PlacedMapUnit, SpawnObject,
     },
     point::Point,
-    render::sticker::shapes::{Circle, Rectangle, Line},
+    render::{sticker::shapes::{Circle, Rectangle, Line}, text::Text},
 };
 use clap::Args;
 use error_stack::{Result, ResultExt};
@@ -62,6 +63,7 @@ const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
+const SCORE_TEXT_COLOR: [u8; 4] = [170, 50, 30, 255];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
 
@@ -104,10 +106,6 @@ pub struct LayoutRenderOptions {
     /// Draws waypoints and their connections in the layout
     #[clap(long, short = 'w')]
     pub draw_waypoints: bool,
-
-    /// Draw the paths treasures will take to the ship.
-    #[clap(long, short = 'p')]
-    pub draw_paths: bool,
 
     #[clap(long, short = 'c')]
     pub draw_comedown_square: bool,
@@ -303,27 +301,32 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             renderer.add_layer(grid_layer);
         }
 
-        // // Draw carry paths for treasures, if enabled
-        // if options.draw_paths {
-        //     let treasure_locations = layout.get_spawn_objects()
-        //         .filter(|(so, _pos)| {
-        //             matches!(so, SpawnObject::Item(_))
-        //             || matches!(so, SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _))
-        //             || matches!(so, SpawnObject::Hole(_))
-        //         })
-        //         .map(|(_, pos)| pos);
-        //     for pos in treasure_locations {
-        //         let wp_path = layout.waypoint_graph().carry_path_wps(pos);
-        //         for (wp1, wp2) in wp_path.tuple_windows() {
-        //             draw_arrow_line(
-        //                 &mut canvas,
-        //                 (wp1 * COORD_FACTOR).into(),
-        //                 (wp2 * COORD_FACTOR).into(),
-        //                 WAYPOINT_DIST_TXT_COLOR.into()
-        //             );
-        //         }
-        //     }
-        // }
+        if options.draw_score {
+            let mut score_layer = Layer::new();
+            for unit in layout.map_units.iter() {
+                let sticker = renderer.add_sticker_with(format!("text_\"{}\"", unit.total_score), || {
+                    Sticker::new(
+                        Text{ 
+                            text: format!("{}", unit.total_score),
+                            font: &self.fonts[1], 
+                            size: 24.0, 
+                            color: SCORE_TEXT_COLOR.into(), 
+                            max_width: None,
+                            outline: 0,
+                        }, 
+                        Origin::Center,
+                        Size::Native
+                    )
+                });
+                score_layer.add(
+                    sticker, 
+                    unit.x as f32 * GRID_FACTOR + (unit.unit.width as f32 * GRID_FACTOR / 2.0), 
+                    unit.z as f32 * GRID_FACTOR + (unit.unit.height as f32 * GRID_FACTOR / 2.0),
+                );
+            }
+            renderer.add_layer(score_layer);
+        }
+        
 
         // if options.draw_score {
         //     for unit in layout.map_units.iter() {
@@ -1891,7 +1894,7 @@ impl Render<AssetManager> for CaveUnit {
             img = rotate90(&img);
         }
 
-        canvas.overlay(&img, 0, 0);
+        canvas.overlay(&img, 0.0, 0.0);
     }
 
     fn dimensions(&self) -> (f32, f32) {
@@ -1915,16 +1918,16 @@ impl Render<AssetManager> for SpawnObject<'_> {
                         &format!("{}.png", self.name().to_ascii_lowercase()),
                     ]),
                 };
-                canvas.overlay(&resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3), 0, 0);
+                canvas.overlay(&resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3), 0.0, 0.0);
             }
             SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
                 let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
                 let img = helper.get_img(filename).unwrap();
                 if rotation % 2 == 1 {
-                    canvas.overlay(&rotate90(img), 0, 0);
+                    canvas.overlay(&rotate90(img), 0.0, 0.0);
                 } else {
-                    canvas.overlay(img, 0, 0);
+                    canvas.overlay(img, 0.0, 0.0);
                 }
             }
             SpawnObject::Hole(plugged) | SpawnObject::Geyser(plugged) => {
@@ -1934,7 +1937,7 @@ impl Render<AssetManager> for SpawnObject<'_> {
                     _ => unreachable!(),
                 };
                 let img = helper.get_img(filename).unwrap();
-                canvas.overlay(img, 0, 0);
+                canvas.overlay(img, 0.0, 0.0);
                 if *plugged {
                     let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
                     let plug_icon = resize(
@@ -1943,12 +1946,12 @@ impl Render<AssetManager> for SpawnObject<'_> {
                         img.height(),
                         FilterType::Lanczos3,
                     );
-                    canvas.overlay(&plug_icon, 0, 0);
+                    canvas.overlay(&plug_icon, 0.0, 0.0);
                 }
             }
             SpawnObject::Ship => {
                 let filename = "resources/enemytex_special/pod_icon.png";
-                canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
+                canvas.overlay(helper.get_img(filename).unwrap(), 0.0, 0.0);
             }
         }
     }
@@ -1979,7 +1982,7 @@ impl Render<AssetManager> for TreasureRenderer<'_> {
             "treasures",
             &format!("{}.png", self.0.to_ascii_lowercase()),
         ]);
-        canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
+        canvas.overlay(helper.get_img(filename).unwrap(), 0.0, 0.0);
     }
 
     fn dimensions(&self) -> (f32, f32) {
@@ -1991,7 +1994,7 @@ struct FallingIcon();
 impl Render<AssetManager> for FallingIcon {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         let filename = "resources/enemytex_special/falling_icon.png";
-        canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
+        canvas.overlay(helper.get_img(filename).unwrap(), 0.0, 0.0);
     }
 
     fn dimensions(&self) -> (f32, f32) {
