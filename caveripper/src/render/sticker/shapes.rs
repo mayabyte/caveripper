@@ -77,7 +77,7 @@ impl<H> Render<H> for Line {
     }
 
     fn dimensions(&self) -> (f32, f32) {
-        let mut dims = self.end - self.start;
+        let dims = self.end - self.start;
         // TODO: broken
         println!("{dims}");
         (dims[0].abs(), dims[1].abs())

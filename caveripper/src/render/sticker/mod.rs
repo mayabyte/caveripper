@@ -14,6 +14,11 @@ use num::clamp;
 use self::canvas::{Canvas, CanvasView};
 
 
+/// Renderer for the Sticker framework. 
+/// 
+/// `'k` is the lifetime for Sticker keys.
+/// 
+/// `'i` is the lifetime for borrowed renderable objects placed inside Stickers.
 pub struct StickerRenderer<'k, 'i, H> {
     stickers: HashMap<Cow<'k, str>, Sticker<'i, H>>,
     layers: Vec<Layer<'k>>,
@@ -94,7 +99,7 @@ impl<'k> Layer<'k> {
     fn render<H>(
         &self,
         helper: &H,
-        stickers: &HashMap<Cow<'k, str>, Sticker<'_, H>>,
+        stickers: &HashMap<Cow<'k, str>, Sticker<H>>,
     ) -> (RgbaImage, f32, f32) {
         if self.stickers.is_empty() {
             return (RgbaImage::from_pixel(0, 0, [0, 0, 0, 0].into()), 0.0, 0.0);
@@ -137,7 +142,7 @@ impl<'k> Layer<'k> {
         }
 
         let mut buffer = canvas.into_inner();
-        
+
         if self.opacity < 1.0 {
             buffer.pixels_mut().for_each(|p: &mut _| p.0[3] = (p.0[3] as f32 * self.opacity) as u8);
         }
@@ -147,16 +152,16 @@ impl<'k> Layer<'k> {
 }
 
 pub struct Sticker<'i, H> {
-    obj: Renderable<'i, H>,
+    obj: Box<dyn Render<H> + 'i>,
     origin: Origin,
     size: Size,
     rendered: OnceCell<Canvas>,
 }
 
 impl<'i, H> Sticker<'i, H> {
-    pub fn new(obj: impl Into<Renderable<'i, H>>, origin: Origin, size: Size) -> Self {
+    pub fn new(obj: impl Render<H> + 'i, origin: Origin, size: Size) -> Self {
         Self {
-            obj: obj.into(),
+            obj: Box::new(obj),
             origin,
             size,
             rendered: OnceCell::new(),
@@ -165,16 +170,11 @@ impl<'i, H> Sticker<'i, H> {
 
     fn render(&self, helper: &H) -> &Canvas {
         self.rendered.get_or_init(|| {
-            let dimensions = self.obj.get().dimensions();
+            let dimensions = self.obj.dimensions();
             let mut canvas = Canvas::new(dimensions.0 as u32, dimensions.1 as u32);
-            self.obj.get().render(canvas.view(0.0, 0.0), helper);
+            self.obj.render(canvas.view(0.0, 0.0), helper);
             match self.size {
                 Size::Native => canvas,
-                Size::Scaled(factor, filter_type) => canvas.resize(
-                    (dimensions.0 * factor) as u32,
-                    (dimensions.1 * factor) as u32,
-                    filter_type
-                ),
                 Size::Absolute(w, h, filter_type) => canvas.resize(w as u32, h as u32, filter_type),
             }
         })
@@ -184,31 +184,15 @@ impl<'i, H> Sticker<'i, H> {
     /// will have given its Origin and Size configuration.
     /// Return values are (min_x, max_x, min_y, max_y)
     fn extents(&self) -> (f32, f32, f32, f32) {
-        let (base_width, base_height) = self.obj.get().dimensions();
+        let (base_width, base_height) = self.obj.dimensions();
         let (width, height) = match self.size {
             Size::Native => (base_width, base_height),
-            Size::Scaled(factor, _) => (base_width * factor, base_height * factor),
             Size::Absolute(width, height, _) => (width, height)
         };
 
         match self.origin {
             Origin::TopLeft => (0.0, width, 0.0, height),
-            Origin::TopRight => (-width, 0.0, 0.0, height),
             Origin::Center => (-width / 2.0, width / 2.0, -height / 2.0, height / 2.0),
-        }
-    }
-}
-
-pub enum Renderable<'i, H> {
-    Borrowed(&'i dyn Render<H>),
-    Owned(Box<dyn Render<H> + 'i>),
-}
-
-impl<H> Renderable<'_, H> {
-    fn get(&self) -> &dyn Render<H> {
-        match self {
-            Self::Borrowed(v) => *v,
-            Self::Owned(v) => v.as_ref(),
         }
     }
 }
@@ -216,7 +200,6 @@ impl<H> Renderable<'_, H> {
 #[derive(Clone, Copy)]
 pub enum Origin {
     TopLeft,
-    TopRight,
     Center,
 }
 
@@ -225,9 +208,6 @@ pub enum Size {
     /// Don't change the size of the image as produced by Render
     Native,
 
-    /// Multiplies the native size of the image
-    Scaled(f32, FilterType),
-
     /// Sets the size of the image to an absolute quantity
     Absolute(f32, f32, FilterType),
 }
@@ -235,4 +215,24 @@ pub enum Size {
 pub trait Render<H> {
     fn render(&self, canvas: CanvasView, helper: &H);
     fn dimensions(&self) -> (f32, f32);
+}
+
+impl<T: Render<H>, H> Render<H> for &T {
+    fn render(&self, canvas: CanvasView, helper: &H) {
+        (**self).render(canvas, helper)
+    }
+
+    fn dimensions(&self) -> (f32, f32) {
+        (**self).dimensions()
+    }
+}
+
+impl<T: Render<H>, H> Render<H> for &mut T {
+    fn render(&self, canvas: CanvasView, helper: &H) {
+        (**self).render(canvas, helper)
+    }
+
+    fn dimensions(&self) -> (f32, f32) {
+        (**self).dimensions()
+    }
 }

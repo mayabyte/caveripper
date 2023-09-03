@@ -45,8 +45,9 @@ const GRID_FACTOR: f32 = 8.0 * RENDER_SCALE;
 const COORD_FACTOR: f32 = (8.0 * RENDER_SCALE) / 170.0;
 const TEKI_SIZE: f32 = 4.0 * RENDER_SCALE;
 const GATE_SIZE: f32 = 8.0 * RENDER_SCALE;
-const CARRIED_TREASURE_SIZE: f32 = TEKI_SIZE * 3.0 / 4.0;
-const FALLING_CAP_TEKI_SIZE: u32 = 29;
+const CARRIED_TREASURE_SIZE: f32 = TEKI_SIZE * 0.75;
+const FALLING_CAP_TEKI_SIZE: f32 = TEKI_SIZE * 0.8;
+const FALLING_ICON_SIZE: f32 = 2.0 * RENDER_SCALE;
 const QUICKGLANCE_CIRCLE_RADIUS: f32 = 5.0 * RENDER_SCALE;
 const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 255];
 const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 255];
@@ -55,7 +56,7 @@ const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [185, 0, 178, 255];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [109, 109, 109, 255];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
-const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 50];
+const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
@@ -132,7 +133,7 @@ pub struct Renderer<'a> {
     fonts: Vec<Font>,
 }
 
-impl<'a> Renderer<'a> {
+impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
     pub fn new(mgr: &'a AssetManager) -> Self {
         let read_font = |path: &str| -> Font {
             let font_bytes = mgr.get_bytes(path).expect("Missing font file!");
@@ -158,19 +159,10 @@ impl<'a> Renderer<'a> {
         let mut renderer = StickerRenderer::new(Some([15, 15, 15, 255].into()));
 
         /* Map Units */
-        let mut map_unit_layer = Layer::new();
-        for map_unit in layout.map_units.iter() {
-            render_map_unit(
-                &mut renderer,
-                &mut map_unit_layer,
-                map_unit.unit,
-                Point([
-                    map_unit.x as f32 * GRID_FACTOR,
-                    map_unit.z as f32 * GRID_FACTOR,
-                ]),
-            );
-        }
+        let (map_unit_layer, mut waterbox_layer) = render_map_units(&mut renderer, layout.map_units.iter());
+        waterbox_layer.set_opacity(0.2);
         renderer.add_layer(map_unit_layer);
+        renderer.add_layer(waterbox_layer);
 
         /* Waypoints */
         if options.draw_waypoints {
@@ -178,10 +170,10 @@ impl<'a> Renderer<'a> {
             for wp in layout.waypoint_graph().iter() {
                 let wp_sticker = renderer.add_sticker_with(format!("wp_{}", wp.r), || {
                     Sticker::new(
-                        Renderable::Owned(Box::new(Circle {
+                        Circle {
                             radius: wp.r * COORD_FACTOR / 1.7,
                             color: WAYPOINT_COLOR.into(),
-                        })),
+                        },
                         Origin::Center,
                         Size::Native,
                     )
@@ -199,14 +191,14 @@ impl<'a> Renderer<'a> {
                 if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
                     let wp_arrow_sticker = renderer.add_sticker_with(format!("wp_arrow_{}_{}", wp.pos, backlink.pos), || {
                         Sticker::new(
-                            Renderable::Owned(Box::new(Line {
+                            Line {
                                 start: (wp.pos * COORD_FACTOR).two_d(),
                                 end: (backlink.pos * COORD_FACTOR).two_d(),
                                 shorten_start: 6.0,
                                 shorten_end: 6.0,
                                 forward_arrow: true,
                                 color: CARRY_PATH_COLOR.into()
-                            })),
+                            },
                             Origin::TopLeft,
                             Size::Native,
                         )
@@ -245,7 +237,7 @@ impl<'a> Renderer<'a> {
                         match internal_name.to_ascii_lowercase().as_str() {
                             "whitepom" => Some(QUICKGLANCE_IVORY_CANDYPOP_COLOR),
                             "blackpom" => Some(QUICKGLANCE_VIOLET_CANDYPOP_COLOR),
-                            "minihoudai" | "kumochappy" => Some(QUICKGLANCE_ROAMING_COLOR),
+                            "minihoudai" | "kumochappy" | "leafchappy" => Some(QUICKGLANCE_ROAMING_COLOR),
                             _ => None,
                         }
                     }
@@ -261,10 +253,10 @@ impl<'a> Renderer<'a> {
                         ),
                         || {
                             Sticker::new(
-                                Renderable::Owned(Box::new(Circle {
+                                Circle {
                                     radius: QUICKGLANCE_CIRCLE_RADIUS,
                                     color: color.into(),
-                                })),
+                                },
                                 Origin::Center,
                                 Size::Native,
                             )
@@ -1113,93 +1105,6 @@ impl<'a> Renderer<'a> {
         Ok(canvas_header)
     }
 
-    // x and z are world coordinates, not image or map unit coordinates
-    fn draw_object_at<Tex: Textured>(
-        &self,
-        image_buffer: &mut RgbaImage,
-        obj: &Tex,
-        pos: Point<2, f32>,
-        game: &str,
-        options: &LayoutRenderOptions,
-    ) -> Result<(), CaveripperError> {
-        let mut texture = obj.get_texture(game, self.mgr)?;
-
-        // Modifiers to be applied before ('under') the main texture, or to the texture itself
-        for modifier in obj.get_texture_modifiers().iter() {
-            match modifier {
-                TextureModifier::QuickGlance(color) if options.quickglance => {
-                    let circle_size = QUICKGLANCE_CIRCLE_RADIUS;
-                    let circle_tex = circle(circle_size as u32, *color);
-                    overlay(
-                        image_buffer,
-                        &circle_tex,
-                        ((pos[0] * COORD_FACTOR) - circle_size) as i64,
-                        ((pos[1] * COORD_FACTOR) - circle_size) as i64,
-                    );
-                }
-                TextureModifier::Scale(xsize, zsize) => {
-                    *texture.to_mut() = resize(&*texture, *xsize, *zsize, FilterType::Lanczos3);
-                }
-                _ => {}
-            }
-        }
-
-        let img_x = ((pos[0] * COORD_FACTOR) - (texture.width() as f32 / 2.0)) as i64;
-        let img_z = ((pos[1] * COORD_FACTOR) - (texture.height() as f32 / 2.0)) as i64;
-
-        // Draw the main texture
-        overlay(image_buffer, &*texture, img_x, img_z);
-
-        // Modifiers to be applied after ('above') the main texture
-        for modifier in obj.get_texture_modifiers().iter() {
-            match modifier {
-                TextureModifier::Falling => {
-                    let falling_icon_texture = resize(
-                        self.mgr
-                            .get_img("resources/enemytex_special/falling_icon.png")?,
-                        18,
-                        18,
-                        FilterType::Lanczos3,
-                    );
-                    overlay(image_buffer, &falling_icon_texture, img_x - 5, img_z);
-                }
-                TextureModifier::Carrying(carrying) => {
-                    let carried_treasure_icon = resize(
-                        self.mgr.get_img(&PathBuf::from_iter([
-                            "assets",
-                            game,
-                            "treasures",
-                            &format!("{carrying}.png"),
-                        ]))?,
-                        24,
-                        24,
-                        FilterType::Lanczos3,
-                    );
-                    overlay(image_buffer, &carried_treasure_icon, img_x + 15, img_z + 15);
-                }
-                TextureModifier::GaugeRing if options.draw_gauge_range => {
-                    let radius1 = 775.0 * COORD_FACTOR; // Radius at which the gauge needle starts to go up
-                    let radius2 = 450.0 * COORD_FACTOR; // Radius at which you start to get audible pings
-                    draw_ring(
-                        image_buffer,
-                        pos * COORD_FACTOR,
-                        radius1,
-                        [210, 0, 240, 120].into(),
-                    );
-                    draw_ring(
-                        image_buffer,
-                        pos * COORD_FACTOR,
-                        radius2,
-                        [210, 0, 120, 120].into(),
-                    );
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
-    }
-
     fn render_text(
         &self,
         text: &str,
@@ -1297,6 +1202,123 @@ impl<'a> Renderer<'a> {
             }
         }
         img
+    }
+}
+
+fn render_map_units<'k, 'a: 'k, 'l: 'a>(
+    renderer: &mut StickerRenderer<'a, 'k, AssetManager>,
+    map_units: impl Iterator<Item=&'a PlacedMapUnit<'l>>,
+) -> (Layer<'k>, Layer<'k>) {
+    let mut radar_image_layer = Layer::new();
+    let mut waterbox_layer = Layer::new();
+
+    for map_unit in map_units {
+        let unit_def = map_unit.unit;
+        let render_pos_x = map_unit.x as f32 * GRID_FACTOR;
+        let render_pos_z = map_unit.z as f32 * GRID_FACTOR;
+
+        // Radar images
+        let key = format!("{}_{}", unit_def.unit_folder_name, unit_def.rotation);
+        let unit_img_width = unit_def.width as f32 * GRID_FACTOR;
+        let unit_img_height = unit_def.height as f32 * GRID_FACTOR;
+        let sticker = renderer.add_sticker_with(key, || {
+            Sticker::new(
+                unit_def,
+                Origin::TopLeft,
+                Size::Absolute(unit_img_width, unit_img_height, FilterType::Nearest),
+            )
+        });
+        radar_image_layer.add(sticker, render_pos_x, render_pos_z);
+
+        // Waterboxes
+        for waterbox in unit_def.waterboxes.iter() {
+            let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
+            let waterbox_sticker = renderer.add_sticker_with(key, || {
+                Sticker::new(
+                    Rectangle {
+                        width: waterbox.width() * COORD_FACTOR,
+                        height: waterbox.height() * COORD_FACTOR,
+                        color: WATERBOX_COLOR.into(),
+                    },
+                    Origin::TopLeft,
+                    Size::Native,
+                )
+            });
+            waterbox_layer.add(
+                waterbox_sticker,
+                render_pos_x + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
+                render_pos_z + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
+            );
+        }
+    }
+
+    (radar_image_layer, waterbox_layer)
+}
+
+fn render_spawn_object<'k, 'a: 'k, 'l: 'a>(
+    renderer: &mut StickerRenderer<'k, 'a, AssetManager>,
+    layer: &mut Layer<'k>,
+    spawn_object: &'a SpawnObject<'l>,
+    pos: Point<2, f32>,
+) {
+    let mut pos = pos * COORD_FACTOR;
+
+    // Main Spawn Object image
+    let (key, size) = match spawn_object {
+        SpawnObject::Gate(_, rotation) => (
+            Cow::Owned(format!("{}_{}", spawn_object.name(), rotation)),
+            GATE_SIZE,
+        ),
+        SpawnObject::CapTeki(CapInfo{spawn_method: Some(_), ..}, _) => {
+            pos = pos - RENDER_SCALE;
+            (Cow::Owned(format!("{}_falling_cap", spawn_object.name())), FALLING_CAP_TEKI_SIZE)
+        },
+        _ => (Cow::Borrowed(spawn_object.name()), TEKI_SIZE),
+    };
+   
+    let sticker = renderer.add_sticker_with(key, || {
+        Sticker::new(
+            spawn_object,
+            Origin::Center,
+            Size::Absolute(size, size, FilterType::Lanczos3),
+        )
+    });
+    layer.add(sticker, pos[0], pos[1]);
+
+    // Carrying Treasures
+    if let SpawnObject::Teki(
+        TekiInfo {
+            carrying: Some(treasure),
+            ..
+        },
+        _,
+    ) = spawn_object
+    {
+        let carrying_sticker = renderer.add_sticker_with(treasure, || {
+            Sticker::new(
+                TreasureRenderer(treasure),
+                Origin::Center,
+                Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE, FilterType::Lanczos3),
+            )
+        });
+        layer.add(
+            carrying_sticker,
+            pos[0] + (size * 0.4),
+            pos[1] + (size * 0.4),
+        );
+    }
+
+    // Falling indicator
+    if let SpawnObject::Teki(TekiInfo{spawn_method: Some(_), ..}, _) 
+    | SpawnObject::CapTeki(CapInfo{spawn_method: Some(_), ..}, _) = spawn_object {
+        let falling_icon_sticker = renderer.add_sticker_with("falling_icon", || {
+            Sticker::new(
+                FallingIcon(),
+                Origin::Center,
+                Size::Absolute(FALLING_ICON_SIZE, FALLING_ICON_SIZE, FilterType::Lanczos3),
+            )
+        });
+        layer.add(falling_icon_sticker, pos[0] - (FALLING_ICON_SIZE / 2.0), pos[1] - (FALLING_ICON_SIZE / 2.0));
     }
 }
 
@@ -1464,93 +1486,6 @@ fn circle(radius: u32, color: Rgba<u8>) -> RgbaImage {
     buffer
 }
 
-fn render_map_unit<'k, 'i: 'k>(
-    renderer: &mut StickerRenderer<'k, 'i, AssetManager>,
-    layer: &mut Layer<'k>,
-    unit: &'i CaveUnit,
-    pos: Point<2, f32>,
-) {
-    let key = format!("{}_{}", unit.unit_folder_name, unit.rotation);
-    let unit_img_width = unit.width as f32 * GRID_FACTOR;
-    let unit_img_height = unit.height as f32 * GRID_FACTOR;
-    let sticker = renderer.add_sticker_with(key, || {
-        Sticker::new(
-            Renderable::Borrowed(unit),
-            Origin::TopLeft,
-            Size::Absolute(unit_img_width, unit_img_height, FilterType::Nearest),
-        )
-    });
-    layer.add(sticker, pos[0], pos[1]);
-
-    // Waterboxes
-    for waterbox in unit.waterboxes.iter() {
-        let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
-        let waterbox_sticker = renderer.add_sticker_with(key, || {
-            Sticker::new(
-                Renderable::Owned(Box::new(Rectangle {
-                    width: waterbox.width() * COORD_FACTOR,
-                    height: waterbox.height() * COORD_FACTOR,
-                    color: WATERBOX_COLOR.into(),
-                })),
-                Origin::TopLeft,
-                Size::Native,
-            )
-        });
-        layer.add(
-            waterbox_sticker,
-            pos[0] + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
-            pos[1] + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
-        );
-    }
-}
-
-fn render_spawn_object<'k, 'i: 'k>(
-    renderer: &mut StickerRenderer<'k, 'i, AssetManager>,
-    layer: &mut Layer<'k>,
-    spawn_object: &'i SpawnObject<'k>,
-    pos: Point<2, f32>,
-) {
-    let (key, size) = if let SpawnObject::Gate(_, rotation) = spawn_object {
-        (
-            Cow::Owned(format!("{}_{}", spawn_object.name(), rotation)),
-            GATE_SIZE,
-        )
-    } else {
-        (Cow::Borrowed(spawn_object.name()), TEKI_SIZE)
-    };
-    let sticker = renderer.add_sticker_with(key, || {
-        Sticker::new(
-            Renderable::Borrowed(spawn_object),
-            Origin::Center,
-            Size::Absolute(size, size, FilterType::Lanczos3),
-        )
-    });
-    layer.add(sticker, pos[0] * COORD_FACTOR, pos[1] * COORD_FACTOR);
-
-    // Carrying Treasures
-    if let SpawnObject::Teki(
-        TekiInfo {
-            carrying: Some(treasure),
-            ..
-        },
-        _,
-    ) = spawn_object
-    {
-        let carrying_sticker = renderer.add_sticker_with(treasure, || {
-            Sticker::new(
-                Renderable::Owned(Box::new(TreasureRenderer(treasure))),
-                Origin::Center,
-                Size::Absolute(CARRIED_TREASURE_SIZE, CARRIED_TREASURE_SIZE, FilterType::Lanczos3),
-            )
-        });
-        layer.add(
-            carrying_sticker,
-            pos[0] * COORD_FACTOR + (size * 0.4),
-            pos[1] * COORD_FACTOR + (size * 0.4),
-        );
-    }
-}
-
 enum TextureModifier {
     Scale(u32, u32),
     Falling,
@@ -1671,8 +1606,8 @@ impl Textured for CapInfo {
         if self.is_falling() {
             modifiers.push(TextureModifier::Falling);
             modifiers.push(TextureModifier::Scale(
-                FALLING_CAP_TEKI_SIZE,
-                FALLING_CAP_TEKI_SIZE,
+                FALLING_CAP_TEKI_SIZE as u32,
+                FALLING_CAP_TEKI_SIZE as u32,
             ));
         } else {
             modifiers.push(TextureModifier::Scale(TEKI_SIZE as u32, TEKI_SIZE as u32));
@@ -2036,5 +1971,16 @@ impl Render<AssetManager> for TreasureRenderer<'_> {
     fn dimensions(&self) -> (f32, f32) {
         (32.0, 32.0)
     }
+}
 
+struct FallingIcon();
+impl Render<AssetManager> for FallingIcon {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        let filename = "resources/enemytex_special/falling_icon.png";
+        canvas.overlay(helper.get_img(filename).unwrap(), 0, 0);
+    }
+
+    fn dimensions(&self) -> (f32, f32) {
+        (20.0, 20.0)
+    }
 }
