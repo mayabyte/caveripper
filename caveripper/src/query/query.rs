@@ -6,7 +6,7 @@ mod test;
 pub use search::find_matching_layouts_parallel;
 
 use std::{cmp::Ordering, fmt::Display, collections::{HashSet, HashMap}};
-use error_stack::{Result, report, ResultExt, IntoReport};
+use error_stack::{Result, report, ResultExt};
 use itertools::Itertools;
 use pest::{Parser, iterators::{Pair, Pairs}};
 use pest_derive::Parser;
@@ -43,7 +43,7 @@ impl Query {
     /// This effectively defines a DSL for search terms.
     pub fn try_parse(input: &str, mgr: &AssetManager) -> Result<Self, CaveripperError> {
         let pairs = QueryParser::parse(Rule::query, input)
-            .into_report().change_context(CaveripperError::QueryParseError)?;
+            .change_context(CaveripperError::QueryParseError)?;
         let mut sublevel: Option<Sublevel> = None;
         let mut clauses = Vec::new();
         for pair in pairs {
@@ -214,14 +214,14 @@ impl QueryKind {
                     Ok(QueryKind::CountEntity {
                         entity_matcher: values[0].into(),
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
+                        amount: values[2].parse::<usize>().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
                 else if room_list.contains(&bare_name_lowercase) || RoomType::try_from(values[0]).is_ok() {
                     Ok(QueryKind::CountRoom {
                         unit_matcher: values[0].into(),
                         relationship: char_to_ordering(values[1]),
-                        amount: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
+                        amount: values[2].parse::<usize>().change_context(CaveripperError::QueryParseError)?,
                     })
                 }
                 else {
@@ -233,7 +233,7 @@ impl QueryKind {
                 Ok(QueryKind::CarryDist {
                     entity: values[0].into(),
                     relationship: char_to_ordering(values[1]),
-                    req_dist: values[2].parse().into_report().change_context(CaveripperError::QueryParseError)?,
+                    req_dist: values[2].parse::<f32>().change_context(CaveripperError::QueryParseError)?,
                 })
             },
             (Rule::straight_dist, inner) => {
@@ -242,7 +242,7 @@ impl QueryKind {
                     entity1: values[0].into(),
                     entity2: values[1].into(),
                     relationship: char_to_ordering(values[2]),
-                    req_dist: values[3].parse().into_report().change_context(CaveripperError::QueryParseError)?,
+                    req_dist: values[3].parse::<f32>().change_context(CaveripperError::QueryParseError)?,
                 })
             },
             (Rule::gated, inner) => Ok(QueryKind::Gated(inner.as_str().into())),

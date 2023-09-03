@@ -10,12 +10,12 @@ use crate::{
     },
     point::Point,
 };
-use error_stack::{report, IntoReport, Report, Result, ResultExt};
 use itertools::Itertools;
 use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
 use std::{path::PathBuf, sync::OnceLock};
+use error_stack::{Result, ResultExt, report, Report};
 
 use self::section::{InfoLine, Section};
 
@@ -27,7 +27,6 @@ struct CaveinfoParser;
 
 fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section>, CaveInfoError> {
     let pairs = CaveinfoParser::parse(Rule::section_file, file_contents)
-        .into_report()
         .change_context(CaveInfoError::MalformedFile)
         .attach_printable("Couldn't parse file into sections")?
         .next()
@@ -154,20 +153,15 @@ fn try_parse_caveunit(
     };
 
     // Waterboxes file
-    let waterboxes = match mgr.get_txt_file(PathBuf::from_iter([
-        "assets",
-        &cave.game,
-        "mapunits",
-        &unit_folder_name,
-        "texts",
-        "waterbox.txt",
-    ])) {
-        Ok(waterboxes_file_txt) => parse_sections(&waterboxes_file_txt)?
-            .next()
-            .unwrap()
-            .try_into()
-            .change_context(CaveInfoError::WaterboxFile)
-            .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?,
+    let waterboxes = match mgr.get_txt_file(
+        PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "waterbox.txt"])
+    ) {
+        Ok(waterboxes_file_txt) => {
+            let section = parse_sections(&waterboxes_file_txt)?.next().unwrap();
+            TryInto::<Vec<Waterbox>>::try_into(section)
+                .change_context(CaveInfoError::WaterboxFile)
+                .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?
+        },
         Err(_) => Vec::new(),
     };
 

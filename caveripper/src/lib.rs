@@ -6,7 +6,7 @@
 #![allow(stable_features)] // This feature is required to be able to build on NixOS for some reason.
 #![feature(let_chains)]
 
-use error_stack::{report, IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use errors::CaveripperError;
 use rand::random;
 
@@ -44,7 +44,6 @@ pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
         Err(report!(CaveripperError::SeedError))
     } else {
         u32::from_str_radix(trimmed, 16)
-            .into_report()
             .change_context(CaveripperError::SeedError)
     }
 }

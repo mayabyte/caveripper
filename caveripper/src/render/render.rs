@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use clap::Args;
-use error_stack::{IntoReport, Result, ResultExt};
+use error_stack::{Result, ResultExt};
 use fontdue::{
     layout::{
         HorizontalAlign, Layout as FontLayout, LayoutSettings, TextStyle, VerticalAlign, WrapStyle,
@@ -1305,7 +1305,6 @@ impl<'a> Renderer<'a> {
 /// Filename must end with a `.png` extension.
 pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), CaveripperError> {
     img.save_with_format(&filename, image::ImageFormat::Png)
-        .into_report()
         .change_context(CaveripperError::RenderingError)?;
     Ok(())
 }

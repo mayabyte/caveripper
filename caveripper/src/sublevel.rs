@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 
 use crate::errors::CaveripperError;
 use crate::assets::{AssetManager, CaveConfig};
-use error_stack::{Result, ResultExt, report, IntoReport};
+use error_stack::{Result, ResultExt, report};
 use itertools::Itertools;
 use regex::Regex;
 use serde::Serialize;
@@ -58,7 +58,7 @@ impl Sublevel {
 
             // Long sublevel specifier ("SH-6") Challenge Mode index specifier ("CH24-1"),
             [c1, c2] => {
-                let floor = c2.trim().parse().into_report()
+                let floor = c2.trim().parse::<usize>()
                     .change_context(CaveripperError::UnrecognizedSublevel)?;
 
                 Ok(Sublevel {
@@ -70,7 +70,7 @@ impl Sublevel {
 
             // Direct mode caveinfo+unitfile specifier
             [caveinfo_path, _unitfile_path, floor] if game.is_some_and(|game_name| game_name.eq_ignore_ascii_case(DIRECT_MODE_TAG)) => {
-                let floor = floor.trim().parse().into_report()
+                let floor = floor.trim().parse::<usize>()
                     .change_context(CaveripperError::UnrecognizedSublevel)?;
                 Ok(Sublevel {
                     cfg: CaveConfig {
@@ -137,8 +137,8 @@ fn from_short_specifier(input: &str) -> Result<(&str, usize), CaveripperError> {
         .as_str().trim();
     let floor = number_re.find(input)
         .ok_or(CaveripperError::UnrecognizedSublevel)?
-        .as_str().trim().parse()
-        .into_report().change_context(CaveripperError::UnrecognizedSublevel)?;
+        .as_str().trim().parse::<usize>()
+        .change_context(CaveripperError::UnrecognizedSublevel)?;
 
     Ok((cave_name, floor))
 }
