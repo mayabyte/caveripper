@@ -9,6 +9,7 @@ use image::{
     Rgba, RgbaImage,
 };
 use itertools::Itertools;
+use num::clamp;
 
 use self::canvas::{Canvas, CanvasView};
 
@@ -70,11 +71,20 @@ impl<'k, 'i, H> StickerRenderer<'k, 'i, H> {
 
 pub struct Layer<'k> {
     stickers: Vec<(Cow<'k, str>, f32, f32)>,
+    opacity: f32,
 }
 
 impl<'k> Layer<'k> {
     pub fn new() -> Self {
-        Self { stickers: vec![] }
+        Self { 
+            stickers: vec![], 
+            opacity: 1.0,
+        }
+    }
+
+    /// Sets the opacity of this entire layer. Clamps to [0, 1].
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self.opacity = clamp(opacity, 0.0, 1.0);
     }
 
     pub fn add(&mut self, sticker_name: Cow<'k, str>, x: f32, y: f32) {
@@ -126,7 +136,13 @@ impl<'k> Layer<'k> {
             canvas.draw_sticker(&stickers[sticker_name], helper, img_x, img_y);
         }
 
-        (canvas.into_inner(), min_x, min_y)
+        let mut buffer = canvas.into_inner();
+        
+        if self.opacity < 1.0 {
+            buffer.pixels_mut().for_each(|p: &mut _| p.0[3] = (p.0[3] as f32 * self.opacity) as u8);
+        }
+
+        (buffer, min_x, min_y)
     }
 }
 
@@ -138,9 +154,9 @@ pub struct Sticker<'i, H> {
 }
 
 impl<'i, H> Sticker<'i, H> {
-    pub fn new(obj: Renderable<'i, H>, origin: Origin, size: Size) -> Self {
+    pub fn new(obj: impl Into<Renderable<'i, H>>, origin: Origin, size: Size) -> Self {
         Self {
-            obj,
+            obj: obj.into(),
             origin,
             size,
             rendered: OnceCell::new(),

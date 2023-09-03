@@ -4,17 +4,14 @@ mod sticker;
 mod test;
 
 use crate::{
-    assets::{get_special_texture_name, AssetManager, Treasure},
+    assets::{get_special_texture_name, AssetManager},
     caveinfo::{CapInfo, CaveInfo, CaveUnit, GateInfo, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
     layout::{
-        waypoint::{self, WaypointGraph},
         Layout, PlacedMapUnit, SpawnObject,
     },
     point::Point,
-    render::{
-        sticker::shapes::{Circle, Rectangle, Line},
-    },
+    render::sticker::shapes::{Circle, Rectangle, Line},
 };
 use clap::Args;
 use error_stack::{Result, ResultExt};
@@ -51,12 +48,12 @@ const GATE_SIZE: f32 = 8.0 * RENDER_SCALE;
 const CARRIED_TREASURE_SIZE: f32 = TEKI_SIZE * 3.0 / 4.0;
 const FALLING_CAP_TEKI_SIZE: u32 = 29;
 const QUICKGLANCE_CIRCLE_RADIUS: f32 = 5.0 * RENDER_SCALE;
-const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 110];
-const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 110];
-const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 80];
-const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 80];
-const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 120];
-const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 60];
+const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 255];
+const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 255];
+const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [185, 29, 29, 255];
+const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [185, 0, 178, 255];
+const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [109, 109, 109, 255];
+const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 50];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
@@ -223,6 +220,8 @@ impl<'a> Renderer<'a> {
         /* Spawn Objects */
         let mut spawn_object_layer = Layer::new();
         let mut quickglance_circle_layer = Layer::new();
+        quickglance_circle_layer.set_opacity(0.45);
+
         for (spawn_object, pos) in layout.get_spawn_objects() {
             render_spawn_object(
                 &mut renderer,
