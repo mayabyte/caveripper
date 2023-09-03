@@ -51,16 +51,17 @@ const FALLING_ICON_SIZE: f32 = 2.0 * RENDER_SCALE;
 const QUICKGLANCE_CIRCLE_RADIUS: f32 = 5.0 * RENDER_SCALE;
 const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 255];
 const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 255];
-const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [185, 29, 29, 255];
-const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [185, 0, 178, 255];
-const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [109, 109, 109, 255];
+const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 255];
+const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 255];
+const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 255];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
-const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 150];
+const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 255];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
+const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
 
@@ -167,6 +168,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         /* Waypoints */
         if options.draw_waypoints {
             let mut waypoint_circle_layer = Layer::new();
+            waypoint_circle_layer.set_opacity(0.6);
             for wp in layout.waypoint_graph().iter() {
                 let wp_sticker = renderer.add_sticker_with(format!("wp_{}", wp.r), || {
                     Sticker::new(
@@ -189,21 +191,17 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             let mut waypoint_arrow_layer = Layer::new();
             for wp in layout.waypoint_graph().iter() {
                 if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-                    let wp_arrow_sticker = renderer.add_sticker_with(format!("wp_arrow_{}_{}", wp.pos, backlink.pos), || {
-                        Sticker::new(
-                            Line {
-                                start: (wp.pos * COORD_FACTOR).two_d(),
-                                end: (backlink.pos * COORD_FACTOR).two_d(),
-                                shorten_start: 6.0,
-                                shorten_end: 6.0,
-                                forward_arrow: true,
-                                color: CARRY_PATH_COLOR.into()
-                            },
-                            Origin::TopLeft,
-                            Size::Native,
-                        )
+                    if backlink.pos.dist(&wp.pos) < 0.01 {
+                        continue;
+                    }
+                    waypoint_arrow_layer.add_direct_renderable(Line {
+                        start: (wp.pos * COORD_FACTOR).two_d(),
+                        end: (backlink.pos * COORD_FACTOR).two_d(),
+                        shorten_start: 6.0,
+                        shorten_end: 6.0,
+                        forward_arrow: true,
+                        color: CARRY_PATH_COLOR.into()
                     });
-                    waypoint_arrow_layer.add(wp_arrow_sticker, wp.pos[0] * COORD_FACTOR, wp.pos[2] * COORD_FACTOR);
                 }
             }
             renderer.add_layer(waypoint_arrow_layer);
@@ -273,21 +271,37 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         renderer.add_layer(quickglance_circle_layer);
         renderer.add_layer(spawn_object_layer);
 
-        // TODO: grid
+        // Unit grid
+        if options.draw_grid {
+            let mut grid_layer = Layer::new();
+            let map_dims = layout.map_units.iter().fold((0, 0), |dims, unit| {
+                (max(dims.0, unit.x + unit.unit.width as i32), max(dims.1, unit.z + unit.unit.height as i32))
+            });
 
-        // // Draw a map unit grid, if enabled
-        // if options.draw_grid {
-        //     let grid_color: Rgba<u8> = [255, 0, 0, 150].into();
-        //     let grid_size = GRID_FACTOR as u32;
-        //     for x in 0..canvas.width() {
-        //         for z in 0..canvas.height() {
-        //             if x % grid_size == 0 || z % grid_size == 0 {
-        //                 let new_pix = canvas.get_pixel_mut(x, z);
-        //                 new_pix.blend(&grid_color);
-        //             }
-        //         }
-        //     }
-        // }
+            for x in 0..map_dims.0 {
+                grid_layer.add_direct_renderable(Line {
+                    start: Point([x as f32 * GRID_FACTOR, 0.0]),
+                    end:   Point([x as f32 * GRID_FACTOR, map_dims.1 as f32 * GRID_FACTOR]),
+                    shorten_start: 0.0,
+                    shorten_end: 0.0,
+                    forward_arrow: false,
+                    color: GRID_COLOR.into(),
+                });
+            }
+
+            for y in 0..map_dims.1 {
+                grid_layer.add_direct_renderable(Line {
+                    start: Point([0.0,                             y as f32 * GRID_FACTOR]),
+                    end:   Point([map_dims.0 as f32 * GRID_FACTOR, y as f32 * GRID_FACTOR]),
+                    shorten_start: 0.0,
+                    shorten_end: 0.0,
+                    forward_arrow: false,
+                    color: GRID_COLOR.into(),
+                })
+            }
+
+            renderer.add_layer(grid_layer);
+        }
 
         // // Draw carry paths for treasures, if enabled
         // if options.draw_paths {

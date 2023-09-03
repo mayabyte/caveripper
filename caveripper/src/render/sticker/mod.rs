@@ -76,6 +76,7 @@ impl<'k, 'i, H> StickerRenderer<'k, 'i, H> {
 
 pub struct Layer<'k> {
     stickers: Vec<(Cow<'k, str>, f32, f32)>,
+    direct_renderables: Vec<Box<dyn DirectRender>>,
     opacity: f32,
 }
 
@@ -83,6 +84,7 @@ impl<'k> Layer<'k> {
     pub fn new() -> Self {
         Self { 
             stickers: vec![], 
+            direct_renderables: vec![],
             opacity: 1.0,
         }
     }
@@ -96,12 +98,16 @@ impl<'k> Layer<'k> {
         self.stickers.push((sticker_name, x, y));
     }
 
+    pub fn add_direct_renderable(&mut self, renderable: impl DirectRender + 'static) {
+        self.direct_renderables.push(Box::new(renderable));
+    }
+
     fn render<H>(
         &self,
         helper: &H,
         stickers: &HashMap<Cow<'k, str>, Sticker<H>>,
     ) -> (RgbaImage, f32, f32) {
-        if self.stickers.is_empty() {
+        if self.stickers.is_empty() && self.direct_renderables.is_empty() {
             return (RgbaImage::from_pixel(0, 0, [0, 0, 0, 0].into()), 0.0, 0.0);
         }
 
@@ -124,10 +130,10 @@ impl<'k> Layer<'k> {
                 )
             })
             .multiunzip();
-        let min_x = x1.into_iter().min().unwrap().0;
-        let max_x = x2.into_iter().max().unwrap().0;
-        let min_y = y1.into_iter().min().unwrap().0;
-        let max_y = y2.into_iter().max().unwrap().0;
+        let min_x = x1.into_iter().min().unwrap_or(FloatOrd(0.0)).0;
+        let max_x = x2.into_iter().max().unwrap_or(FloatOrd(0.0)).0;
+        let min_y = y1.into_iter().min().unwrap_or(FloatOrd(0.0)).0;
+        let max_y = y2.into_iter().max().unwrap_or(FloatOrd(0.0)).0;
 
         let canvas_w = (max_x - min_x).round() as u32;
         let canvas_h = (max_y - min_y).round() as u32;
@@ -139,6 +145,11 @@ impl<'k> Layer<'k> {
             let img_x = (x + x_offset - min_x) as i64;
             let img_y = (y + y_offset - min_y) as i64;
             canvas.draw_sticker(&stickers[sticker_name], helper, img_x, img_y);
+        }
+
+        // DirectRenderables
+        for renderable in self.direct_renderables.iter() {
+            renderable.render(&mut canvas);
         }
 
         let mut buffer = canvas.into_inner();
@@ -214,6 +225,8 @@ pub enum Size {
 
 pub trait Render<H> {
     fn render(&self, canvas: CanvasView, helper: &H);
+
+    /// The dimensions of the image produced by [render].
     fn dimensions(&self) -> (f32, f32);
 }
 
@@ -235,4 +248,11 @@ impl<T: Render<H>, H> Render<H> for &mut T {
     fn dimensions(&self) -> (f32, f32) {
         (**self).dimensions()
     }
+}
+
+/// API for rendering pixels straight onto the canvas without using the
+/// Sticker machinery. When using this API, the implementor is responsible
+/// for resizing the canvas to fit what is drawn.
+pub trait DirectRender {
+    fn render(&self, canvas: &mut Canvas);
 }

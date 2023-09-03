@@ -1,6 +1,6 @@
 use crate::point::Point;
 
-use super::{Render, canvas::CanvasView};
+use super::{Render, canvas::{CanvasView, Canvas}, DirectRender};
 use image::Rgba;
 
 pub struct Circle {
@@ -53,12 +53,16 @@ pub struct Line {
     pub color: Rgba<u8>,
 }
 
-impl<H> Render<H> for Line {
-    fn render(&self, mut canvas: CanvasView, _helper: &H) {
-        let mut start = Point([0.0, 0.0]);
-        let mut end = self.end - self.start;
+impl DirectRender for Line {
+    fn render(&self, mut canvas: &mut Canvas) {
+        let mut start = self.start;
+        let mut end = self.end;
+        canvas.reserve(f32::max(start[0] + 1.0, end[0] + 1.0) as u32, f32::max(start[1] + 1.0, end[1] + 1.0) as u32);
 
         let vector = (end - start).normalized(); // Unit vector in the direction of the line
+        if vector.0.iter().any(|v| v.is_nan()) {
+            return;
+        }
 
         // Shorten the line slightly on each end without changing the origin point
         start += vector * self.shorten_start;
@@ -69,22 +73,15 @@ impl<H> Render<H> for Line {
 
         // Draw arrow arms
         if self.forward_arrow {
-            let arrow_start_left = end - vector + (vector.perpendicular() / 2.0);
-            let arrow_start_right = end - vector - (vector.perpendicular() / 2.0);
+            let arrow_start_left = end - (vector * 12.0) + (vector.perpendicular() * 6.0);
+            let arrow_start_right = end - (vector * 12.0) - (vector.perpendicular() * 6.0);
             render_basic_line(&mut canvas, arrow_start_left, end, self.color);
             render_basic_line(&mut canvas, arrow_start_right, end, self.color);
         }
     }
-
-    fn dimensions(&self) -> (f32, f32) {
-        let dims = self.end - self.start;
-        // TODO: broken
-        println!("{dims}");
-        (dims[0].abs(), dims[1].abs())
-    }
 }
 
-fn render_basic_line(canvas: &mut CanvasView, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
+fn render_basic_line(canvas: &mut Canvas, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
     let (mut x1, mut y1, mut x2, mut y2) = (start[0], start[1], end[0], end[1]);
     let steep = (y2 - y1).abs() > (x2 - x1).abs();
 
@@ -99,7 +96,7 @@ fn render_basic_line(canvas: &mut CanvasView, start: Point<2, f32>, end: Point<2
         for y in (y1.round() as u32)..(y2.round() as u32) {
             let true_y = y as f32 + 0.5;
             let true_x = x1 + (slope * (true_y - y1));
-            canvas.draw_pixel(true_x, true_y, color);
+            canvas.draw_pixel(true_x.round() as u32, true_y.round() as u32, color);
         }
     } else {
         let slope = (y2 - y1) / (x2 - x1);
@@ -107,7 +104,7 @@ fn render_basic_line(canvas: &mut CanvasView, start: Point<2, f32>, end: Point<2
         for x in (x1.round() as u32)..(x2.round() as u32) {
             let true_x = x as f32 + 0.5;
             let true_y = y1 + (slope * (true_x - x1));
-            canvas.draw_pixel(true_x, true_y, color);
+            canvas.draw_pixel(true_x.round() as u32, true_y.round() as u32, color);
         }
     }
 }
