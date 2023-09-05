@@ -1,5 +1,6 @@
 mod sticker;
 mod text;
+mod util;
 
 #[cfg(test)]
 mod test;
@@ -63,7 +64,8 @@ const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
-const SCORE_TEXT_COLOR: [u8; 4] = [170, 50, 30, 255];
+const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
+const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
 const CAVEINFO_MARGIN: i64 = 4;
 const CAVEINFO_ICON_SIZE: u32 = 48;
 
@@ -198,7 +200,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                         shorten_start: 6.0,
                         shorten_end: 6.0,
                         forward_arrow: true,
-                        color: CARRY_PATH_COLOR.into()
+                        color: CARRY_PATH_COLOR.into(),
+                        ..Default::default()
                     });
                 }
             }
@@ -269,7 +272,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         renderer.add_layer(quickglance_circle_layer);
         renderer.add_layer(spawn_object_layer);
 
-        // Unit grid
+        /* Unit Grid */
         if options.draw_grid {
             let mut grid_layer = Layer::new();
             let map_dims = layout.map_units.iter().fold((0, 0), |dims, unit| {
@@ -280,10 +283,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 grid_layer.add_direct_renderable(Line {
                     start: Point([x as f32 * GRID_FACTOR, 0.0]),
                     end:   Point([x as f32 * GRID_FACTOR, map_dims.1 as f32 * GRID_FACTOR]),
-                    shorten_start: 0.0,
-                    shorten_end: 0.0,
-                    forward_arrow: false,
                     color: GRID_COLOR.into(),
+                    ..Default::default()
                 });
             }
 
@@ -291,53 +292,88 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 grid_layer.add_direct_renderable(Line {
                     start: Point([0.0,                             y as f32 * GRID_FACTOR]),
                     end:   Point([map_dims.0 as f32 * GRID_FACTOR, y as f32 * GRID_FACTOR]),
-                    shorten_start: 0.0,
-                    shorten_end: 0.0,
-                    forward_arrow: false,
                     color: GRID_COLOR.into(),
+                    ..Default::default()
                 })
             }
 
             renderer.add_layer(grid_layer);
         }
 
+        /* Score */
         if options.draw_score {
-            let mut score_layer = Layer::new();
+            let mut distance_score_line_layer = Layer::new();
+            let mut distance_score_text_layer = Layer::new();
+            let mut score_text_layer = Layer::new();
+
             for unit in layout.map_units.iter() {
-                let sticker = renderer.add_sticker_with(format!("text_\"{}\"", unit.total_score), || {
+                // Total unit score
+                let text = if unit.teki_score > 0 {
+                    format!("{} (Teki: {})", unit.total_score, unit.teki_score)
+                }
+                else {
+                    format!("{}", unit.total_score)
+                };
+                let total_score_text_sticker = renderer.add_sticker_with(format!("score_text_\"{text}\""), || {
                     Sticker::new(
                         Text{ 
-                            text: format!("{}", unit.total_score),
+                            text,
                             font: &self.fonts[1], 
                             size: 24.0, 
                             color: SCORE_TEXT_COLOR.into(), 
                             max_width: None,
-                            outline: 0,
+                            outline: 2,
                         }, 
                         Origin::Center,
                         Size::Native
                     )
                 });
-                score_layer.add(
-                    sticker, 
+                score_text_layer.add(
+                    total_score_text_sticker, 
                     unit.x as f32 * GRID_FACTOR + (unit.unit.width as f32 * GRID_FACTOR / 2.0), 
                     unit.z as f32 * GRID_FACTOR + (unit.unit.height as f32 * GRID_FACTOR / 2.0),
                 );
+
+                // Distance score
+                for door in unit.doors.iter() {
+                    let door = door.borrow();
+                    for link in door.door_unit.door_links.iter() {
+                        let this_door_pos = door.center();
+                        let other_door_pos = unit.doors[link.door_id].borrow().center();
+                        distance_score_line_layer.add_direct_renderable(Line{ 
+                            start: this_door_pos.two_d() * COORD_FACTOR, 
+                            end: other_door_pos.two_d() * COORD_FACTOR,
+                            shorten_start: 8.0,
+                            shorten_end: 8.0, 
+                            color: DISTANCE_SCORE_LINE_COLOR.into(),
+                            ..Default::default()
+                        });
+
+                        let midpoint = ((this_door_pos + other_door_pos) / 2.0) * COORD_FACTOR;
+                        let distance_score = (link.distance / 10.0).round() as u32;
+                        let distance_score_text_sticker = renderer.add_sticker_with(format!("ds_text_\"{distance_score}\""), || {
+                            Sticker::new(
+                                Text { 
+                                    text: format!("{}", distance_score), 
+                                    font: &self.fonts[1], 
+                                    size: 24.0, 
+                                    color: DISTANCE_SCORE_LINE_COLOR.into(), 
+                                    max_width: None, 
+                                    outline: 2,
+                                },
+                                Origin::Center,
+                                Size::Native,
+                            )
+                        });
+                        distance_score_text_layer.add(distance_score_text_sticker, midpoint[0], midpoint[2]);
+                    }
+                }
             }
-            renderer.add_layer(score_layer);
+
+            renderer.add_layer(distance_score_line_layer);
+            renderer.add_layer(distance_score_text_layer);
+            renderer.add_layer(score_text_layer);
         }
-        
-
-        // if options.draw_score {
-        //     for unit in layout.map_units.iter() {
-        //         let score_text = self.render_small_text(&format!("{}", unit.total_score), 16.0, [170, 50, 30, 255].into());
-        //         let img_x = ((unit.x as f32 + unit.unit.width as f32 / 2.0) * GRID_FACTOR as f32) as i64;
-        //         let img_z = ((unit.z as f32 + unit.unit.height as f32 / 2.0) * GRID_FACTOR as f32) as i64;
-        //         overlay(&mut canvas, &score_text, img_x - (score_text.width() / 2) as i64, img_z - (score_text.height() / 2) as i64);
-        //     }
-        // }
-
-        // Ok(canvas)
 
         Ok(renderer.render(self.mgr))
     }

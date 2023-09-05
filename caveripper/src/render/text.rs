@@ -1,11 +1,11 @@
+
 use float_ord::FloatOrd;
 use fontdue::{layout::{Layout as FontLayout, LayoutSettings, HorizontalAlign, VerticalAlign, WrapStyle, TextStyle}, Font};
-use image::{Rgba, RgbaImage, imageops::{FilterType, brighten}};
-use itertools::Itertools;
+use image::Rgba;
 
 use crate::assets::AssetManager;
 
-use super::sticker::{Render, canvas::{CanvasView, Canvas}};
+use super::{sticker::{Render, canvas::{CanvasView, Canvas}}, util::outline};
 
 pub struct Text<'f> {
     pub text: String,
@@ -68,15 +68,11 @@ impl Render<AssetManager> for Text<'_> {
                 );
             }
 
-            let outline_canvas = brighten(
-                &base_glyph_canvas.resize(
-                    base_glyph_canvas.width() + (self.outline * 2), 
-                    base_glyph_canvas.height() + (self.outline * 2), 
-                    FilterType::Lanczos3
-                ).into_inner(), 
-                -255);
+            let base_glyph = base_glyph_canvas.into_inner();
+
+            let outline_canvas = outline(&base_glyph, self.outline);
             canvas.overlay(&outline_canvas, glyph.x - self.outline as f32, glyph.y - self.outline as f32);
-            canvas.overlay(&base_glyph_canvas.into_inner(), glyph.x, glyph.y);
+            canvas.overlay(&base_glyph, glyph.x, glyph.y);
         }
     }
 

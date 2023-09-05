@@ -1,9 +1,6 @@
 use std::cmp::max;
-
 use image::{RgbaImage, imageops::{overlay, resize, FilterType}, Rgba};
-
 use crate::point::Point;
-
 use super::Sticker;
 
 #[derive(Clone)]
@@ -11,6 +8,7 @@ pub struct Canvas {
     buffer: RgbaImage, // TODO: store in a RwLock or something so stickers can be rendered in parallel
 }
 
+#[allow(dead_code)]
 impl Canvas {
     pub fn new(w: u32, h: u32) -> Self {
         Self{
@@ -76,7 +74,15 @@ impl Canvas {
     }
 
     pub fn overlay(&mut self, top: &RgbaImage, x: f32, y: f32) {
-        overlay(&mut self.buffer, top, x as i64, y as i64);
+        overlay(&mut self.buffer, top, x.round() as i64, y.round() as i64);
+    }
+}
+
+impl From<RgbaImage> for Canvas {
+    fn from(buffer: RgbaImage) -> Self {
+        Self {
+            buffer,
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::point::Point;
+use crate::{point::Point, render::util::outline};
 
 use super::{Render, canvas::{CanvasView, Canvas}, DirectRender};
 use image::Rgba;
@@ -50,7 +50,22 @@ pub struct Line {
     pub shorten_start: f32, // Units, not percentage
     pub shorten_end: f32,   // Units, not percentage
     pub forward_arrow: bool,
+    pub outline: u32, // very broken rn do not use
     pub color: Rgba<u8>,
+}
+
+impl Default for Line {
+    fn default() -> Self {
+        Self { 
+            start: Point([0.0, 0.0]), 
+            end: Point([0.0, 0.0]), 
+            shorten_start: 0.0, 
+            shorten_end: 0.0, 
+            forward_arrow: false, 
+            outline: 0,
+            color: [255,255,255,255].into()
+        }
+    }
 }
 
 impl DirectRender for Line {
@@ -77,6 +92,12 @@ impl DirectRender for Line {
             let arrow_start_right = end - (vector * 12.0) - (vector.perpendicular() * 6.0);
             render_basic_line(&mut canvas, arrow_start_left, end, self.color);
             render_basic_line(&mut canvas, arrow_start_right, end, self.color);
+        }
+
+        if self.outline > 0 {
+            let mut outline_canvas = Canvas::from(outline(&canvas.clone().into_inner(), self.outline));
+            outline_canvas.overlay(&canvas.clone().into_inner(), self.outline as f32, self.outline as f32);
+            *canvas = outline_canvas;
         }
     }
 }

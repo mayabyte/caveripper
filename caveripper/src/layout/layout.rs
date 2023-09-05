@@ -47,16 +47,7 @@ impl<'a> Layout<'a> {
                 // fine since the layout is already fully generated and shouldn't require modification.
                 let door = Ref::leak(door.borrow());
                 Option::as_ref(&door.seam_spawnpoint)
-                    .map(|so| {
-                        let mut door_pos = Point([door.x as f32 * 170.0, 0.0, door.z as f32 * 170.0]);
-                        if door.door_unit.direction % 2 == 0 {
-                            door_pos[0] += 85.0;
-                        }
-                        else {
-                            door_pos[2] += 85.0;
-                        }
-                        (so, door_pos)
-                    })
+                    .map(|so| (so, door.center()))
             });
         room_sps.chain(seam_sps)
     }
@@ -253,6 +244,17 @@ impl<'a> PlacedDoor<'a> {
 
     pub fn lines_up_with(&self, other: &PlacedDoor) -> bool {
         self.facing(other) && self.x == other.x && self.z == other.z
+    }
+
+    pub fn center(&self) -> Point<3, f32> {
+        let mut door_pos = Point([self.x as f32 * 170.0, 0.0, self.z as f32 * 170.0]);
+        if self.door_unit.direction % 2 == 0 {
+            door_pos[0] += 85.0;
+        }
+        else {
+            door_pos[2] += 85.0;
+        }
+        door_pos
     }
 }
 
