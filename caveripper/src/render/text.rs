@@ -3,7 +3,7 @@ use float_ord::FloatOrd;
 use fontdue::{layout::{Layout as FontLayout, LayoutSettings, HorizontalAlign, VerticalAlign, WrapStyle, TextStyle}, Font};
 use image::Rgba;
 
-use crate::assets::AssetManager;
+use crate::{assets::AssetManager, point::Point};
 
 use super::{sticker::{Render, canvas::{CanvasView, Canvas}}, util::outline};
 
@@ -45,19 +45,19 @@ fn width_from_layout(layout: &FontLayout) -> f32 {
         .0
 }
 
-impl Render<AssetManager> for Text<'_> {
+impl Render for Text<'_> {
     fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
         let layout = self.layout();
 
         for glyph in layout.glyphs().iter() {
-            let mut base_glyph_canvas = Canvas::new(glyph.width as u32, glyph.height as u32);
+            let mut base_glyph_canvas = Canvas::new(Point([glyph.width as f32, glyph.height as f32]));
 
             let (metrics, bitmap) = self.font.rasterize_config(glyph.key);
             for (i, v) in bitmap.into_iter().enumerate() {
-                let x = (i % metrics.width) as u32;
-                let y = (i / metrics.width) as u32;
+                let x = i % metrics.width;
+                let y = i / metrics.width;
                 base_glyph_canvas.draw_pixel(
-                    x as u32, y as u32,
+                    Point([x as f32, y as f32]),
                     [
                         self.color.0[0].saturating_add(255 - v),
                         self.color.0[1].saturating_add(255 - v),
@@ -71,13 +71,16 @@ impl Render<AssetManager> for Text<'_> {
             let base_glyph = base_glyph_canvas.into_inner();
 
             let outline_canvas = outline(&base_glyph, self.outline);
-            canvas.overlay(&outline_canvas, glyph.x - self.outline as f32, glyph.y - self.outline as f32);
-            canvas.overlay(&base_glyph, glyph.x, glyph.y);
+            canvas.overlay(&outline_canvas, Point([glyph.x - self.outline as f32, glyph.y - self.outline as f32]));
+            canvas.overlay(&base_glyph, Point([glyph.x, glyph.y]));
         }
     }
 
-    fn dimensions(&self) -> (f32, f32) {
+    fn dimensions(&self) -> Point<2, f32> {
         let layout = self.layout();
-        (width_from_layout(&layout) + (self.outline as f32 * 2.0), layout.height() + (self.outline as f32 * 2.0))
+        Point([
+            width_from_layout(&layout) + (self.outline as f32 * 2.0), 
+            layout.height() + (self.outline as f32 * 2.0)
+        ])
     }
 }

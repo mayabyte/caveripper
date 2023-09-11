@@ -1,4 +1,4 @@
-use crate::{point::Point, render::util::outline};
+use crate::{point::Point, render::util::outline, assets::AssetManager};
 
 use super::{Render, canvas::{CanvasView, Canvas}, DirectRender};
 use image::Rgba;
@@ -8,21 +8,21 @@ pub struct Circle {
     pub color: Rgba<u8>,
 }
 
-impl<H> Render<H> for Circle {
-    fn render(&self, mut canvas: CanvasView, _helper: &H) {
+impl Render for Circle {
+    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
         for x in 0..self.radius as u32 * 2 {
             for z in 0..self.radius as u32 * 2 {
                 if ((self.radius - x as f32).powi(2) + (self.radius - z as f32).powi(2)).sqrt()
                     < self.radius
                 {
-                    canvas.draw_pixel(x as f32, z as f32, self.color);
+                    canvas.draw_pixel(Point([x as f32, z as f32]), self.color);
                 }
             }
         }
     }
 
-    fn dimensions(&self) -> (f32, f32) {
-        (self.radius * 2.0, self.radius * 2.0)
+    fn dimensions(&self) -> Point<2, f32> {
+        Point([self.radius * 2.0, self.radius * 2.0])
     }
 
 }
@@ -33,13 +33,13 @@ pub struct Rectangle {
     pub color: Rgba<u8>,
 }
 
-impl<H> Render<H> for Rectangle {
-    fn render(&self, mut canvas: CanvasView, _helper: &H) {
-        canvas.fill(Point([0, 0]), Point([self.width as u32, self.height as u32]), self.color);
+impl Render for Rectangle {
+    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
+        canvas.fill(Point([0.0, 0.0]), Point([self.width, self.height]), self.color);
     }
 
-    fn dimensions(&self) -> (f32, f32) {
-        (self.width, self.height)
+    fn dimensions(&self) -> Point<2, f32> {
+        Point([self.width, self.height])
     }
 
 }
@@ -96,7 +96,7 @@ impl DirectRender for Line {
 
         if self.outline > 0 {
             let mut outline_canvas = Canvas::from(outline(&canvas.clone().into_inner(), self.outline));
-            outline_canvas.overlay(&canvas.clone().into_inner(), self.outline as f32, self.outline as f32);
+            outline_canvas.overlay(&canvas.clone().into_inner(), Point([self.outline as f32, self.outline as f32]));
             *canvas = outline_canvas;
         }
     }
@@ -117,7 +117,7 @@ fn render_basic_line(canvas: &mut Canvas, start: Point<2, f32>, end: Point<2, f3
         for y in (y1.round() as u32)..(y2.round() as u32) {
             let true_y = y as f32 + 0.5;
             let true_x = x1 + (slope * (true_y - y1));
-            canvas.draw_pixel(true_x.round() as u32, true_y.round() as u32, color);
+            canvas.draw_pixel(Point([true_x, true_y]), color);
         }
     } else {
         let slope = (y2 - y1) / (x2 - x1);
@@ -125,7 +125,7 @@ fn render_basic_line(canvas: &mut Canvas, start: Point<2, f32>, end: Point<2, f3
         for x in (x1.round() as u32)..(x2.round() as u32) {
             let true_x = x as f32 + 0.5;
             let true_y = y1 + (slope * (true_x - x1));
-            canvas.draw_pixel(true_x.round() as u32, true_y.round() as u32, color);
+            canvas.draw_pixel(Point([true_x, true_y]), color);
         }
     }
 }

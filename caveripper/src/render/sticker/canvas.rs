@@ -1,7 +1,6 @@
 use std::cmp::max;
 use image::{RgbaImage, imageops::{overlay, resize, FilterType}, Rgba};
 use crate::point::Point;
-use super::Sticker;
 
 #[derive(Clone)]
 pub struct Canvas {
@@ -10,9 +9,9 @@ pub struct Canvas {
 
 #[allow(dead_code)]
 impl Canvas {
-    pub fn new(w: u32, h: u32) -> Self {
+    pub fn new(dims: Point<2, f32>) -> Self {
         Self{
-            buffer: RgbaImage::from_pixel(w, h, [0, 0, 0, 0].into()),
+            buffer: RgbaImage::from_pixel(dims[0] as u32, dims[1] as u32, [0, 0, 0, 0].into()),
         }
     }
 
@@ -20,11 +19,11 @@ impl Canvas {
         self.buffer
     }
 
-    pub fn view(&mut self, offset_x: f32, offset_y: f32) -> CanvasView {
+    /// Create a [CanvasView] into this Canvas that treats `offset` as (0,0).
+    pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView {
         CanvasView {
             canvas: self,
-            offset_x,
-            offset_y,
+            offset
         }
     }
 
@@ -54,27 +53,29 @@ impl Canvas {
         Canvas { buffer: new_buffer }
     }
 
-    pub fn draw_sticker<H>(&mut self, sticker: &Sticker<H>, helper: &H, x: i64, y: i64) {
-        let sticker_rendered = sticker.render(helper);
-        overlay(&mut self.buffer, &sticker_rendered.buffer, x, y);
-    }
+    // pub fn draw_sticker<H>(&mut self, sticker: &Sticker<H>, helper: &H, x: i64, y: i64) {
+    //     let sticker_rendered = sticker.render(helper);
+    //     overlay(&mut self.buffer, &sticker_rendered.buffer, x, y);
+    // }
 
-    pub fn draw_pixel(&mut self, x: u32, y: u32, color: Rgba<u8>) {
+    pub fn draw_pixel(&mut self, pos: Point<2, f32>, color: Rgba<u8>) {
+        let x = pos[0].round() as u32;
+        let y = pos[1].round() as u32;
         if x < self.buffer.width() && y < self.buffer.height() {
             self.buffer.put_pixel(x, y, color);
         }
     }
 
-    pub fn fill(&mut self, start: Point<2, u32>, end: Point<2, u32>, color: Rgba<u8>) {
-        for x in start[0]..end[0] {
-            for y in start[1]..end[1] {
-                self.draw_pixel(x, y, color);
+    pub fn fill(&mut self, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
+        for x in (start[0].round() as u32)..(end[0].round() as u32) {
+            for y in (start[1].round() as u32)..(end[1].round() as u32) {
+                self.draw_pixel(Point([x as f32, y as f32]), color);
             }
         }
     }
 
-    pub fn overlay(&mut self, top: &RgbaImage, x: f32, y: f32) {
-        overlay(&mut self.buffer, top, x.round() as i64, y.round() as i64);
+    pub fn overlay(&mut self, top: &RgbaImage, pos: Point<2, f32>) {
+        overlay(&mut self.buffer, top, pos[0].round() as i64, pos[1].round() as i64);
     }
 }
 
@@ -92,21 +93,19 @@ impl From<RgbaImage> for Canvas {
 /// parent Canvas. You can assume a CanvasView has infinite size.
 pub struct CanvasView<'c> {
     canvas: &'c mut Canvas,
-    offset_x: f32,
-    offset_y: f32,
+    offset: Point<2, f32>,
 }
 
 impl<'c> CanvasView<'c> {
-    pub fn draw_pixel(&mut self, x: f32, y: f32, color: Rgba<u8>) {
-        self.canvas.draw_pixel((x + self.offset_x).round() as u32, (y + self.offset_y).round() as u32, color);
+    pub fn draw_pixel(&mut self, pos: Point<2, f32>, color: Rgba<u8>) {
+        self.canvas.draw_pixel(pos + self.offset, color);
     }
 
-    pub fn fill(&mut self, start: Point<2, u32>, end: Point<2, u32>, color: Rgba<u8>) {
-        let offset = Point([self.offset_x as u32, self.offset_y as u32]);
-        self.canvas.fill(start + offset, end + offset, color);
+    pub fn fill(&mut self, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
+        self.canvas.fill(start + self.offset, end + self.offset, color);
     }
 
-    pub fn overlay(&mut self, top: &RgbaImage, x: f32, y: f32) {
-        self.canvas.overlay(top, x + self.offset_x, y + self.offset_y);
+    pub fn overlay(&mut self, top: &RgbaImage, pos: Point<2, f32>) {
+        self.canvas.overlay(top, pos + self.offset);
     }
 }

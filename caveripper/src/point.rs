@@ -2,6 +2,7 @@ use itertools::Itertools;
 use num::{traits::real::Real, zero, Zero};
 use serde::{ser::SerializeSeq, Serialize};
 use std::{
+    cmp::Ordering,
     fmt::Display,
     iter::Sum,
     ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign},
@@ -54,11 +55,7 @@ impl<const N: usize, T> Point<N, T> {
     where
         T: Mul + Sum<<T as Mul>::Output>,
     {
-        self.0
-            .into_iter()
-            .zip(other.0.into_iter())
-            .map(|(s, o)| s * o)
-            .sum()
+        self.0.into_iter().zip(other.0.into_iter()).map(|(s, o)| s * o).sum()
     }
 }
 
@@ -161,6 +158,16 @@ impl<const N: usize, T: Add<Output = T> + Copy> Add for Point<N, T> {
 impl<const N: usize, T: Add<Output = T> + Copy> AddAssign for Point<N, T> {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
+    }
+}
+
+impl<const N: usize, T: Add<Output = T> + Copy> Add<T> for Point<N, T> {
+    type Output = Self;
+    fn add(mut self, rhs: T) -> Self::Output {
+        for i in 0..N {
+            self[i] = self[i] + rhs;
+        }
+        self
     }
 }
 
