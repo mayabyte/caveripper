@@ -1,11 +1,16 @@
-
 use float_ord::FloatOrd;
-use fontdue::{layout::{Layout as FontLayout, LayoutSettings, HorizontalAlign, VerticalAlign, WrapStyle, TextStyle}, Font};
+use fontdue::{
+    layout::{HorizontalAlign, Layout as FontLayout, LayoutSettings, TextStyle, VerticalAlign, WrapStyle},
+    Font,
+};
 use image::Rgba;
 
+use super::{
+    canvas::{Canvas, CanvasView},
+    renderer::Render,
+    util::outline,
+};
 use crate::{assets::AssetManager, point::Point};
-
-use super::{sticker::{Render, canvas::{CanvasView, Canvas}}, util::outline};
 
 pub struct Text<'f> {
     pub text: String,
@@ -71,7 +76,10 @@ impl Render for Text<'_> {
             let base_glyph = base_glyph_canvas.into_inner();
 
             let outline_canvas = outline(&base_glyph, self.outline);
-            canvas.overlay(&outline_canvas, Point([glyph.x - self.outline as f32, glyph.y - self.outline as f32]));
+            canvas.overlay(
+                &outline_canvas,
+                Point([glyph.x - self.outline as f32, glyph.y - self.outline as f32]),
+            );
             canvas.overlay(&base_glyph, Point([glyph.x, glyph.y]));
         }
     }
@@ -79,8 +87,8 @@ impl Render for Text<'_> {
     fn dimensions(&self) -> Point<2, f32> {
         let layout = self.layout();
         Point([
-            width_from_layout(&layout) + (self.outline as f32 * 2.0), 
-            layout.height() + (self.outline as f32 * 2.0)
+            width_from_layout(&layout) + (self.outline as f32 * 2.0),
+            layout.height() + (self.outline as f32 * 2.0),
         ])
     }
 }

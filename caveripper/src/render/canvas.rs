@@ -1,5 +1,10 @@
 use std::cmp::max;
-use image::{RgbaImage, imageops::{overlay, resize, FilterType}, Rgba};
+
+use image::{
+    imageops::{overlay, resize, FilterType},
+    Rgba, RgbaImage,
+};
+
 use crate::point::Point;
 
 #[derive(Clone)]
@@ -10,7 +15,7 @@ pub struct Canvas {
 #[allow(dead_code)]
 impl Canvas {
     pub fn new(dims: Point<2, f32>) -> Self {
-        Self{
+        Self {
             buffer: RgbaImage::from_pixel(dims[0] as u32, dims[1] as u32, [0, 0, 0, 0].into()),
         }
     }
@@ -21,10 +26,7 @@ impl Canvas {
 
     /// Create a [CanvasView] into this Canvas that treats `offset` as (0,0).
     pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView {
-        CanvasView {
-            canvas: self,
-            offset
-        }
+        CanvasView { canvas: self, offset }
     }
 
     pub fn width(&self) -> u32 {
@@ -81,9 +83,7 @@ impl Canvas {
 
 impl From<RgbaImage> for Canvas {
     fn from(buffer: RgbaImage) -> Self {
-        Self {
-            buffer,
-        }
+        Self { buffer }
     }
 }
 

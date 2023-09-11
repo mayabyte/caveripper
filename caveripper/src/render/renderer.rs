@@ -1,21 +1,15 @@
-pub mod canvas;
-pub mod shapes;
-
 use std::cmp::max;
 
 use auto_impl::auto_impl;
 use image::{imageops::overlay, Rgba, RgbaImage};
 use num::clamp;
 
-use crate::{assets::AssetManager, point::Point};
+use super::{
+    canvas::Canvas,
+    coords::{Bounds, Offset, Origin},
+};
+use crate::{assets::AssetManager, point::Point, render::canvas::CanvasView};
 
-use self::canvas::{Canvas, CanvasView};
-
-/// Renderer for the Sticker framework.
-///
-/// `'k` is the lifetime for Sticker keys.
-///
-/// `'i` is the lifetime for borrowed renderable objects placed inside Stickers.
 pub struct StickerRenderer<'r> {
     layers: Vec<Layer<'r>>,
     background_color: Rgba<u8>,
@@ -139,98 +133,6 @@ impl<'l, 'r: 'l> LayerView<'l, 'r> {
         self.layer.place(renderable, place_at, origin)
     }
 }
-
-#[derive(Clone, Copy, Default, Debug)]
-pub struct Bounds {
-    pub topleft: Point<2, f32>,
-    pub bottomright: Point<2, f32>,
-}
-
-fn max_per_dim(a: Point<2, f32>, b: Point<2, f32>) -> Point<2, f32> {
-    Point([f32::max(a[0], b[0]), f32::max(a[1], b[1])])
-}
-
-fn min_per_dim(a: Point<2, f32>, b: Point<2, f32>) -> Point<2, f32> {
-    Point([f32::min(a[0], b[0]), f32::min(a[1], b[1])])
-}
-
-impl Bounds {
-    pub fn combine(self, other: Bounds) -> Bounds {
-        Bounds {
-            topleft: min_per_dim(self.topleft, other.topleft),
-            bottomright: max_per_dim(self.bottomright, other.bottomright),
-        }
-    }
-
-    pub fn dims(&self) -> Point<2, f32> {
-        self.bottomright - self.topleft
-    }
-}
-
-pub struct Offset {
-    pub from: Origin,
-    pub amount: Point<2, f32>,
-}
-
-#[derive(Clone, Copy)]
-pub enum Origin {
-    TopLeft,
-    TopRight,
-    CenterLeft,
-    Center,
-    CenterRight,
-}
-
-impl Origin {
-    /// The delta between the top left of the given object and the chosen origin.
-    /// Subtract from the desired position to get the top left coordinate.
-    fn offset_from_top_left(&self, dims: Point<2, f32>) -> Point<2, f32> {
-        match self {
-            Origin::TopLeft => Point([0.0, 0.0]),
-            Origin::TopRight => Point([dims[0], 0.0]),
-            Origin::Center => dims / 2.0,
-            Origin::CenterLeft => Point([0.0, dims[1] / 2.0]),
-            Origin::CenterRight => Point([dims[0], dims[1] / 2.0]),
-        }
-    }
-
-    /// Calculates the bounding box occupied by the given renderable placed at `pos`.
-    /// `pos` is the non-normalized position provided by the user.
-    fn to_bounds(&self, renderable: &impl Render, pos: Point<2, f32>) -> Bounds {
-        let offset = self.offset_from_top_left(renderable.dimensions());
-        let topleft = pos - offset;
-        Bounds {
-            topleft,
-            bottomright: topleft + renderable.dimensions(),
-        }
-    }
-}
-
-// pub struct Placement {
-//     coords_topleft: Point<2, f32>,
-//     coords_bottomright: Point<2, f32>,
-// }
-
-// pub struct RenderChain<H> {
-//     _phantom_helper: PhantomData<H>,
-//     renderables: Vec<(Box<dyn Render<H>>, Placement)>,
-// }
-
-// impl<H> Render<H> for RenderChain<H> {
-//     fn render(&self, canvas: CanvasView, helper: &H) {
-
-//     }
-
-//     fn dimensions(&self) -> (f32, f32) {
-//         let (min_pos, max_pos) = self.renderables.iter()
-//             .flat_map(|(_, placement)| [placement.coords_topleft, placement.coords_bottomright])
-//             .minmax()
-//             .into_option()
-//             .unwrap_or_default();
-//         let dims = max_pos - min_pos;
-//         (dims[0], dims[1])
-//     }
-// }
 
 #[auto_impl(&, &mut, Box)]
 pub trait Render {

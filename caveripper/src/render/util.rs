@@ -1,17 +1,19 @@
 use std::cmp::max;
-use image::{RgbaImage, imageops::{resize, FilterType}};
+
+use image::{
+    imageops::{resize, FilterType},
+    RgbaImage,
+};
 use num::clamp;
 
-use crate::{point::Point, assets::AssetManager};
-
-use super::sticker::{Render, canvas::{CanvasView, Canvas}};
-
+use super::{
+    canvas::{Canvas, CanvasView},
+    renderer::Render,
+};
+use crate::{assets::AssetManager, point::Point};
 
 pub fn outline(img: &RgbaImage, thickness: u32) -> RgbaImage {
-    let mut border_img = RgbaImage::new(
-        img.width() + (thickness * 2),
-        img.height() + (thickness * 2)
-    );
+    let mut border_img = RgbaImage::new(img.width() + (thickness * 2), img.height() + (thickness * 2));
     img.enumerate_pixels().for_each(|(x, y, pix)| {
         if pix.0[3] == 0 {
             return;
@@ -37,7 +39,12 @@ pub struct Resize<R: Render> {
 
 impl<R: Render> Resize<R> {
     pub fn new(renderable: R, width: f32, height: f32, filter: FilterType) -> Resize<R> {
-        Resize {renderable, width, height, filter}
+        Resize {
+            renderable,
+            width,
+            height,
+            filter,
+        }
     }
 }
 
@@ -45,7 +52,12 @@ impl<R: Render> Render for Resize<R> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         let mut subcanvas = Canvas::new(self.renderable.dimensions());
         self.renderable.render(subcanvas.view(Point([0.0, 0.0])), helper);
-        let buffer = resize(&subcanvas.into_inner(), self.width.round() as u32, self.height.round() as u32, self.filter);
+        let buffer = resize(
+            &subcanvas.into_inner(),
+            self.width.round() as u32,
+            self.height.round() as u32,
+            self.filter,
+        );
         canvas.overlay(&buffer, Point([0.0, 0.0]));
     }
 

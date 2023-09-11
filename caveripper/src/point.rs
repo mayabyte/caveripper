@@ -2,7 +2,6 @@ use itertools::Itertools;
 use num::{traits::real::Real, zero, Zero};
 use serde::{ser::SerializeSeq, Serialize};
 use std::{
-    cmp::Ordering,
     fmt::Display,
     iter::Sum,
     ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign},

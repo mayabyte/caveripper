@@ -1,21 +1,19 @@
-mod sticker;
+mod canvas;
+mod coords;
+mod renderer;
+mod shapes;
 mod text;
 mod util;
 
 #[cfg(test)]
 mod test;
 
-use crate::{
-    assets::{get_special_texture_name, AssetManager},
-    caveinfo::{CapInfo, CaveInfo, CaveUnit, GateInfo, ItemInfo, RoomType, TekiInfo},
-    errors::CaveripperError,
-    layout::{Layout, PlacedMapUnit, SpawnObject},
-    point::Point,
-    render::{
-        sticker::shapes::{Circle, Line, Rectangle},
-        text::Text,
-    },
+use std::{
+    borrow::Cow,
+    cmp::max,
+    path::{Path, PathBuf},
 };
+
 use clap::Args;
 use error_stack::{Result, ResultExt};
 use fontdue::{
@@ -23,19 +21,26 @@ use fontdue::{
     Font, FontSettings,
 };
 use image::{
-    imageops::{colorops::brighten_in_place, overlay, resize, rotate90, FilterType},
+    imageops::{colorops::brighten_in_place, rotate90, FilterType},
     Pixel, Rgba, RgbaImage,
 };
 use itertools::Itertools;
 use log::info;
-use std::{
-    borrow::Cow,
-    cmp::max,
-    path::{Path, PathBuf},
-};
-use sticker::*;
 
-use self::{sticker::canvas::CanvasView, util::Resize};
+use self::{canvas::CanvasView, coords::Offset, renderer::Render, shapes::Rectangle, util::Resize};
+use crate::{
+    assets::{get_special_texture_name, AssetManager},
+    caveinfo::{CapInfo, CaveInfo, CaveUnit, TekiInfo},
+    errors::CaveripperError,
+    layout::{Layout, PlacedMapUnit, SpawnObject},
+    point::Point,
+    render::{
+        coords::Origin,
+        renderer::{Layer, StickerRenderer},
+        shapes::{Circle, Line},
+        text::Text,
+    },
+};
 
 /// Controls how scaled up the whole image is.
 /// Only change this to increase or decrease the resolution;
