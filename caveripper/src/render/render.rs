@@ -73,6 +73,7 @@ const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
 const CAVEINFO_ICON_SIZE: f32 = 48.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
+const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 
 const fn group_color(group: u32) -> [u8; 4] {
     match group {
@@ -347,13 +348,18 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         let mut title_row = Layer::new();
         title_row.set_padding(CAVEINFO_MARGIN);
 
-        title_row
+        let metadata_icon_offset = Offset {
+            from: Origin::CenterRight,
+            amount: Point([CAVEINFO_MARGIN * 2.0, 0.0]),
+        };
+
+        let mut metadata_icons = title_row
             .place(
                 Text {
                     text: caveinfo.long_name(),
                     font: &self.fonts[0],
                     size: 56.0,
-                    color: BLACK.into(),
+                    color: OFF_BLACK.into(),
                     max_width: None,
                     outline: 0,
                 },
@@ -361,110 +367,77 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 Origin::TopLeft,
             )
             .place_relative(
-                Resize::new(SpawnObject::Ship, CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
+                Resize::new_sq(SpawnObject::Ship, CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
                 Origin::CenterLeft,
-                Offset {
-                    from: Origin::CenterRight,
-                    amount: Point([CAVEINFO_MARGIN * 3.0, 0.0]),
-                },
-            )
-            .place_relative(
-                SpawnObject::Ship,
-                Origin::TopLeft,
-                Offset {
-                    from: Origin::TopRight,
-                    amount: Point([CAVEINFO_MARGIN, 0.0]),
-                },
+                metadata_icon_offset,
             );
 
+        // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
+        if !caveinfo.is_final_floor {
+            metadata_icons = metadata_icons.place_relative(
+                Resize::new_sq(SpawnObject::Hole(caveinfo.exit_plugged), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
+                Origin::CenterLeft,
+                metadata_icon_offset,
+            );
+        }
+
+        if caveinfo.is_final_floor || caveinfo.has_geyser {
+            metadata_icons = metadata_icons.place_relative(
+                Resize::new_sq(
+                    SpawnObject::Geyser(caveinfo.is_challenge_mode() && caveinfo.is_final_floor),
+                    CAVEINFO_ICON_SIZE,
+                    FilterType::Lanczos3,
+                ),
+                Origin::CenterLeft,
+                metadata_icon_offset,
+            );
+        }
+
+        // Assume only one GateInfo. The LayerView will be offset downwards after this,
+        // should fix eventually if there are ever icons placed after this.
+        if let Some(gateinfo) = caveinfo.gate_info.first() {
+            metadata_icons
+                .place_relative(
+                    Resize::new_sq(SpawnObject::Gate(gateinfo, 0), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
+                    Origin::CenterLeft,
+                    Offset {
+                        from: Origin::CenterRight,
+                        amount: Point([CAVEINFO_MARGIN * 2.0, -CAVEINFO_MARGIN * 1.5]),
+                    },
+                )
+                .place_relative(
+                    Text {
+                        text: format!("{}HP", gateinfo.health.round() as u32),
+                        font: &self.fonts[1],
+                        size: 13.0,
+                        color: OFF_BLACK.into(),
+                        max_width: None,
+                        outline: 0,
+                    },
+                    Origin::TopCenter,
+                    Offset {
+                        from: Origin::Center,
+                        amount: Point([0.0, CAVEINFO_ICON_SIZE / 12.0]),
+                    },
+                )
+                .place_relative(
+                    Text {
+                        text: format!("x{}", caveinfo.max_gates),
+                        font: &self.fonts[1],
+                        size: 19.0,
+                        color: OFF_BLACK.into(),
+                        max_width: None,
+                        outline: 0,
+                    },
+                    Origin::TopCenter,
+                    Offset {
+                        from: Origin::BottomCenter,
+                        amount: Point([0.0, -CAVEINFO_MARGIN]),
+                    },
+                );
+        }
+
         renderer.add_layer(title_row);
-
-        Ok(renderer.render(&self.mgr))
-
-        // let mut canvas_header = RgbaImage::from_pixel(1060, 310, HEADER_BACKGROUND.into());
-
-        // // Sublevel name
-        // let sublevel_title =
-        //     self.render_text(&caveinfo.long_name(), 64.0, [0, 0, 0, 255].into(), None);
-        // overlay(&mut canvas_header, &sublevel_title, CAVEINFO_MARGIN * 2, -8);
-
-        // // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
-        // let mut metadata_icons = Vec::new();
-        // metadata_icons.push(resize(
-        //     SpawnObject::Ship
-        //         .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //         .change_context(CaveripperError::RenderingError)?
-        //         .as_ref(),
-        //     CAVEINFO_ICON_SIZE,
-        //     CAVEINFO_ICON_SIZE,
-        //     FilterType::Lanczos3,
-        // ));
-        // if !caveinfo.is_final_floor {
-        //     metadata_icons.push(resize(
-        //         SpawnObject::Hole(caveinfo.exit_plugged)
-        //             .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //             .change_context(CaveripperError::RenderingError)?
-        //             .as_ref(),
-        //         CAVEINFO_ICON_SIZE,
-        //         CAVEINFO_ICON_SIZE,
-        //         FilterType::Lanczos3,
-        //     ));
-        // }
-        // if caveinfo.is_final_floor || caveinfo.has_geyser {
-        //     metadata_icons.push(resize(
-        //         SpawnObject::Geyser(caveinfo.is_challenge_mode() && caveinfo.is_final_floor)
-        //             .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //             .change_context(CaveripperError::RenderingError)?
-        //             .as_ref(),
-        //         CAVEINFO_ICON_SIZE,
-        //         CAVEINFO_ICON_SIZE,
-        //         FilterType::Lanczos3,
-        //     ));
-        // }
-        // let num_gates = caveinfo.max_gates;
-        // for gateinfo in caveinfo.gate_info.iter() {
-        //     let gate_icon = resize(
-        //         gateinfo
-        //             .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //             .change_context(CaveripperError::RenderingError)?
-        //             .as_ref(),
-        //         CAVEINFO_ICON_SIZE,
-        //         CAVEINFO_ICON_SIZE,
-        //         FilterType::Lanczos3,
-        //     );
-        //     let num_txt =
-        //         self.render_small_text(&format!("x{num_gates}"), 19.0, [20, 20, 20, 255].into());
-        //     let hp_txt = self.render_small_text(
-        //         &format!("{}HP", gateinfo.health as u32),
-        //         13.0,
-        //         [20, 20, 20, 255].into(),
-        //     );
-        //     let mut final_gate_icon = RgbaImage::new(CAVEINFO_ICON_SIZE, CAVEINFO_ICON_SIZE);
-        //     overlay(&mut final_gate_icon, &gate_icon, 0, -12);
-        //     overlay(
-        //         &mut final_gate_icon,
-        //         &hp_txt,
-        //         CAVEINFO_ICON_SIZE as i64 / 2 - hp_txt.width() as i64 / 2,
-        //         CAVEINFO_ICON_SIZE as i64 - 33,
-        //     );
-        //     overlay(
-        //         &mut final_gate_icon,
-        //         &num_txt,
-        //         CAVEINFO_ICON_SIZE as i64 / 2 - num_txt.width() as i64 / 2,
-        //         CAVEINFO_ICON_SIZE as i64 - 24,
-        //     );
-        //     metadata_icons.push(final_gate_icon);
-        // }
-
-        // for (i, icon) in metadata_icons.into_iter().enumerate() {
-        //     overlay(
-        //         &mut canvas_header,
-        //         &icon,
-        //         35 + sublevel_title.width() as i64
-        //             + i as i64 * (CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN * 3),
-        //         CAVEINFO_MARGIN + 12,
-        //     );
-        // }
 
         // let poko_icon = resize(
         //     self.mgr
@@ -1154,6 +1127,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         // overlay(&mut canvas_header, &canvas_maptiles, 0, header_height);
 
         // Ok(canvas_header)
+        Ok(renderer.render(self.mgr))
     }
 
     fn render_text(&self, text: &str, size: f32, color: Rgba<u8>, max_width: Option<u32>) -> RgbaImage {

@@ -46,6 +46,10 @@ impl<R: Render> Resize<R> {
             filter,
         }
     }
+
+    pub fn new_sq(renderable: R, side: f32, filter: FilterType) -> Resize<R> {
+        Resize::new(renderable, side, side, filter)
+    }
 }
 
 impl<R: Render> Render for Resize<R> {

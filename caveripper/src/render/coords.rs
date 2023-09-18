@@ -1,18 +1,22 @@
 use super::renderer::Render;
 use crate::point::Point;
 
+#[derive(Clone, Copy, Debug)]
 pub struct Offset {
     pub from: Origin,
     pub amount: Point<2, f32>,
 }
 
-#[derive(Clone, Copy)]
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
 pub enum Origin {
     TopLeft,
+    TopCenter,
     TopRight,
     CenterLeft,
     Center,
     CenterRight,
+    BottomCenter,
 }
 
 impl Origin {
@@ -21,10 +25,12 @@ impl Origin {
     pub fn offset_from_top_left(&self, dims: Point<2, f32>) -> Point<2, f32> {
         match self {
             Origin::TopLeft => Point([0.0, 0.0]),
+            Origin::TopCenter => Point([dims[0] / 2.0, 0.0]),
             Origin::TopRight => Point([dims[0], 0.0]),
             Origin::Center => dims / 2.0,
             Origin::CenterLeft => Point([0.0, dims[1] / 2.0]),
             Origin::CenterRight => Point([dims[0], dims[1] / 2.0]),
+            Origin::BottomCenter => Point([dims[0] / 2.0, dims[1]]),
         }
     }
 
