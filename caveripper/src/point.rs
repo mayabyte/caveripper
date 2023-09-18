@@ -1,11 +1,12 @@
-use itertools::Itertools;
-use num::{traits::real::Real, zero, Zero};
-use serde::{ser::SerializeSeq, Serialize};
 use std::{
     fmt::Display,
     iter::Sum,
     ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign},
 };
+
+use itertools::Itertools;
+use num::{traits::real::Real, zero, Zero};
+use serde::{ser::SerializeSeq, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<const N: usize, T>(pub [T; N]);
@@ -141,6 +142,15 @@ impl<const N: usize, T: Default + Copy> Default for Point<N, T> {
 impl<T: Copy> From<Point<3, T>> for Point<2, T> {
     fn from(value: Point<3, T>) -> Self {
         Self([value[0], value[2]])
+    }
+}
+
+impl<const N: usize, T: Neg<Output = T> + Copy> Neg for Point<N, T> {
+    type Output = Point<N, <T as Neg>::Output>;
+
+    fn neg(mut self) -> Self::Output {
+        self.0.iter_mut().for_each(|v: &mut T| *v = -*v);
+        self
     }
 }
 

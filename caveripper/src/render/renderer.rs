@@ -32,17 +32,34 @@ impl<'r> StickerRenderer<'r> {
         self.layers
             .iter()
             .fold(RgbaImage::from_pixel(0, 0, self.background_color), |mut base, layer| {
-                let (layer_rendered, offset) = layer.render(helper);
+                let layer_canvas_bounds = layer.bounds();
+                let layer_dims = layer_canvas_bounds.dims();
 
-                if layer_rendered.width() > base.width() || layer_rendered.height() > base.height() {
-                    let new_w = max(layer_rendered.width(), base.width());
-                    let new_h = max(layer_rendered.height(), base.height());
+                let mut canvas = Canvas::new(layer_dims + (layer.padding * 2.0));
+
+                layer.render(canvas.view(-layer_canvas_bounds.topleft + layer.padding), helper);
+
+                if canvas.width() > base.width() || canvas.height() > base.height() {
+                    let new_w = max(canvas.width(), base.width());
+                    let new_h = max(canvas.height(), base.height());
                     let mut new_base = RgbaImage::from_pixel(new_w, new_h, self.background_color);
                     overlay(&mut new_base, &base, 0, 0);
                     base = new_base;
                 }
 
-                overlay(&mut base, &layer_rendered, offset[0] as i64, offset[1] as i64);
+                let mut buffer = canvas.into_inner();
+                if layer.opacity < 1.0 {
+                    buffer
+                        .pixels_mut()
+                        .for_each(|p: &mut _| p.0[3] = (p.0[3] as f32 * layer.opacity) as u8);
+                }
+
+                overlay(
+                    &mut base,
+                    &buffer,
+                    layer_canvas_bounds.topleft[0] as i64,
+                    layer_canvas_bounds.topleft[1] as i64,
+                );
                 base
             })
     }
@@ -87,38 +104,32 @@ impl<'r> Layer<'r> {
         self.direct_renderables.push(Box::new(renderable));
     }
 
-    fn render(&self, helper: &AssetManager) -> (RgbaImage, Point<2, f32>) {
-        if self.renderables.is_empty() && self.direct_renderables.is_empty() {
-            return (RgbaImage::from_pixel(0, 0, [0, 0, 0, 0].into()), Point([0.0, 0.0]));
-        }
-
-        // Determine required canvas size
-        let canvas_bounds = self
-            .renderables
+    fn bounds(&self) -> Bounds {
+        self.renderables
             .iter()
             .map(|(_, bounds)| *bounds)
             .reduce(|acc, bounds| acc.combine(bounds))
-            .unwrap();
-        let mut canvas = Canvas::new(canvas_bounds.dims() + (self.padding * 2.0));
+            .unwrap_or_default()
+    }
+}
 
+impl<'r> Render for Layer<'r> {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         for (renderable, bounds) in self.renderables.iter() {
-            let canvas_view = canvas.view((bounds.topleft - canvas_bounds.topleft) + self.padding);
-            renderable.render(canvas_view, helper);
+            let sub_view = canvas.sub_view(bounds.topleft + self.padding);
+            renderable.render(sub_view, helper);
         }
 
         // DirectRenderables
+        let raw_canvas = canvas.into_raw();
         for renderable in self.direct_renderables.iter() {
-            renderable.render(&mut canvas);
+            renderable.render(raw_canvas);
         }
+    }
 
-        let mut buffer = canvas.into_inner();
-        if self.opacity < 1.0 {
-            buffer
-                .pixels_mut()
-                .for_each(|p: &mut _| p.0[3] = (p.0[3] as f32 * self.opacity) as u8);
-        }
-
-        (buffer, canvas_bounds.topleft)
+    #[doc = " The dimensions of the image produced by [render]."]
+    fn dimensions(&self) -> Point<2, f32> {
+        self.bounds().dims()
     }
 }
 

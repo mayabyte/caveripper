@@ -108,4 +108,17 @@ impl<'c> CanvasView<'c> {
     pub fn overlay(&mut self, top: &RgbaImage, pos: Point<2, f32>) {
         self.canvas.overlay(top, pos + self.offset);
     }
+
+    pub fn into_raw(self) -> &'c mut Canvas {
+        self.canvas
+    }
+}
+
+impl<'d, 'c: 'd> CanvasView<'c> {
+    pub fn sub_view(&'d mut self, offset: Point<2, f32>) -> CanvasView<'d> {
+        CanvasView {
+            canvas: &mut *self.canvas,
+            offset: self.offset + offset,
+        }
+    }
 }
