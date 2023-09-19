@@ -33,11 +33,10 @@ impl<'r> StickerRenderer<'r> {
             .iter()
             .fold(RgbaImage::from_pixel(0, 0, self.background_color), |mut base, layer| {
                 let layer_canvas_bounds = layer.bounds();
-                let layer_dims = layer_canvas_bounds.dims();
+                let layer_dims = layer.dimensions();
 
-                let mut canvas = Canvas::new(layer_dims + (layer.padding * 2.0));
-
-                layer.render(canvas.view(-layer_canvas_bounds.topleft + layer.padding), helper);
+                let mut canvas = Canvas::new(layer_dims);
+                layer.render(canvas.view(-layer_canvas_bounds.topleft), helper);
 
                 if canvas.width() > base.width() || canvas.height() > base.height() {
                     let new_w = max(canvas.width(), base.width());
@@ -57,14 +56,21 @@ impl<'r> StickerRenderer<'r> {
                 overlay(
                     &mut base,
                     &buffer,
-                    layer_canvas_bounds.topleft[0] as i64,
-                    layer_canvas_bounds.topleft[1] as i64,
+                    (layer_canvas_bounds.topleft[0] + layer.padding) as i64,
+                    (layer_canvas_bounds.topleft[1] + layer.padding) as i64,
                 );
                 base
             })
     }
 }
 
+/// A grouping of renderables to be drawn together.
+///
+/// Layers have transparent backgrounds by default and can be given optional padding
+/// and opacity similar to layers in Photoshop.
+///
+/// [Layer] also implements [Render], so you can compose Layers inside of Layers to
+/// create nested groupings of related renderables.
 pub struct Layer<'r> {
     renderables: Vec<(Box<dyn Render + 'r>, Bounds)>,
     direct_renderables: Vec<Box<dyn DirectRender>>,
@@ -104,6 +110,7 @@ impl<'r> Layer<'r> {
         self.direct_renderables.push(Box::new(renderable));
     }
 
+    /// Bounds of the renderable space in this layer, not including padding
     fn bounds(&self) -> Bounds {
         self.renderables
             .iter()
@@ -116,7 +123,7 @@ impl<'r> Layer<'r> {
 impl<'r> Render for Layer<'r> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         for (renderable, bounds) in self.renderables.iter() {
-            let sub_view = canvas.sub_view(bounds.topleft + self.padding);
+            let sub_view = canvas.sub_view(bounds.topleft);
             renderable.render(sub_view, helper);
         }
 
@@ -127,12 +134,13 @@ impl<'r> Render for Layer<'r> {
         }
     }
 
-    #[doc = " The dimensions of the image produced by [render]."]
     fn dimensions(&self) -> Point<2, f32> {
-        self.bounds().dims()
+        self.bounds().dims() + (self.padding * 2.0)
     }
 }
 
+/// A reference to a [Layer] with added info about the previously placed renderable. Use [place_relative]
+/// to place new renderables with an offset from the previous one rather than via layer-global coordinates.
 pub struct LayerView<'l, 'r: 'l> {
     layer: &'l mut Layer<'r>,
     previous_bounds: Bounds,

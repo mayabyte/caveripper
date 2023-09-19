@@ -393,17 +393,14 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             );
         }
 
-        // Assume only one GateInfo. The LayerView will be offset downwards after this,
-        // should fix eventually if there are ever icons placed after this.
+        // Assume only one GateInfo
         if let Some(gateinfo) = caveinfo.gate_info.first() {
-            metadata_icons
-                .place_relative(
+            let mut gate_metadata_icon = Layer::new();
+            gate_metadata_icon
+                .place(
                     Resize::new_sq(SpawnObject::Gate(gateinfo, 0), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
-                    Origin::CenterLeft,
-                    Offset {
-                        from: Origin::CenterRight,
-                        amount: Point([CAVEINFO_MARGIN * 2.0, -CAVEINFO_MARGIN * 1.5]),
-                    },
+                    Point([0.0, 0.0]),
+                    Origin::TopLeft,
                 )
                 .place_relative(
                     Text {
@@ -435,6 +432,14 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                         amount: Point([0.0, -CAVEINFO_MARGIN]),
                     },
                 );
+            metadata_icons.place_relative(
+                gate_metadata_icon,
+                Origin::CenterLeft,
+                Offset {
+                    from: Origin::CenterRight,
+                    amount: Point([CAVEINFO_MARGIN * 2.0, -CAVEINFO_MARGIN * 0.5]),
+                },
+            );
         }
 
         renderer.add_layer(title_row);
