@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use super::renderer::Render;
 use crate::point::Point;
 
@@ -16,6 +18,7 @@ pub enum Origin {
     CenterLeft,
     Center,
     CenterRight,
+    BottomLeft,
     BottomCenter,
 }
 
@@ -30,6 +33,7 @@ impl Origin {
             Origin::Center => dims / 2.0,
             Origin::CenterLeft => Point([0.0, dims[1] / 2.0]),
             Origin::CenterRight => Point([dims[0], dims[1] / 2.0]),
+            Origin::BottomLeft => Point([0.0, dims[1]]),
             Origin::BottomCenter => Point([dims[0] / 2.0, dims[1]]),
         }
     }
@@ -76,5 +80,16 @@ impl Bounds {
         self.topleft = self.topleft - amount;
         self.bottomright = self.bottomright + amount;
         self
+    }
+}
+
+impl Add<Point<2, f32>> for Bounds {
+    type Output = Self;
+
+    fn add(self, rhs: Point<2, f32>) -> Self::Output {
+        Bounds {
+            topleft: self.topleft + rhs,
+            bottomright: self.bottomright + rhs,
+        }
     }
 }

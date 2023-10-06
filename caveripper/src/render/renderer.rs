@@ -9,41 +9,36 @@ use super::{
 use crate::{assets::AssetManager, point::Point, render::canvas::CanvasView};
 
 pub struct StickerRenderer<'r> {
-    layers: Vec<Layer<'r>>,
+    root_layer: Layer<'r>,
     background_color: Rgba<u8>,
 }
 
 impl<'r> StickerRenderer<'r> {
     pub fn new(background_color: Option<Rgba<u8>>) -> Self {
         Self {
-            layers: Vec::new(),
+            root_layer: Layer::new(),
             background_color: background_color.unwrap_or([0, 0, 0, 0].into()),
         }
     }
 
     /// Adds a layer to the top of the image
+    #[deprecated]
     pub fn add_layer(&mut self, layer: Layer<'r>) {
-        self.layers.push(layer);
+        self.root_layer.place(layer, Point([0.0, 0.0]), Origin::TopLeft);
+    }
+
+    pub fn place<'a>(&'a mut self, layer: Layer<'r>, pos: Point<2, f32>, origin: Origin) -> LayerView<'a, 'r> {
+        self.root_layer.place(layer, pos, origin)
     }
 
     pub fn render(&self, helper: &AssetManager) -> RgbaImage {
-        let final_canvas_bounds = self.layers.iter().fold(
-            Bounds {
-                topleft: Point([0.0, 0.0]),
-                bottomright: Point([0.0, 0.0]),
-            },
-            |acc, layer| acc.combine(layer.bounds()),
-        );
-        let final_canvas_dims = final_canvas_bounds.dims();
-        let mut canvas = Canvas::new(final_canvas_dims);
-        canvas.fill(Point([0.0, 0.0]), final_canvas_dims, self.background_color);
+        let final_bounds = self.root_layer.bounds();
+        let final_dims = final_bounds.dims();
 
-        for layer in self.layers.iter() {
-            // Layers internally account for positioning of their renderables, so they need to see
-            // the whole canvas offset by the overall bounds
-            layer.render(canvas.view(-final_canvas_bounds.topleft), helper);
-        }
+        let mut canvas = Canvas::new(final_dims);
+        canvas.fill(Point([0.0, 0.0]), final_dims, self.background_color);
 
+        self.root_layer.render(canvas.view(Point([0.0, 0.0])), helper);
         canvas.into_inner()
     }
 }
@@ -120,8 +115,11 @@ impl<'r> Layer<'r> {
 
 impl<'r> Render for Layer<'r> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        // TODO: opacity
+
+        // Border
         if self.border > 0.0 {
-            let b = self.bounds();
+            let b = self.bounds() + Point([self.margin + self.border, self.margin + self.border]);
             // Top
             canvas.fill(b.topleft, Point([b.bottomright[0], b.topleft[1] + self.border]), self.border_color);
 
@@ -143,8 +141,9 @@ impl<'r> Render for Layer<'r> {
             );
         }
 
+        // Normal Renderables
         for (renderable, bounds) in self.renderables.iter() {
-            let sub_view = canvas.sub_view(bounds.topleft);
+            let sub_view = canvas.sub_view(bounds.topleft + self.margin + self.border);
             renderable.render(sub_view, helper);
         }
 

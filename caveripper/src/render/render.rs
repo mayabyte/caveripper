@@ -349,6 +349,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
     pub fn render_caveinfo(&self, caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
         let mut renderer = StickerRenderer::new(Some(HEADER_BACKGROUND.into()));
+        let mut placement;
 
         let mut title_row = Layer::new();
         title_row.set_margin(CAVEINFO_MARGIN);
@@ -425,7 +426,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             metadata_icons.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
         }
 
-        renderer.add_layer(title_row);
+        placement = renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
         let mut hard_teki_box = Layer::new();
         hard_teki_box.set_border(3.0, MAIN_TEKI_COLOR);
@@ -433,11 +434,18 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
         hard_teki_box.place(
             self.cropped_text("Hard Teki", 32.0, 0, OFF_BLACK),
-            Point([50.0, 100.0]),
+            Point([0.0, 0.0]),
             Origin::TopLeft,
         );
 
-        renderer.add_layer(hard_teki_box);
+        placement = placement.place_relative(
+            hard_teki_box,
+            Origin::TopLeft,
+            Offset {
+                from: Origin::BottomLeft,
+                amount: Point([CAVEINFO_MARGIN, 0.0]),
+            },
+        );
 
         // let poko_icon = resize(
         //     self.mgr
@@ -1127,6 +1135,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         // overlay(&mut canvas_header, &canvas_maptiles, 0, header_height);
 
         // Ok(canvas_header)
+        //renderer.add_layer(caveinfo_layer);
         Ok(renderer.render(self.mgr))
     }
 
