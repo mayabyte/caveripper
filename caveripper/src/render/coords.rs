@@ -46,7 +46,7 @@ impl Origin {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct Bounds {
     pub topleft: Point<2, f32>,
     pub bottomright: Point<2, f32>,
@@ -70,5 +70,11 @@ impl Bounds {
 
     pub fn dims(&self) -> Point<2, f32> {
         self.bottomright - self.topleft
+    }
+
+    pub fn expand_by(mut self, amount: f32) -> Bounds {
+        self.topleft = self.topleft - amount;
+        self.bottomright = self.bottomright + amount;
+        self
     }
 }

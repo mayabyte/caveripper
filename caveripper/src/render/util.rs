@@ -8,6 +8,7 @@ use num::clamp;
 
 use super::{
     canvas::{Canvas, CanvasView},
+    coords::Bounds,
     renderer::Render,
 };
 use crate::{assets::AssetManager, point::Point};
@@ -67,5 +68,27 @@ impl<R: Render> Render for Resize<R> {
 
     fn dimensions(&self) -> Point<2, f32> {
         Point([self.width, self.height])
+    }
+}
+
+#[derive(Default)]
+pub struct Crop<R: Render> {
+    pub inner: R,
+    pub top: f32,
+    pub left: f32,
+    pub right: f32,
+    pub bottom: f32,
+}
+
+impl<R: Render> Render for Crop<R> {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        let mut sub_canvas = Canvas::new(self.dimensions());
+        self.inner.render(sub_canvas.view(Point([-self.left, -self.top])), helper);
+        canvas.overlay(&sub_canvas.into_inner(), Point([0.0, 0.0]));
+    }
+
+    fn dimensions(&self) -> Point<2, f32> {
+        let inner_dims = self.inner.dimensions();
+        Point([inner_dims[0] - self.right - self.left, inner_dims[1] - self.bottom - self.top])
     }
 }

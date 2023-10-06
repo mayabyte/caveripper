@@ -17,7 +17,6 @@ pub struct Text<'f> {
     pub font: &'f Font,
     pub size: f32,
     pub color: Rgba<u8>,
-    pub max_width: Option<u32>,
     pub outline: u32,
 }
 
@@ -28,7 +27,7 @@ impl Text<'_> {
             x: 0f32,
             y: 0f32,
             line_height: 1.0,
-            max_width: self.max_width.map(|w| w as f32),
+            max_width: None,
             max_height: None,
             horizontal_align: HorizontalAlign::Left,
             vertical_align: VerticalAlign::Top,

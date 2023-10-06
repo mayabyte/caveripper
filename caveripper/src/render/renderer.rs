@@ -1,7 +1,5 @@
-use std::cmp::max;
-
 use auto_impl::auto_impl;
-use image::{imageops::overlay, Rgba, RgbaImage};
+use image::{Rgba, RgbaImage};
 use num::clamp;
 
 use super::{
@@ -29,38 +27,24 @@ impl<'r> StickerRenderer<'r> {
     }
 
     pub fn render(&self, helper: &AssetManager) -> RgbaImage {
-        self.layers
-            .iter()
-            .fold(RgbaImage::from_pixel(0, 0, self.background_color), |mut base, layer| {
-                let layer_canvas_bounds = layer.bounds();
-                let layer_dims = layer.dimensions();
+        let final_canvas_bounds = self.layers.iter().fold(
+            Bounds {
+                topleft: Point([0.0, 0.0]),
+                bottomright: Point([0.0, 0.0]),
+            },
+            |acc, layer| acc.combine(layer.bounds()),
+        );
+        let final_canvas_dims = final_canvas_bounds.dims();
+        let mut canvas = Canvas::new(final_canvas_dims);
+        canvas.fill(Point([0.0, 0.0]), final_canvas_dims, self.background_color);
 
-                let mut canvas = Canvas::new(layer_dims);
-                layer.render(canvas.view(-layer_canvas_bounds.topleft), helper);
+        for layer in self.layers.iter() {
+            // Layers internally account for positioning of their renderables, so they need to see
+            // the whole canvas offset by the overall bounds
+            layer.render(canvas.view(-final_canvas_bounds.topleft), helper);
+        }
 
-                if canvas.width() > base.width() || canvas.height() > base.height() {
-                    let new_w = max(canvas.width(), base.width());
-                    let new_h = max(canvas.height(), base.height());
-                    let mut new_base = RgbaImage::from_pixel(new_w, new_h, self.background_color);
-                    overlay(&mut new_base, &base, 0, 0);
-                    base = new_base;
-                }
-
-                let mut buffer = canvas.into_inner();
-                if layer.opacity < 1.0 {
-                    buffer
-                        .pixels_mut()
-                        .for_each(|p: &mut _| p.0[3] = (p.0[3] as f32 * layer.opacity) as u8);
-                }
-
-                overlay(
-                    &mut base,
-                    &buffer,
-                    (layer_canvas_bounds.topleft[0] + layer.padding) as i64,
-                    (layer_canvas_bounds.topleft[1] + layer.padding) as i64,
-                );
-                base
-            })
+        canvas.into_inner()
     }
 }
 
@@ -75,7 +59,9 @@ pub struct Layer<'r> {
     renderables: Vec<(Box<dyn Render + 'r>, Bounds)>,
     direct_renderables: Vec<Box<dyn DirectRender>>,
     opacity: f32,
-    padding: f32,
+    margin: f32,
+    border: f32,
+    border_color: Rgba<u8>,
 }
 
 impl<'r> Layer<'r> {
@@ -84,7 +70,9 @@ impl<'r> Layer<'r> {
             renderables: vec![],
             direct_renderables: vec![],
             opacity: 1.0,
-            padding: 0.0,
+            margin: 0.0,
+            border: 0.0,
+            border_color: [0, 0, 0, 0].into(),
         }
     }
 
@@ -93,8 +81,13 @@ impl<'r> Layer<'r> {
         self.opacity = clamp(opacity, 0.0, 1.0);
     }
 
-    pub fn set_padding(&mut self, padding: f32) {
-        self.padding = f32::max(0.0, padding);
+    pub fn set_margin(&mut self, padding: f32) {
+        self.margin = f32::max(0.0, padding);
+    }
+
+    pub fn set_border(&mut self, thickness: f32, color: impl Into<Rgba<u8>>) {
+        self.border = thickness;
+        self.border_color = color.into();
     }
 
     pub fn place(&mut self, renderable: impl Render + 'r, pos: Point<2, f32>, origin: Origin) -> LayerView<'_, 'r> {
@@ -110,18 +103,46 @@ impl<'r> Layer<'r> {
         self.direct_renderables.push(Box::new(renderable));
     }
 
-    /// Bounds of the renderable space in this layer, not including padding
-    fn bounds(&self) -> Bounds {
+    /// Bounds of the renderable space in this layer, not including border or margin
+    fn drawable_bounds(&self) -> Bounds {
         self.renderables
             .iter()
             .map(|(_, bounds)| *bounds)
             .reduce(|acc, bounds| acc.combine(bounds))
             .unwrap_or_default()
     }
+
+    /// Total space this layer occupies including border and margin
+    fn bounds(&self) -> Bounds {
+        self.drawable_bounds().expand_by(self.margin + self.border)
+    }
 }
 
 impl<'r> Render for Layer<'r> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        if self.border > 0.0 {
+            let b = self.bounds();
+            // Top
+            canvas.fill(b.topleft, Point([b.bottomright[0], b.topleft[1] + self.border]), self.border_color);
+
+            // Left
+            canvas.fill(b.topleft, Point([b.topleft[0] + self.border, b.bottomright[1]]), self.border_color);
+
+            // Bottom
+            canvas.fill(
+                Point([b.topleft[0] + self.border, b.bottomright[1] - self.border]),
+                b.bottomright,
+                self.border_color,
+            );
+
+            // Right
+            canvas.fill(
+                Point([b.bottomright[0] - self.border, b.topleft[1]]),
+                b.bottomright,
+                self.border_color,
+            );
+        }
+
         for (renderable, bounds) in self.renderables.iter() {
             let sub_view = canvas.sub_view(bounds.topleft);
             renderable.render(sub_view, helper);
@@ -135,7 +156,7 @@ impl<'r> Render for Layer<'r> {
     }
 
     fn dimensions(&self) -> Point<2, f32> {
-        self.bounds().dims() + (self.padding * 2.0)
+        self.bounds().dims()
     }
 }
 

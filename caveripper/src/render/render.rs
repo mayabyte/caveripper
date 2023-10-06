@@ -27,7 +27,13 @@ use image::{
 use itertools::Itertools;
 use log::info;
 
-use self::{canvas::CanvasView, coords::Offset, renderer::Render, shapes::Rectangle, util::Resize};
+use self::{
+    canvas::CanvasView,
+    coords::{Bounds, Offset},
+    renderer::Render,
+    shapes::Rectangle,
+    util::{Crop, Resize},
+};
 use crate::{
     assets::{get_special_texture_name, AssetManager},
     caveinfo::{CapInfo, CaveInfo, CaveUnit, TekiInfo},
@@ -70,8 +76,9 @@ const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
 const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
+const MAIN_TEKI_COLOR: [u8; 4] = [225, 0, 0, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
-const CAVEINFO_ICON_SIZE: f32 = 48.0;
+const CAVEINFO_ICON_SIZE: f32 = 44.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 
@@ -291,7 +298,6 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                         font: &self.fonts[1],
                         size: 24.0,
                         color: SCORE_TEXT_COLOR.into(),
-                        max_width: None,
                         outline: 2,
                     },
                     Point([
@@ -324,7 +330,6 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                                 font: &self.fonts[1],
                                 size: 24.0,
                                 color: DISTANCE_SCORE_LINE_COLOR.into(),
-                                max_width: None,
                                 outline: 2,
                             },
                             midpoint.two_d(),
@@ -346,29 +351,22 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         let mut renderer = StickerRenderer::new(Some(HEADER_BACKGROUND.into()));
 
         let mut title_row = Layer::new();
-        title_row.set_padding(CAVEINFO_MARGIN);
+        title_row.set_margin(CAVEINFO_MARGIN);
 
         let metadata_icon_offset = Offset {
-            from: Origin::CenterRight,
+            from: Origin::TopRight,
             amount: Point([CAVEINFO_MARGIN * 2.0, 0.0]),
         };
 
         let mut metadata_icons = title_row
             .place(
-                Text {
-                    text: caveinfo.long_name(),
-                    font: &self.fonts[0],
-                    size: 56.0,
-                    color: OFF_BLACK.into(),
-                    max_width: None,
-                    outline: 0,
-                },
+                self.cropped_text(caveinfo.long_name(), 56.0, 0, OFF_BLACK),
                 Point([0.0, 0.0]),
                 Origin::TopLeft,
             )
             .place_relative(
                 Resize::new_sq(SpawnObject::Ship, CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
-                Origin::CenterLeft,
+                Origin::TopLeft,
                 metadata_icon_offset,
             );
 
@@ -376,7 +374,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         if !caveinfo.is_final_floor {
             metadata_icons = metadata_icons.place_relative(
                 Resize::new_sq(SpawnObject::Hole(caveinfo.exit_plugged), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
-                Origin::CenterLeft,
+                Origin::TopLeft,
                 metadata_icon_offset,
             );
         }
@@ -388,7 +386,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                     CAVEINFO_ICON_SIZE,
                     FilterType::Lanczos3,
                 ),
-                Origin::CenterLeft,
+                Origin::TopLeft,
                 metadata_icon_offset,
             );
         }
@@ -398,51 +396,48 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             let mut gate_metadata_icon = Layer::new();
             gate_metadata_icon
                 .place(
-                    Resize::new_sq(SpawnObject::Gate(gateinfo, 0), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
+                    Crop {
+                        inner: Resize::new_sq(SpawnObject::Gate(gateinfo, 0), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
+                        top: CAVEINFO_ICON_SIZE / 3.6,
+                        left: 0.0,
+                        right: 0.0,
+                        bottom: CAVEINFO_ICON_SIZE / 3.4,
+                    },
                     Point([0.0, 0.0]),
                     Origin::TopLeft,
                 )
                 .place_relative(
-                    Text {
-                        text: format!("{}HP", gateinfo.health.round() as u32),
-                        font: &self.fonts[1],
-                        size: 13.0,
-                        color: OFF_BLACK.into(),
-                        max_width: None,
-                        outline: 0,
-                    },
-                    Origin::TopCenter,
-                    Offset {
-                        from: Origin::Center,
-                        amount: Point([0.0, CAVEINFO_ICON_SIZE / 12.0]),
-                    },
-                )
-                .place_relative(
-                    Text {
-                        text: format!("x{}", caveinfo.max_gates),
-                        font: &self.fonts[1],
-                        size: 19.0,
-                        color: OFF_BLACK.into(),
-                        max_width: None,
-                        outline: 0,
-                    },
+                    self.cropped_text(format!("{}HP", gateinfo.health.round() as u32), 13.0, 0, OFF_BLACK),
                     Origin::TopCenter,
                     Offset {
                         from: Origin::BottomCenter,
-                        amount: Point([0.0, -CAVEINFO_MARGIN]),
+                        amount: Point([0.0, 0.0]),
+                    },
+                )
+                .place_relative(
+                    self.cropped_text(format!("x{}", caveinfo.max_gates), 19.0, 0, OFF_BLACK),
+                    Origin::TopCenter,
+                    Offset {
+                        from: Origin::BottomCenter,
+                        amount: Point([0.0, 0.0]),
                     },
                 );
-            metadata_icons.place_relative(
-                gate_metadata_icon,
-                Origin::CenterLeft,
-                Offset {
-                    from: Origin::CenterRight,
-                    amount: Point([CAVEINFO_MARGIN * 2.0, -CAVEINFO_MARGIN * 0.5]),
-                },
-            );
+            metadata_icons.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
         }
 
         renderer.add_layer(title_row);
+
+        let mut hard_teki_box = Layer::new();
+        hard_teki_box.set_border(3.0, MAIN_TEKI_COLOR);
+        hard_teki_box.set_margin(3.0);
+
+        hard_teki_box.place(
+            self.cropped_text("Hard Teki", 32.0, 0, OFF_BLACK),
+            Point([50.0, 100.0]),
+            Origin::TopLeft,
+        );
+
+        renderer.add_layer(hard_teki_box);
 
         // let poko_icon = resize(
         //     self.mgr
@@ -1135,45 +1130,20 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         Ok(renderer.render(self.mgr))
     }
 
-    fn render_text(&self, text: &str, size: f32, color: Rgba<u8>, max_width: Option<u32>) -> RgbaImage {
-        let mut layout = FontLayout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
-        layout.reset(&LayoutSettings {
-            x: 0f32,
-            y: 0f32,
-            line_height: 1.0,
-            max_width: max_width.map(|w| w as f32),
-            max_height: None,
-            horizontal_align: HorizontalAlign::Left,
-            vertical_align: VerticalAlign::Top,
-            wrap_style: WrapStyle::Letter,
-            wrap_hard_breaks: true,
-        });
-        layout.append(&[&self.fonts[0]], &TextStyle::new(text, size, 0));
-        let width = layout.glyphs().iter().map(|g| g.x as usize + g.width).max().unwrap_or(0);
-        let mut img = RgbaImage::new(width as u32, layout.height() as u32);
-
-        for glyph in layout.glyphs().iter() {
-            let (metrics, bitmap) = self.fonts[0].rasterize_config_subpixel(glyph.key);
-            for (i, (cr, cg, cb)) in bitmap.into_iter().tuples().enumerate() {
-                let x = (i % metrics.width) as i64 + glyph.x as i64;
-                let y = (i / metrics.width) as i64 + glyph.y as i64;
-                if x >= 0 && x < img.width() as i64 && y >= 0 && y < img.height() as i64 {
-                    let coverage = (cr as f32 + cg as f32 + cb as f32) / 3.0;
-                    img.put_pixel(
-                        x as u32,
-                        y as u32,
-                        [
-                            color.0[0].saturating_add(255 - cr),
-                            color.0[1].saturating_add(255 - cg),
-                            color.0[2].saturating_add(255 - cb),
-                            coverage as u8,
-                        ]
-                        .into(),
-                    );
-                }
-            }
+    fn cropped_text(&self, text: impl Into<String>, size: f32, outline: u32, color: impl Into<Rgba<u8>>) -> impl Render + '_ {
+        Crop {
+            inner: Text {
+                text: text.into(),
+                font: if size < 20.0 { &self.fonts[1] } else { &self.fonts[0] },
+                size,
+                color: color.into(),
+                outline,
+            },
+            top: 0.375 * size,
+            left: 0.03125 * size,
+            right: 0.0,
+            bottom: 0.175 * size,
         }
-        img
     }
 }
 
