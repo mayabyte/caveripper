@@ -2,13 +2,12 @@ use std::cmp::max;
 
 use image::{
     imageops::{resize, FilterType},
-    RgbaImage,
+    Rgba, RgbaImage,
 };
 use num::clamp;
 
 use super::{
     canvas::{Canvas, CanvasView},
-    coords::Bounds,
     renderer::Render,
 };
 use crate::{assets::AssetManager, point::Point};
@@ -90,5 +89,30 @@ impl<R: Render> Render for Crop<R> {
     fn dimensions(&self) -> Point<2, f32> {
         let inner_dims = self.inner.dimensions();
         Point([inner_dims[0] - self.right - self.left, inner_dims[1] - self.bottom - self.top])
+    }
+}
+
+pub struct Colorize<R: Render> {
+    pub renderable: R,
+    pub color: Rgba<u8>,
+}
+
+impl<R: Render> Render for Colorize<R> {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        let mut subcanvas = Canvas::new(self.renderable.dimensions());
+        self.renderable.render(subcanvas.view(Point([0.0, 0.0])), helper);
+
+        let mut img = subcanvas.into_inner();
+        img.enumerate_pixels_mut().for_each(|px| {
+            px.2 .0[0] = self.color.0[0];
+            px.2 .0[1] = self.color.0[1];
+            px.2 .0[2] = self.color.0[2];
+        });
+
+        canvas.overlay(&img, Point([0.0, 0.0]));
+    }
+
+    fn dimensions(&self) -> Point<2, f32> {
+        self.renderable.dimensions()
     }
 }

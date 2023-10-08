@@ -21,8 +21,7 @@ impl<'r> StickerRenderer<'r> {
         }
     }
 
-    /// Adds a layer to the top of the image
-    #[deprecated]
+    /// Adds a layer at (0,0)
     pub fn add_layer(&mut self, layer: Layer<'r>) {
         self.root_layer.place(layer, Point([0.0, 0.0]), Origin::TopLeft);
     }
@@ -186,4 +185,12 @@ pub trait Render {
 /// for resizing the canvas to fit what is drawn.
 pub trait DirectRender {
     fn render(&self, canvas: &mut Canvas);
+}
+
+impl Render for () {
+    fn render(&self, _: CanvasView, _: &AssetManager) {}
+
+    fn dimensions(&self) -> Point<2, f32> {
+        Point([0.0, 0.0])
+    }
 }

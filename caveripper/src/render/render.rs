@@ -16,23 +16,19 @@ use std::{
 
 use clap::Args;
 use error_stack::{Result, ResultExt};
-use fontdue::{
-    layout::{HorizontalAlign, Layout as FontLayout, LayoutSettings, TextStyle, VerticalAlign, WrapStyle},
-    Font, FontSettings,
-};
+use fontdue::{Font, FontSettings};
 use image::{
     imageops::{colorops::brighten_in_place, rotate90, FilterType},
     Pixel, Rgba, RgbaImage,
 };
-use itertools::Itertools;
 use log::info;
 
 use self::{
     canvas::CanvasView,
-    coords::{Bounds, Offset},
+    coords::Offset,
     renderer::Render,
     shapes::Rectangle,
-    util::{Crop, Resize},
+    util::{Colorize, Crop, Resize},
 };
 use crate::{
     assets::{get_special_texture_name, AssetManager},
@@ -76,7 +72,6 @@ const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
 const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
-const MAIN_TEKI_COLOR: [u8; 4] = [225, 0, 0, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
 const CAVEINFO_ICON_SIZE: f32 = 44.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
@@ -84,7 +79,7 @@ const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 
 const fn group_color(group: u32) -> [u8; 4] {
     match group {
-        0 => [250, 87, 207, 120],  // Easy Teki
+        0 => [250, 87, 207, 255],  // Easy Teki (120 Alpha for circles)
         1 => [201, 2, 52, 255],    // Hard Teki
         2 => [230, 115, 0, 255],   // Treasures
         5 => [133, 133, 133, 255], // Seam Teki
@@ -215,7 +210,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         quickglance_circle_layer.set_opacity(0.45);
 
         for (spawn_object, pos) in layout.get_spawn_objects() {
-            render_spawn_object(&mut spawn_object_layer, spawn_object, pos.two_d() * COORD_FACTOR);
+            let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object));
+            spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
 
             // Quickglance Circles
             if options.quickglance {
@@ -428,24 +424,49 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
         placement = renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
-        let mut hard_teki_box = Layer::new();
-        hard_teki_box.set_border(3.0, MAIN_TEKI_COLOR);
-        hard_teki_box.set_margin(3.0);
+        // TEKI ROW
+        let teki_box_offset = Offset {
+            from: Origin::TopRight,
+            amount: Point([CAVEINFO_MARGIN, 0.0]),
+        };
 
-        hard_teki_box.place(
-            self.cropped_text("Hard Teki", 32.0, 0, OFF_BLACK),
-            Point([0.0, 0.0]),
-            Origin::TopLeft,
-        );
-
+        let special_teki_box = self.teki_box("Special", Icon::Star, group_color(8), caveinfo.teki_group(8));
         placement = placement.place_relative(
-            hard_teki_box,
+            special_teki_box,
             Origin::TopLeft,
             Offset {
                 from: Origin::BottomLeft,
                 amount: Point([CAVEINFO_MARGIN, 0.0]),
             },
         );
+
+        let hard_teki_box = self.teki_box(
+            "Hard",
+            Circle {
+                radius: 13.0,
+                color: group_color(1).into(),
+            },
+            group_color(1),
+            caveinfo.teki_group(1),
+        );
+        placement = placement.place_relative(hard_teki_box, Origin::TopLeft, teki_box_offset);
+
+        let easy_teki_box = self.teki_box(
+            "Easy",
+            Circle {
+                radius: 13.0,
+                color: group_color(0).into(),
+            },
+            group_color(0),
+            caveinfo.teki_group(0),
+        );
+        placement = placement.place_relative(easy_teki_box, Origin::TopLeft, teki_box_offset);
+
+        let plant_teki_box = self.teki_box("Plant", Icon::Plant, group_color(6), caveinfo.teki_group(6));
+        placement = placement.place_relative(plant_teki_box, Origin::TopLeft, teki_box_offset);
+
+        let seam_teki_box = self.teki_box("Seam", (), group_color(5), caveinfo.teki_group(5));
+        placement = placement.place_relative(seam_teki_box, Origin::TopLeft, teki_box_offset);
 
         // let poko_icon = resize(
         //     self.mgr
@@ -1154,6 +1175,74 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             bottom: 0.175 * size,
         }
     }
+
+    fn teki_box<'r>(
+        &'a self,
+        title: impl Into<String>,
+        icon: impl Render + 'r,
+        color: impl Into<Rgba<u8>>,
+        teki: impl Iterator<Item = &'r TekiInfo>,
+    ) -> Layer<'r>
+    where
+        'a: 'r,
+    {
+        let color = color.into();
+
+        let mut layer = Layer::new();
+        layer.set_border(2.0, color);
+        layer.set_margin(3.0);
+
+        let mut header_row = Layer::new();
+        header_row
+            .place(
+                Colorize {
+                    renderable: Resize {
+                        renderable: icon,
+                        width: 26.0,
+                        height: 26.0,
+                        filter: FilterType::Lanczos3,
+                    },
+                    color,
+                },
+                Point([0.0, 0.0]),
+                Origin::TopLeft,
+            )
+            .place_relative(
+                self.cropped_text(title, 32.0, 0, OFF_BLACK),
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::TopRight,
+                    amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
+                },
+            );
+
+        let placement = layer
+            .place(header_row, Point([0.0, 0.0]), Origin::TopLeft)
+            // Trick to set the origin to a new location
+            .place_relative(
+                (),
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::BottomLeft,
+                    amount: Point([0.0, 0.0]),
+                },
+            );
+        teki.fold(placement, |p, info| {
+            let mut teki_layer = Layer::new();
+            let so = Cow::Owned(SpawnObject::Teki(info, Point([0.0, 0.0, 0.0])));
+            teki_layer.place(render_spawn_object(so), Point([0.0, 0.0]), Origin::TopLeft);
+            p.place_relative(
+                teki_layer,
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::TopRight,
+                    amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
+                },
+            )
+        });
+
+        layer
+    }
 }
 
 fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUnit<'l>>) -> (Layer<'a>, Layer<'a>) {
@@ -1202,27 +1291,6 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
     img.save_with_format(&filename, image::ImageFormat::Png)
         .change_context(CaveripperError::RenderingError)?;
     Ok(())
-}
-
-fn colorize(mut img: RgbaImage, color: Rgba<u8>) -> RgbaImage {
-    img.enumerate_pixels_mut().for_each(|px| {
-        px.2 .0[0] = color.0[0];
-        px.2 .0[1] = color.0[1];
-        px.2 .0[2] = color.0[2];
-    });
-    img
-}
-
-fn draw_border(canvas: &mut RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
-    let color = [255, 30, 30, 150].into();
-    for x in x1..=x2 {
-        canvas.put_pixel(x, y1, color);
-        canvas.put_pixel(x, y2, color);
-    }
-    for y in y1..=y2 {
-        canvas.put_pixel(x1, y, color);
-        canvas.put_pixel(x2, y, color);
-    }
 }
 
 fn draw_ring(canvas: &mut RgbaImage, pos: Point<2, f32>, r: f32, color: Rgba<u8>) {
@@ -1361,21 +1429,37 @@ impl Render for TreasureRenderer<'_> {
     }
 }
 
-struct FallingIcon();
-impl Render for FallingIcon {
+enum Icon {
+    Falling,
+    Star,
+    Plant,
+}
+
+impl Render for Icon {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        let filename = "resources/enemytex_special/falling_icon.png";
+        let filename = match self {
+            Icon::Falling => "resources/enemytex_special/falling_icon.png",
+            Icon::Star => "resources/enemytex_special/star.png",
+            Icon::Plant => "resources/enemytex_special/leaf_icon.png",
+        };
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
 
     fn dimensions(&self) -> Point<2, f32> {
-        Point([20.0, 20.0])
+        Point(match self {
+            Icon::Falling => [20.0, 20.0],
+            Icon::Star => [64.0, 64.0],
+            Icon::Plant => [32.0, 32.0],
+        })
     }
 }
 
-fn render_spawn_object<'a>(layer: &mut Layer<'a>, spawn_object: &'a SpawnObject<'a>, mut pos: Point<2, f32>) {
+fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>) -> impl Render + 'a {
+    let mut layer = Layer::new();
+    let mut pos = Point([0.0, 0.0]);
+
     // Main Spawn Object image
-    let size = match spawn_object {
+    let size = match spawn_object.as_ref() {
         SpawnObject::Gate(_, _) => GATE_SIZE,
         SpawnObject::CapTeki(CapInfo { spawn_method: Some(_), .. }, _) => {
             pos = pos - RENDER_SCALE;
@@ -1384,7 +1468,11 @@ fn render_spawn_object<'a>(layer: &mut Layer<'a>, spawn_object: &'a SpawnObject<
         _ => TEKI_SIZE,
     };
 
-    layer.place(Resize::new(spawn_object, size, size, FilterType::Lanczos3), pos, Origin::Center);
+    layer.place(
+        Resize::new(spawn_object.clone().into_owned(), size, size, FilterType::Lanczos3),
+        pos,
+        Origin::TopLeft,
+    );
 
     // Carrying Treasures
     if let SpawnObject::Teki(
@@ -1392,7 +1480,7 @@ fn render_spawn_object<'a>(layer: &mut Layer<'a>, spawn_object: &'a SpawnObject<
             carrying: Some(treasure), ..
         },
         _,
-    ) = spawn_object
+    ) = spawn_object.as_ref()
     {
         layer.place(
             Resize::new(
@@ -1402,18 +1490,20 @@ fn render_spawn_object<'a>(layer: &mut Layer<'a>, spawn_object: &'a SpawnObject<
                 FilterType::Lanczos3,
             ),
             pos + (size * 0.4),
-            Origin::Center,
+            Origin::TopLeft,
         );
     }
 
     // Falling indicator
     if let SpawnObject::Teki(TekiInfo { spawn_method: Some(_), .. }, _) | SpawnObject::CapTeki(CapInfo { spawn_method: Some(_), .. }, _) =
-        spawn_object
+        spawn_object.as_ref()
     {
         layer.place(
-            Resize::new(FallingIcon(), FALLING_ICON_SIZE, FALLING_ICON_SIZE, FilterType::Lanczos3),
+            Resize::new(Icon::Falling, FALLING_ICON_SIZE, FALLING_ICON_SIZE, FilterType::Lanczos3),
             pos - (FALLING_ICON_SIZE / 2.0),
-            Origin::Center,
+            Origin::TopLeft,
         );
     }
+
+    layer
 }
