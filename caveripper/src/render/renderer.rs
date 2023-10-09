@@ -173,7 +173,8 @@ impl<'l, 'r: 'l> LayerView<'l, 'r> {
 
     /// Moves this LayerView to be a single point at the provided origin relative to the
     /// previously placed renderable.
-    /// Useful when you want to place renderables in a loop.
+    /// Useful when you want to place renderables in a loop without specially handling
+    /// the offset for the first object.
     pub fn anchor_next(self, origin: Origin) -> LayerView<'l, 'r> {
         self.place_relative(
             (),

@@ -33,7 +33,7 @@ use self::{
 };
 use crate::{
     assets::{get_special_texture_name, AssetManager},
-    caveinfo::{CapInfo, CaveInfo, CaveUnit, TekiInfo},
+    caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, TekiInfo},
     errors::CaveripperError,
     layout::{Layout, PlacedMapUnit, SpawnObject},
     point::Point,
@@ -77,6 +77,7 @@ const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
 const CAVEINFO_ICON_SIZE: f32 = 64.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
+const CAVEINFO_BOXES_FONT_SIZE: f32 = 42.0;
 
 const fn group_color(group: u32) -> [u8; 4] {
     match group {
@@ -89,6 +90,15 @@ const fn group_color(group: u32) -> [u8; 4] {
         8 => [89, 6, 138, 255],    // Special teki
         9 => [45, 173, 167, 255],  // Fake capteki / hallway spawnpoint group
         _ => panic!("Invalid teki group in tekiinfo"),
+    }
+}
+
+const fn group_score(group: u32) -> u32 {
+    match group {
+        0 => 2,
+        1 => 10,
+        5 => 5,
+        _ => 0,
     }
 }
 
@@ -462,7 +472,14 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             }
 
             placement = placement.place_relative(
-                self.teki_box(name, icon, group_color(group_num), teki),
+                self.caveinfo_entity_box(
+                    name,
+                    icon,
+                    group_color(group_num),
+                    teki.map(|info| SpawnObject::Teki(info, Point([0.0, 0.0, 0.0]))),
+                    group_score(group_num),
+                    &caveinfo.cave_cfg.game,
+                ),
                 Origin::TopLeft,
                 teki_box_offset,
             );
@@ -471,10 +488,37 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         // Cap teki
         if caveinfo.cap_info.len() > 0 {
             placement = placement.place_relative(
-                self.teki_box("Cap", (), group_color(9), caveinfo.cap_info.iter().map(AsRef::as_ref)),
+                self.caveinfo_entity_box(
+                    "Cap",
+                    (),
+                    group_color(9),
+                    caveinfo
+                        .cap_info
+                        .iter()
+                        // We don't want the special treatment cap teki get for layout rendering
+                        .map(|info| SpawnObject::Teki(info.as_ref(), Point([0.0, 0.0, 0.0]))),
+                    0,
+                    &caveinfo.cave_cfg.game,
+                ),
                 Origin::TopLeft,
                 teki_box_offset,
             );
+        }
+
+        // Treasures
+        if caveinfo.item_info.len() > 0 {
+            placement = placement.place_relative(
+                self.caveinfo_entity_box(
+                    "Treasure",
+                    Icon::Treasure,
+                    group_color(2),
+                    caveinfo.item_info.iter().map(|info| SpawnObject::Item(info)),
+                    0,
+                    &caveinfo.cave_cfg.game,
+                ),
+                Origin::TopLeft,
+                teki_box_offset,
+            )
         }
 
         // let poko_icon = resize(
@@ -1185,12 +1229,14 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         }
     }
 
-    fn teki_box<'r>(
+    fn caveinfo_entity_box<'r>(
         &'a self,
         title: impl Into<String>,
         icon: impl Render + 'r,
         color: impl Into<Rgba<u8>>,
-        teki: impl Iterator<Item = &'r TekiInfo>,
+        spawn_objects: impl Iterator<Item = SpawnObject<'r>>,
+        score: u32,
+        game: &str,
     ) -> Layer<'r>
     where
         'a: 'r,
@@ -1201,47 +1247,136 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         layer.set_border(2.0, color);
         layer.set_margin(3.0);
 
-        let mut header_row = Layer::new();
-        header_row
-            .place(
-                Colorize {
-                    renderable: Resize {
-                        renderable: icon,
-                        width: 34.0,
-                        height: 34.0,
-                        filter: FilterType::Lanczos3,
-                    },
-                    color,
+        let icon: Box<dyn Render> = if icon.dimensions().length() > 0.0 {
+            Box::new(Colorize {
+                renderable: Resize {
+                    renderable: icon,
+                    width: 34.0,
+                    height: 34.0,
+                    filter: FilterType::Lanczos3,
                 },
-                Point([0.0, 0.0]),
-                Origin::TopLeft,
-            )
-            .place_relative(
-                self.cropped_text(title, 42.0, 0, OFF_BLACK),
-                Origin::TopLeft,
+                color,
+            })
+        } else {
+            Box::new(())
+        };
+
+        let mut header_row = Layer::new();
+        let header_placement = header_row.place(icon, Point([0.0, 0.0]), Origin::TopLeft).place_relative(
+            self.cropped_text(title, CAVEINFO_BOXES_FONT_SIZE, 0, OFF_BLACK),
+            Origin::TopLeft,
+            Offset {
+                from: Origin::TopRight,
+                amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
+            },
+        );
+
+        if score > 0 {
+            header_placement.place_relative(
+                self.cropped_text(format!("Score: {score}"), 20.0, 0, OFF_BLACK),
+                Origin::CenterLeft,
                 Offset {
-                    from: Origin::TopRight,
-                    amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
+                    from: Origin::CenterRight,
+                    amount: Point([CAVEINFO_MARGIN, 0.0]),
                 },
             );
+        }
 
         let placement = layer
             .place(header_row, Point([0.0, 0.0]), Origin::TopLeft)
-            // Trick to set the origin to a new location
-            .place_relative(
-                (),
-                Origin::TopLeft,
-                Offset {
-                    from: Origin::BottomLeft,
-                    amount: Point([0.0, 0.0]),
+            .anchor_next(Origin::BottomLeft);
+
+        spawn_objects.fold(placement, |p, so| {
+            let mut so_and_value_layer = Layer::new();
+            let so_and_value_layer_p =
+                so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone())), Point([0.0, 0.0]), Origin::TopLeft);
+
+            // Carrying info
+            if let SpawnObject::Item(ItemInfo { internal_name, .. })
+            | SpawnObject::Teki(
+                TekiInfo {
+                    carrying: Some(internal_name),
+                    ..
                 },
-            );
-        teki.fold(placement, |p, info| {
-            let mut teki_layer = Layer::new();
-            let so = Cow::Owned(SpawnObject::Teki(info.as_ref(), Point([0.0, 0.0, 0.0])));
-            teki_layer.place(render_spawn_object(so), Point([0.0, 0.0]), Origin::TopLeft);
+                _,
+            ) = so
+            {
+                let treasure_metadata = self
+                    .mgr
+                    .treaure_info(game, &internal_name)
+                    .expect("Invalid treasure encountered while rendering");
+
+                let mut metadata_layer = Layer::new();
+                metadata_layer
+                    .place(
+                        Resize {
+                            renderable: Icon::Poko,
+                            width: 24.0,
+                            height: 24.0,
+                            filter: FilterType::Lanczos3,
+                        },
+                        Point([0.0, 0.0]),
+                        Origin::TopLeft,
+                    )
+                    .place_relative(
+                        self.cropped_text(format!("{}", treasure_metadata.value), 28.0, 0, OFF_BLACK),
+                        Origin::TopLeft,
+                        Offset {
+                            from: Origin::TopRight,
+                            amount: Point([CAVEINFO_MARGIN / 4.0, 0.0]),
+                        },
+                    );
+                so_and_value_layer_p
+                    .place_relative(
+                        metadata_layer,
+                        Origin::TopLeft,
+                        Offset {
+                            from: Origin::TopRight,
+                            amount: Point([CAVEINFO_MARGIN / 2.0, CAVEINFO_MARGIN / 2.0]),
+                        },
+                    )
+                    .place_relative(
+                        self.cropped_text(
+                            format!("{}/{}", treasure_metadata.min_carry, treasure_metadata.max_carry),
+                            28.0,
+                            0,
+                            OFF_BLACK,
+                        ),
+                        Origin::TopLeft,
+                        Offset {
+                            from: Origin::BottomLeft,
+                            amount: Point([0.0, CAVEINFO_MARGIN / 2.0]),
+                        },
+                    );
+            }
+
+            // Number and Weight text
+
+            let mut full_so_layer = Layer::new();
+            let full_so_layer_p = full_so_layer.place(so_and_value_layer, Point([0.0, 0.0]), Origin::TopLeft);
+            if let SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) = so {
+                let mut num_str = String::new();
+                let amount = so.amount();
+                let weight = so.weight();
+
+                if amount > 0 {
+                    num_str += &format!("x{amount}");
+                }
+                if weight > 0 {
+                    num_str += &format!("w{weight}");
+                }
+                full_so_layer_p.place_relative(
+                    self.cropped_text(num_str, 20.0, 0, color),
+                    Origin::TopCenter,
+                    Offset {
+                        from: Origin::BottomCenter,
+                        amount: Point([0.0, CAVEINFO_MARGIN / 3.0]),
+                    },
+                );
+            }
+
             p.place_relative(
-                teki_layer,
+                full_so_layer,
                 Origin::TopLeft,
                 Offset {
                     from: Origin::TopRight,
@@ -1419,6 +1554,8 @@ enum Icon {
     Falling,
     Star,
     Plant,
+    Treasure,
+    Poko,
 }
 
 impl Render for Icon {
@@ -1427,6 +1564,8 @@ impl Render for Icon {
             Icon::Falling => "resources/enemytex_special/falling_icon.png",
             Icon::Star => "resources/enemytex_special/star.png",
             Icon::Plant => "resources/enemytex_special/leaf_icon.png",
+            Icon::Treasure => "resources/enemytex_special/duck.png",
+            Icon::Poko => "resources/enemytex_special/Poko_icon.png",
         };
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
@@ -1436,6 +1575,8 @@ impl Render for Icon {
             Icon::Falling => [20.0, 20.0],
             Icon::Star => [64.0, 64.0],
             Icon::Plant => [32.0, 32.0],
+            Icon::Treasure => [32.0, 32.0],
+            Icon::Poko => [10.0, 12.0],
         })
     }
 }
