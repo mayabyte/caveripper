@@ -11,19 +11,21 @@ mod parse;
 /// https://pikmintkb.com/wiki/Cave_generation_parameters
 mod util;
 
-use crate::{
-    assets::{AssetManager, CaveConfig},
-    errors::CaveripperError,
-    point::Point,
-};
-use error_stack::{report, Report, Result, ResultExt};
-use parse::parse_caveinfo;
-use serde::Serialize;
 use std::{
     cmp::Ordering,
     collections::HashSet,
     f32::consts::PI,
     fmt::{Display, Formatter},
+};
+
+use error_stack::{report, Report, Result, ResultExt};
+use parse::parse_caveinfo;
+use serde::Serialize;
+
+use crate::{
+    assets::{AssetManager, CaveConfig},
+    errors::CaveripperError,
+    point::Point,
 };
 
 /// Corresponds to one "FloorInfo" segment in a CaveInfo file, plus all the
@@ -55,29 +57,19 @@ pub struct CaveInfo {
 impl CaveInfo {
     /// Return all teki in a particular spawn group.
     pub fn teki_group(&self, group: u32) -> impl Iterator<Item = &TekiInfo> {
-        self.teki_info
-            .iter()
-            .filter(move |teki| teki.group == group)
+        self.teki_info.iter().filter(move |teki| teki.group == group)
     }
 
     /// Out of all the possible map tiles on this floor, finds the one with the highest
     /// number of doors and returns that number.
     pub fn max_num_doors_single_unit(&self) -> usize {
-        self.cave_units
-            .iter()
-            .map(|unit| unit.num_doors)
-            .max()
-            .unwrap_or_default()
+        self.cave_units.iter().map(|unit| unit.num_doors).max().unwrap_or_default()
     }
 
     /// Returns the human-readable sublevel name for this floor, e.g. "SCx6".
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
-        format!(
-            "{}{}",
-            self.cave_cfg.shortened_names.first().unwrap(),
-            self.floor_num + 1
-        )
+        format!("{}{}", self.cave_cfg.shortened_names.first().unwrap(), self.floor_num + 1)
     }
 
     /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
@@ -85,18 +77,10 @@ impl CaveInfo {
         format!("{} {}", self.cave_cfg.full_name, self.floor_num + 1)
     }
 
-    pub fn parse_from(
-        cave: &CaveConfig,
-        mgr: &AssetManager,
-    ) -> Result<Vec<CaveInfo>, CaveripperError> {
+    pub fn parse_from(cave: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveripperError> {
         parse_caveinfo(cave, mgr)
             .change_context(CaveripperError::CaveinfoError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "{} ({}/{})",
-                    cave.full_name, cave.game, cave.caveinfo_filename
-                )
-            })
+            .attach_printable_lazy(|| format!("{} ({}/{})", cave.full_name, cave.game, cave.caveinfo_filename))
     }
 
     pub fn is_challenge_mode(&self) -> bool {
@@ -154,13 +138,7 @@ impl Display for CaveInfo {
 
         writeln!(f, "Cap Teki:")?;
         for (i, capinfo) in self.cap_info.iter().enumerate() {
-            write!(
-                f,
-                "\t{}: {} (num: {}",
-                i + 1,
-                capinfo.internal_name,
-                capinfo.minimum_amount
-            )?;
+            write!(f, "\t{}: {} (num: {}", i + 1, capinfo.internal_name, capinfo.minimum_amount)?;
             if capinfo.filler_distribution_weight > 0 {
                 write!(f, ", weight: {}", capinfo.filler_distribution_weight)?;
             }
@@ -171,11 +149,7 @@ impl Display for CaveInfo {
         }
 
         writeln!(f, "Rooms:")?;
-        let unique_units: HashSet<&str> = self
-            .cave_units
-            .iter()
-            .map(|unit| unit.unit_folder_name.as_ref())
-            .collect();
+        let unique_units: HashSet<&str> = self.cave_units.iter().map(|unit| unit.unit_folder_name.as_ref()).collect();
         for unit in unique_units.iter() {
             writeln!(f, "\t{unit}")?;
         }
@@ -240,8 +214,8 @@ pub struct CapInfo {
     pub carrying: Option<String>, // The object held by this Cap Teki, if any.
     pub minimum_amount: u32,
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
-    pub group: u8, // Does not control spawn location like it does in TekiInfo.
-    pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    pub group: u8,                       // Does not control spawn location like it does in TekiInfo.
+    pub spawn_method: Option<String>,    // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
 }
 
 impl CapInfo {
@@ -257,6 +231,23 @@ impl CapInfo {
     /// all spawn methods besides the 'nothing' spawn method are falling.
     pub fn is_falling(&self) -> bool {
         self.spawn_method.is_some()
+    }
+}
+
+/// TekiInfo and CapInfo are very similar, with only some semantic differences between
+/// fields. This allows them to be treated the same in several places for simpler code.
+impl AsRef<TekiInfo> for CapInfo {
+    fn as_ref(&self) -> &TekiInfo {
+        // SAFETY: CapInfo and TekiInfo have the exact same fields, size, and layout
+        unsafe { &*(self as *const _ as *const TekiInfo) }
+    }
+}
+
+// Needed due to a current limitation in blanket impls.
+// See https://doc.rust-lang.org/stable/std/convert/trait.AsRef.html#reflexivity
+impl AsRef<TekiInfo> for TekiInfo {
+    fn as_ref(&self) -> &TekiInfo {
+        self
     }
 }
 
@@ -284,8 +275,7 @@ pub struct CaveUnit {
 
 impl PartialEq for CaveUnit {
     fn eq(&self, other: &Self) -> bool {
-        (self.width * self.height) == (other.width * other.height)
-            && self.num_doors == other.num_doors
+        (self.width * self.height) == (other.width * other.height) && self.num_doors == other.num_doors
     }
 }
 impl Eq for CaveUnit {}
@@ -334,9 +324,7 @@ impl CaveUnit {
 
         // Waypoints and Waterboxes use coordinates based around the *center* of the room
         new_unit.waypoints.iter_mut().for_each(|wp| {
-            wp.pos = wp
-                .pos
-                .rotate_about_xz(Point([0.0, 0.0]), rotation as f32 * PI / 2.0);
+            wp.pos = wp.pos.rotate_about_xz(Point([0.0, 0.0]), rotation as f32 * PI / 2.0);
         });
 
         new_unit.waterboxes.iter_mut().for_each(|wb| {
@@ -358,9 +346,7 @@ impl CaveUnit {
     }
 
     pub fn has_start_spawnpoint(&self) -> bool {
-        self.spawnpoints
-            .iter()
-            .any(|spawnpoint| spawnpoint.group == 7)
+        self.spawnpoints.iter().any(|spawnpoint| spawnpoint.group == 7)
     }
 
     pub fn center(&self) -> Point<2, f32> {
@@ -421,7 +407,7 @@ impl DoorUnit {
 /// To clarify, DoorLinks are NOT links between two doors in separate rooms.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DoorLink {
-    pub distance: f32, // Straight line distance. This can cross out-of-bounds and otherwise uncrossable obstacles.
+    pub distance: f32,  // Straight line distance. This can cross out-of-bounds and otherwise uncrossable obstacles.
     pub door_id: usize, // Id of the other door
     pub tekiflag: bool, // Whether or not a teki should spawn in the seam of the origin door
 }
@@ -451,8 +437,7 @@ impl TryFrom<&str> for RoomType {
             "room" => Ok(RoomType::Room),
             "cap" | "alcove" => Ok(RoomType::DeadEnd),
             "hall" | "hallway" => Ok(RoomType::Hallway),
-            _ => Err(report!(CaveripperError::QueryParseError))
-                .attach_printable_lazy(|| input.to_owned()),
+            _ => Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.to_owned()),
         }
     }
 }

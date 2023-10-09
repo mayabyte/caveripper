@@ -170,6 +170,20 @@ impl<'l, 'r: 'l> LayerView<'l, 'r> {
         let place_at = self.previous_bounds.topleft + offset.from.offset_from_top_left(self.previous_bounds.dims()) + offset.amount;
         self.layer.place(renderable, place_at, origin)
     }
+
+    /// Moves this LayerView to be a single point at the provided origin relative to the
+    /// previously placed renderable.
+    /// Useful when you want to place renderables in a loop.
+    pub fn anchor_next(self, origin: Origin) -> LayerView<'l, 'r> {
+        self.place_relative(
+            (),
+            Origin::TopLeft,
+            Offset {
+                from: origin,
+                amount: Point([0.0, 0.0]),
+            },
+        )
+    }
 }
 
 #[auto_impl(&, &mut, Box)]

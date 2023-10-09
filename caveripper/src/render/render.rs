@@ -10,6 +10,7 @@ mod test;
 
 use std::{
     borrow::Cow,
+    cell::RefCell,
     cmp::max,
     path::{Path, PathBuf},
 };
@@ -18,8 +19,8 @@ use clap::Args;
 use error_stack::{Result, ResultExt};
 use fontdue::{Font, FontSettings};
 use image::{
-    imageops::{colorops::brighten_in_place, rotate90, FilterType},
-    Pixel, Rgba, RgbaImage,
+    imageops::{colorops::brighten_in_place, resize, rotate90, FilterType},
+    Rgba, RgbaImage,
 };
 use log::info;
 
@@ -55,7 +56,7 @@ const TEKI_SIZE: f32 = 4.0 * RENDER_SCALE;
 const GATE_SIZE: f32 = 8.0 * RENDER_SCALE;
 const CARRIED_TREASURE_SIZE: f32 = TEKI_SIZE * 0.75;
 const FALLING_CAP_TEKI_SIZE: f32 = TEKI_SIZE * 0.8;
-const FALLING_ICON_SIZE: f32 = 2.0 * RENDER_SCALE;
+const FALLING_ICON_SIZE: f32 = 1.6 * RENDER_SCALE;
 const QUICKGLANCE_CIRCLE_RADIUS: f32 = 5.0 * RENDER_SCALE;
 const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 255];
 const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 255];
@@ -73,7 +74,7 @@ const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
 const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
-const CAVEINFO_ICON_SIZE: f32 = 44.0;
+const CAVEINFO_ICON_SIZE: f32 = 64.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 
@@ -305,10 +306,10 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
                 // Distance score
                 for door in unit.doors.iter() {
-                    let door = door.borrow();
+                    let door = RefCell::borrow(door);
                     for link in door.door_unit.door_links.iter() {
                         let this_door_pos = door.center();
-                        let other_door_pos = unit.doors[link.door_id].borrow().center();
+                        let other_door_pos = RefCell::borrow(&unit.doors[link.door_id]).center();
                         distance_score_line_layer.add_direct_renderable(Line {
                             start: this_door_pos.two_d() * COORD_FACTOR,
                             end: other_door_pos.two_d() * COORD_FACTOR,
@@ -357,7 +358,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
         let mut metadata_icons = title_row
             .place(
-                self.cropped_text(caveinfo.long_name(), 56.0, 0, OFF_BLACK),
+                self.cropped_text(caveinfo.long_name(), 88.0, 0, OFF_BLACK),
                 Point([0.0, 0.0]),
                 Origin::TopLeft,
             )
@@ -422,7 +423,9 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             metadata_icons.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
         }
 
-        placement = renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
+        placement = renderer
+            .place(title_row, Point([0.0, 0.0]), Origin::TopLeft)
+            .anchor_next(Origin::BottomLeft);
 
         // TEKI ROW
         let teki_box_offset = Offset {
@@ -430,43 +433,49 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             amount: Point([CAVEINFO_MARGIN, 0.0]),
         };
 
-        let special_teki_box = self.teki_box("Special", Icon::Star, group_color(8), caveinfo.teki_group(8));
-        placement = placement.place_relative(
-            special_teki_box,
-            Origin::TopLeft,
-            Offset {
-                from: Origin::BottomLeft,
-                amount: Point([CAVEINFO_MARGIN, 0.0]),
-            },
-        );
+        let groups: [(&str, u32, Box<dyn Render>); 5] = [
+            ("Special", 8, Box::new(Icon::Star)),
+            (
+                "Hard",
+                1,
+                Box::new(Circle {
+                    radius: 32.0,
+                    color: group_color(1).into(),
+                }),
+            ),
+            (
+                "Easy",
+                0,
+                Box::new(Circle {
+                    radius: 32.0,
+                    color: group_color(0).into(),
+                }),
+            ),
+            ("Plant", 6, Box::new(Icon::Plant)),
+            ("Seam", 5, Box::new(())), // TODO: Seam teki icon??
+        ];
 
-        let hard_teki_box = self.teki_box(
-            "Hard",
-            Circle {
-                radius: 13.0,
-                color: group_color(1).into(),
-            },
-            group_color(1),
-            caveinfo.teki_group(1),
-        );
-        placement = placement.place_relative(hard_teki_box, Origin::TopLeft, teki_box_offset);
+        for (name, group_num, icon) in groups.into_iter() {
+            let mut teki = caveinfo.teki_group(group_num).peekable();
+            if teki.peek().is_none() {
+                continue;
+            }
 
-        let easy_teki_box = self.teki_box(
-            "Easy",
-            Circle {
-                radius: 13.0,
-                color: group_color(0).into(),
-            },
-            group_color(0),
-            caveinfo.teki_group(0),
-        );
-        placement = placement.place_relative(easy_teki_box, Origin::TopLeft, teki_box_offset);
+            placement = placement.place_relative(
+                self.teki_box(name, icon, group_color(group_num), teki),
+                Origin::TopLeft,
+                teki_box_offset,
+            );
+        }
 
-        let plant_teki_box = self.teki_box("Plant", Icon::Plant, group_color(6), caveinfo.teki_group(6));
-        placement = placement.place_relative(plant_teki_box, Origin::TopLeft, teki_box_offset);
-
-        let seam_teki_box = self.teki_box("Seam", (), group_color(5), caveinfo.teki_group(5));
-        placement = placement.place_relative(seam_teki_box, Origin::TopLeft, teki_box_offset);
+        // Cap teki
+        if caveinfo.cap_info.len() > 0 {
+            placement = placement.place_relative(
+                self.teki_box("Cap", (), group_color(9), caveinfo.cap_info.iter().map(AsRef::as_ref)),
+                Origin::TopLeft,
+                teki_box_offset,
+            );
+        }
 
         // let poko_icon = resize(
         //     self.mgr
@@ -1198,8 +1207,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 Colorize {
                     renderable: Resize {
                         renderable: icon,
-                        width: 26.0,
-                        height: 26.0,
+                        width: 34.0,
+                        height: 34.0,
                         filter: FilterType::Lanczos3,
                     },
                     color,
@@ -1208,7 +1217,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 Origin::TopLeft,
             )
             .place_relative(
-                self.cropped_text(title, 32.0, 0, OFF_BLACK),
+                self.cropped_text(title, 42.0, 0, OFF_BLACK),
                 Origin::TopLeft,
                 Offset {
                     from: Origin::TopRight,
@@ -1229,7 +1238,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             );
         teki.fold(placement, |p, info| {
             let mut teki_layer = Layer::new();
-            let so = Cow::Owned(SpawnObject::Teki(info, Point([0.0, 0.0, 0.0])));
+            let so = Cow::Owned(SpawnObject::Teki(info.as_ref(), Point([0.0, 0.0, 0.0])));
             teki_layer.place(render_spawn_object(so), Point([0.0, 0.0]), Origin::TopLeft);
             p.place_relative(
                 teki_layer,
@@ -1255,7 +1264,6 @@ fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUni
         let render_pos_z = map_unit.z as f32 * GRID_FACTOR;
 
         // Radar images
-        let key = format!("{}_{}", unit_def.unit_folder_name, unit_def.rotation);
         let unit_img_width = unit_def.width as f32 * GRID_FACTOR;
         let unit_img_height = unit_def.height as f32 * GRID_FACTOR;
         radar_image_layer.place(
@@ -1266,7 +1274,6 @@ fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUni
 
         // Waterboxes
         for waterbox in unit_def.waterboxes.iter() {
-            let key = format!("waterbox_{}_{}", waterbox.width(), waterbox.height());
             waterbox_layer.place(
                 Rectangle {
                     width: waterbox.width() * COORD_FACTOR,
@@ -1293,41 +1300,20 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
     Ok(())
 }
 
-fn draw_ring(canvas: &mut RgbaImage, pos: Point<2, f32>, r: f32, color: Rgba<u8>) {
-    for i in 0..=(r as i32) {
-        let offset = i as f32;
-        let height = (r.powi(2) - offset.powi(2)).sqrt();
-        try_blend(canvas, (pos[0] - offset) as i64, (pos[1] + height) as i64, color);
-        try_blend(canvas, (pos[0] - offset) as i64, (pos[1] - height) as i64, color);
-        try_blend(canvas, (pos[0] + offset) as i64, (pos[1] + height) as i64, color);
-        try_blend(canvas, (pos[0] + offset) as i64, (pos[1] - height) as i64, color);
-        try_blend(canvas, (pos[0] - height) as i64, (pos[1] + offset) as i64, color);
-        try_blend(canvas, (pos[0] - height) as i64, (pos[1] - offset) as i64, color);
-        try_blend(canvas, (pos[0] + height) as i64, (pos[1] + offset) as i64, color);
-        try_blend(canvas, (pos[0] + height) as i64, (pos[1] - offset) as i64, color);
-    }
-}
-
-/// Blends the pixel at the given coordinates, if they are in bounds. Otherwise
-/// does nothing.
-fn try_blend(canvas: &mut RgbaImage, x: i64, y: i64, color: Rgba<u8>) {
-    if x > 0 && y > 0 && x < canvas.width() as i64 && y < canvas.height() as i64 {
-        canvas.get_pixel_mut(x as u32, y as u32).blend(&color);
-    }
-}
-
-fn circle(radius: u32, color: Rgba<u8>) -> RgbaImage {
-    let mut buffer = RgbaImage::new(radius * 2, radius * 2);
-    for x in 0..radius * 2 {
-        for z in 0..radius * 2 {
-            let r = radius as f32;
-            if ((r - x as f32).powi(2) + (r - z as f32).powi(2)).sqrt() < r {
-                buffer.put_pixel(x, z, color);
-            }
-        }
-    }
-    buffer
-}
+// fn draw_ring(canvas: &mut RgbaImage, pos: Point<2, f32>, r: f32, color: Rgba<u8>) {
+//     for i in 0..=(r as i32) {
+//         let offset = i as f32;
+//         let height = (r.powi(2) - offset.powi(2)).sqrt();
+//         try_blend(canvas, (pos[0] - offset) as i64, (pos[1] + height) as i64, color);
+//         try_blend(canvas, (pos[0] - offset) as i64, (pos[1] - height) as i64, color);
+//         try_blend(canvas, (pos[0] + offset) as i64, (pos[1] + height) as i64, color);
+//         try_blend(canvas, (pos[0] + offset) as i64, (pos[1] - height) as i64, color);
+//         try_blend(canvas, (pos[0] - height) as i64, (pos[1] + offset) as i64, color);
+//         try_blend(canvas, (pos[0] - height) as i64, (pos[1] - offset) as i64, color);
+//         try_blend(canvas, (pos[0] + height) as i64, (pos[1] + offset) as i64, color);
+//         try_blend(canvas, (pos[0] + height) as i64, (pos[1] - offset) as i64, color);
+//     }
+// }
 
 fn joke_time() -> bool {
     use chrono::{Datelike, Duration};
@@ -1367,7 +1353,7 @@ impl Render for SpawnObject<'_> {
                     Some(special_name) => PathBuf::from_iter(["resources", "enemytex_special", special_name]),
                     None => PathBuf::from_iter(["assets", "pikmin2", "teki", &format!("{}.png", self.name().to_ascii_lowercase())]),
                 };
-                let teki_img = helper.get_img(filename).unwrap();
+                let teki_img = resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3);
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
             SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).render(canvas, helper),
@@ -1500,7 +1486,7 @@ fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>) -> im
     {
         layer.place(
             Resize::new(Icon::Falling, FALLING_ICON_SIZE, FALLING_ICON_SIZE, FilterType::Lanczos3),
-            pos - (FALLING_ICON_SIZE / 2.0),
+            pos,
             Origin::TopLeft,
         );
     }
