@@ -8,7 +8,8 @@ use num::clamp;
 
 use super::{
     canvas::{Canvas, CanvasView},
-    renderer::Render,
+    coords::Origin,
+    renderer::{Layer, Render},
 };
 use crate::{assets::AssetManager, point::Point};
 
@@ -115,4 +116,11 @@ impl<R: Render> Render for Colorize<R> {
     fn dimensions(&self) -> Point<2, f32> {
         self.renderable.dimensions()
     }
+}
+
+pub fn with_border<'a>(renderable: impl Render + 'a, thickness: f32, color: impl Into<Rgba<u8>>) -> impl Render + 'a {
+    let mut layer = Layer::new();
+    layer.set_border(thickness, color);
+    layer.place(renderable, Point([0.0, 0.0]), Origin::TopLeft);
+    layer
 }

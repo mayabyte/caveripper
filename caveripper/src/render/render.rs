@@ -1,10 +1,10 @@
 mod canvas;
 mod coords;
+mod pixel_ext;
 mod renderer;
 mod shapes;
 mod text;
 mod util;
-mod pixel_ext;
 
 #[cfg(test)]
 mod test;
@@ -30,7 +30,7 @@ use self::{
     coords::Offset,
     renderer::Render,
     shapes::Rectangle,
-    util::{Colorize, Crop, Resize},
+    util::{with_border, Colorize, Crop, Resize},
 };
 use crate::{
     assets::{get_special_texture_name, AssetManager},
@@ -59,6 +59,8 @@ const CARRIED_TREASURE_SIZE: f32 = TEKI_SIZE * 0.75;
 const FALLING_CAP_TEKI_SIZE: f32 = TEKI_SIZE * 0.8;
 const FALLING_ICON_SIZE: f32 = 1.6 * RENDER_SCALE;
 const QUICKGLANCE_CIRCLE_RADIUS: f32 = 5.0 * RENDER_SCALE;
+const LAYOUT_BACKGROUND_COLOR: [u8; 4] = [15, 15, 15, 255];
+const CAVEINFO_UNIT_BORDER_COLOR: [u8; 4] = [225, 0, 0, 255];
 const QUICKGLANCE_TREASURE_COLOR: [u8; 4] = [230, 115, 0, 255];
 const QUICKGLANCE_EXIT_COLOR: [u8; 4] = [2, 163, 69, 255];
 const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 255];
@@ -172,7 +174,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
     pub fn render_layout(&self, layout: &Layout, options: LayoutRenderOptions) -> Result<RgbaImage, CaveripperError> {
         info!("Drawing layout image...");
 
-        let mut renderer = StickerRenderer::new(Some([15, 15, 15, 255].into()));
+        let mut renderer = StickerRenderer::new();
+        renderer.set_global_background_color(LAYOUT_BACKGROUND_COLOR);
 
         /* Map Units */
         let (map_unit_layer, mut waterbox_layer) = render_map_units(layout.map_units.iter());
@@ -356,8 +359,8 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
     }
 
     pub fn render_caveinfo(&self, caveinfo: &CaveInfo, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
-        let mut renderer = StickerRenderer::new(Some(HEADER_BACKGROUND.into()));
-        let mut placement;
+        let mut renderer = StickerRenderer::new();
+        renderer.set_global_background_color(HEADER_BACKGROUND);
 
         let mut title_row = Layer::new();
         title_row.set_margin(CAVEINFO_MARGIN);
@@ -367,7 +370,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
             amount: Point([CAVEINFO_MARGIN * 2.0, 0.0]),
         };
 
-        let mut metadata_icons = title_row
+        title_row
             .place(
                 self.cropped_text(caveinfo.long_name(), 88.0, 0, OFF_BLACK),
                 Point([0.0, 0.0]),
@@ -379,9 +382,9 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 metadata_icon_offset,
             );
 
-        // Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates
+        // -- Metadata icons - ship, hole plugged/unplugged, geyser yes/no, num gates -- //
         if !caveinfo.is_final_floor {
-            metadata_icons = metadata_icons.place_relative(
+            title_row.place_relative(
                 Resize::new_sq(SpawnObject::Hole(caveinfo.exit_plugged), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
                 Origin::TopLeft,
                 metadata_icon_offset,
@@ -389,7 +392,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         }
 
         if caveinfo.is_final_floor || caveinfo.has_geyser {
-            metadata_icons = metadata_icons.place_relative(
+            title_row.place_relative(
                 Resize::new_sq(
                     SpawnObject::Geyser(caveinfo.is_challenge_mode() && caveinfo.is_final_floor),
                     CAVEINFO_ICON_SIZE,
@@ -431,14 +434,13 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                         amount: Point([0.0, 0.0]),
                     },
                 );
-            metadata_icons.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
+            title_row.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
         }
 
-        placement = renderer
-            .place(title_row, Point([0.0, 0.0]), Origin::TopLeft)
-            .anchor_next(Origin::BottomLeft);
+        renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
-        // TEKI ROW
+        // --- Spawn Object Info Boxes -- //
+        let mut spawn_object_layer = Layer::new();
         let teki_box_offset = Offset {
             from: Origin::TopRight,
             amount: Point([CAVEINFO_MARGIN, 0.0]),
@@ -472,7 +474,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 continue;
             }
 
-            placement = placement.place_relative(
+            spawn_object_layer.place_relative(
                 self.caveinfo_entity_box(
                     name,
                     icon,
@@ -488,7 +490,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
         // Cap teki
         if caveinfo.cap_info.len() > 0 {
-            placement = placement.place_relative(
+            spawn_object_layer.place_relative(
                 self.caveinfo_entity_box(
                     "Cap",
                     (),
@@ -508,7 +510,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
 
         // Treasures
         if caveinfo.item_info.len() > 0 {
-            placement = placement.place_relative(
+            spawn_object_layer.place_relative(
                 self.caveinfo_entity_box(
                     "Treasure",
                     Icon::Treasure,
@@ -519,359 +521,72 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 ),
                 Origin::TopLeft,
                 teki_box_offset,
-            )
+            );
         }
 
-        // let poko_icon = resize(
-        //     self.mgr
-        //         .get_img("resources/enemytex_special/Poko_icon.png")
-        //         .change_context(CaveripperError::RenderingError)?,
-        //     16,
-        //     19,
-        //     FilterType::Lanczos3,
-        // );
+        renderer.place_relative(
+            spawn_object_layer,
+            Origin::TopLeft,
+            Offset {
+                from: Origin::BottomLeft,
+                amount: Point([0.0, 0.0]),
+            },
+        );
 
-        // // Teki section
-        // let mut base_y = 64 + CAVEINFO_MARGIN * 2;
-        // let teki_header = self.render_text(
-        //     &format!("Teki (max {})", caveinfo.max_main_objects),
-        //     48.0,
-        //     [225, 0, 0, 255].into(),
-        //     None,
-        // );
-        // overlay(
-        //     &mut canvas_header,
-        //     &teki_header,
-        //     CAVEINFO_MARGIN * 2,
-        //     base_y,
-        // );
-        // let mut base_x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
-        // base_y += (64 - CAVEINFO_ICON_SIZE as i64) / 2;
+        // -- Cave Units -- //
+        let mut unit_layer = Layer::new();
+        unit_layer.set_margin(CAVEINFO_MARGIN);
+        unit_layer.set_background_color(MAPTILES_BACKGROUND);
 
-        // for group in [8, 1, 0, 6, 5] {
-        //     for tekiinfo in caveinfo.teki_group(group) {
-        //         let texture = resize(
-        //             tekiinfo
-        //                 .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //                 .change_context(CaveripperError::RenderingError)?
-        //                 .as_ref(),
-        //             CAVEINFO_ICON_SIZE,
-        //             CAVEINFO_ICON_SIZE,
-        //             FilterType::Lanczos3,
-        //         );
+        for unit in caveinfo.cave_units.iter().filter(|unit| unit.rotation == 0) {
+            let mut this_unit_layer = Layer::new();
+            this_unit_layer.place(
+                with_border(
+                    Resize::new(
+                        unit,
+                        unit.width as f32 * GRID_FACTOR * 0.75,
+                        unit.height as f32 * GRID_FACTOR * 0.75,
+                        FilterType::Nearest,
+                    ),
+                    1.0,
+                    CAVEINFO_UNIT_BORDER_COLOR,
+                ),
+                Point([0.0, 0.0]),
+                Origin::TopLeft,
+            );
+            this_unit_layer.place_relative(
+                Text {
+                    text: unit.unit_folder_name.clone(),
+                    font: &self.fonts[1],
+                    size: 14.0,
+                    color: [255, 255, 255, 255].into(),
+                    outline: 0,
+                },
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::BottomLeft,
+                    amount: Point([0.0, 0.0]),
+                },
+            );
 
-        //         // If we overflow the width of the image, wrap to the next line.
-        //         if base_x + CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN
-        //             > canvas_header.width() as i64
-        //         {
-        //             base_x = (CAVEINFO_MARGIN * 4) + teki_header.width() as i64;
-        //             base_y += 70;
+            unit_layer.place_relative(
+                this_unit_layer,
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::TopRight,
+                    amount: Point([CAVEINFO_MARGIN * 6.0, 0.0]),
+                },
+            );
+        }
 
-        //             // Expand the header to make room for the other rows
-        //             expand_canvas(
-        //                 &mut canvas_header,
-        //                 0,
-        //                 70 + CAVEINFO_MARGIN as u32,
-        //                 Some([220, 220, 220, 255].into()),
-        //             );
-        //         }
-
-        //         overlay(&mut canvas_header, &texture, base_x, base_y);
-
-        //         let mut extra_width = 0;
-        //         for modifier in tekiinfo.get_texture_modifiers().iter() {
-        //             match modifier {
-        //                 TextureModifier::Falling => {
-        //                     let falling_icon_texture = resize(
-        //                         self.mgr
-        //                             .get_img("resources/enemytex_special/falling_icon.png")
-        //                             .change_context(CaveripperError::RenderingError)?,
-        //                         24,
-        //                         24,
-        //                         FilterType::Nearest,
-        //                     );
-        //                     overlay(
-        //                         &mut canvas_header,
-        //                         &falling_icon_texture,
-        //                         base_x - 8,
-        //                         base_y - 2,
-        //                     );
-        //                 }
-        //                 TextureModifier::Carrying(carrying) => {
-        //                     let treasure = self
-        //                         .mgr
-        //                         .treasure_list(&caveinfo.cave_cfg.game)
-        //                         .change_context(CaveripperError::RenderingError)?
-        //                         .iter()
-        //                         .find(|t| t.internal_name.eq_ignore_ascii_case(carrying))
-        //                         .unwrap_or_else(|| panic!("Teki carrying unknown or invalid treasure \"{carrying}\""));
-
-        //                     let carried_treasure_icon = resize(
-        //                         self.mgr
-        //                             .get_img(&PathBuf::from_iter([
-        //                                 "assets",
-        //                                 &caveinfo.cave_cfg.game,
-        //                                 "treasures",
-        //                                 &format!("{carrying}.png"),
-        //                             ]))
-        //                             .change_context(CaveripperError::RenderingError)?,
-        //                         CAVEINFO_ICON_SIZE - 10,
-        //                         CAVEINFO_ICON_SIZE - 10,
-        //                         FilterType::Lanczos3,
-        //                     );
-        //                     overlay(
-        //                         &mut canvas_header,
-        //                         &carried_treasure_icon,
-        //                         base_x + 18,
-        //                         base_y + 14,
-        //                     );
-
-        //                     // Treasure value/carry text
-        //                     if options.draw_treasure_info {
-        //                         let value_text = self.render_text(
-        //                             &format!("{}", treasure.value),
-        //                             20.0,
-        //                             [20, 20, 20, 255].into(),
-        //                             None,
-        //                         );
-        //                         let carriers_text = self.render_text(
-        //                             &format!("{}/{}", treasure.min_carry, treasure.max_carry),
-        //                             20.0,
-        //                             [20, 20, 20, 255].into(),
-        //                             None,
-        //                         );
-
-        //                         let sidetext_x = base_x + texture.width() as i64 + 5;
-        //                         let text_width = max(
-        //                             poko_icon.width() as i64 + value_text.width() as i64,
-        //                             carriers_text.width() as i64,
-        //                         ) + CAVEINFO_MARGIN * 2;
-        //                         if sidetext_x + text_width > canvas_header.width() as i64 {
-        //                             let header_width = canvas_header.width() as i64;
-        //                             expand_canvas(
-        //                                 &mut canvas_header,
-        //                                 (sidetext_x + text_width - header_width) as u32,
-        //                                 0,
-        //                                 Some([220, 220, 220, 255].into()),
-        //                             );
-        //                         }
-
-        //                         overlay(&mut canvas_header, &poko_icon, sidetext_x, base_y + 4);
-        //                         overlay(
-        //                             &mut canvas_header,
-        //                             &value_text,
-        //                             sidetext_x + poko_icon.width() as i64 + 3,
-        //                             base_y - value_text.height() as i64 / 2
-        //                                 + poko_icon.height() as i64 / 2
-        //                                 + 4,
-        //                         );
-
-        //                         overlay(
-        //                             &mut canvas_header,
-        //                             &carriers_text,
-        //                             sidetext_x,
-        //                             base_y + poko_icon.height() as i64 + 2,
-        //                         );
-
-        //                         base_x += text_width;
-        //                         extra_width += text_width;
-        //                     }
-        //                 }
-        //                 _ => {}
-        //             }
-        //         }
-
-        //         let teki_subtext = if tekiinfo.filler_distribution_weight > 0
-        //             && tekiinfo.minimum_amount > 0
-        //         {
-        //             format!(
-        //                 "x{} w{}",
-        //                 tekiinfo.minimum_amount, tekiinfo.filler_distribution_weight
-        //             )
-        //         } else if tekiinfo.minimum_amount == 0 && tekiinfo.filler_distribution_weight > 0 {
-        //             format!("w{}", tekiinfo.filler_distribution_weight)
-        //         } else {
-        //             format!("x{}", tekiinfo.minimum_amount)
-        //         };
-
-        //         let subtext_color = group_color(tekiinfo.group).into();
-
-        //         let teki_subtext_texture =
-        //             self.render_text(&teki_subtext, 24.0, subtext_color, None);
-        //         overlay(
-        //             &mut canvas_header,
-        //             &teki_subtext_texture,
-        //             base_x + CAVEINFO_ICON_SIZE as i64 / 2
-        //                 - teki_subtext_texture.width() as i64 / 2
-        //                 - extra_width / 2,
-        //             base_y + CAVEINFO_ICON_SIZE as i64 - 8,
-        //         );
-
-        //         base_x += CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN;
-        //     }
-        // }
-
-        // base_y += teki_header.height() as i64 + CAVEINFO_MARGIN;
-
-        // // Treasures section
-        // let treasure_header = self.render_text("Treasures", 48.0, [207, 105, 33, 255].into(), None);
-        // overlay(
-        //     &mut canvas_header,
-        //     &treasure_header,
-        //     CAVEINFO_MARGIN * 2,
-        //     base_y,
-        // );
-
-        // let mut base_x = treasure_header.width() as i64 + CAVEINFO_MARGIN;
-        // for treasureinfo in caveinfo.item_info.iter() {
-        //     let treasure = self
-        //         .mgr
-        //         .treasure_list(&caveinfo.cave_cfg.game)
-        //         .change_context(CaveripperError::RenderingError)?
-        //         .iter()
-        //         .find(|t| {
-        //             t.internal_name
-        //                 .eq_ignore_ascii_case(&treasureinfo.internal_name)
-        //         })
-        //         .expect("Unknown or invalid treasure!");
-
-        //     let treasure_texture = resize(
-        //         treasureinfo
-        //             .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //             .change_context(CaveripperError::RenderingError)?
-        //             .as_ref(),
-        //         CAVEINFO_ICON_SIZE,
-        //         CAVEINFO_ICON_SIZE,
-        //         FilterType::Lanczos3,
-        //     );
-        //     let x = base_x + CAVEINFO_MARGIN * 4;
-        //     let y = base_y + CAVEINFO_MARGIN + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
-        //     overlay(&mut canvas_header, &treasure_texture, x, y);
-
-        //     let mut extra_width = 0;
-        //     if options.draw_treasure_info {
-        //         let value_text = self.render_text(
-        //             &format!("{}", treasure.value),
-        //             20.0,
-        //             [20, 20, 20, 255].into(),
-        //             None,
-        //         );
-        //         let sidetext_x = x + treasure_texture.width() as i64 + 2;
-        //         overlay(&mut canvas_header, &poko_icon, sidetext_x, y + 4);
-        //         overlay(
-        //             &mut canvas_header,
-        //             &value_text,
-        //             sidetext_x + poko_icon.width() as i64 + 3,
-        //             y - value_text.height() as i64 / 2 + poko_icon.height() as i64 / 2 + 4,
-        //         );
-
-        //         let carriers_text = self.render_text(
-        //             &format!("{}/{}", treasure.min_carry, treasure.max_carry),
-        //             20.0,
-        //             [20, 20, 20, 255].into(),
-        //             None,
-        //         );
-        //         overlay(
-        //             &mut canvas_header,
-        //             &carriers_text,
-        //             sidetext_x,
-        //             y + poko_icon.height() as i64 + 2,
-        //         );
-
-        //         extra_width += max(
-        //             poko_icon.width() as i64 + value_text.width() as i64,
-        //             carriers_text.width() as i64,
-        //         ) + 4;
-        //     }
-
-        //     if caveinfo.is_challenge_mode() {
-        //         let subtext_color = group_color(2).into();
-        //         let treasure_subtext = format!("x{}", treasureinfo.min_amount);
-        //         let treasure_subtext_texture =
-        //             self.render_text(&treasure_subtext, 24.0, subtext_color, None);
-        //         overlay(
-        //             &mut canvas_header,
-        //             &treasure_subtext_texture,
-        //             x + (CAVEINFO_ICON_SIZE as i64 / 2)
-        //                 - (treasure_subtext_texture.width() as i64 / 2)
-        //                 + (extra_width / 2),
-        //             y + CAVEINFO_ICON_SIZE as i64 - 12,
-        //         );
-        //     }
-
-        //     base_x += treasure_texture.width() as i64 + extra_width;
-        // }
-
-        // base_y += treasure_header.height() as i64;
-
-        // // Make room for treasure number text
-        // if caveinfo.is_challenge_mode() {
-        //     base_y += CAVEINFO_MARGIN;
-        // }
-
-        // // Capteki section
-        // let capteki_color = group_color(9).into();
-        // let capteki_header = self.render_text("Cap Teki", 48.0, capteki_color, None);
-        // overlay(
-        //     &mut canvas_header,
-        //     &capteki_header,
-        //     CAVEINFO_MARGIN * 2,
-        //     base_y,
-        // );
-        // for (i, capinfo) in caveinfo.cap_info.iter().enumerate() {
-        //     let texture = resize(
-        //         capinfo
-        //             .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-        //             .change_context(CaveripperError::RenderingError)?
-        //             .as_ref(),
-        //         CAVEINFO_ICON_SIZE,
-        //         CAVEINFO_ICON_SIZE,
-        //         FilterType::Lanczos3,
-        //     );
-        //     let x = (CAVEINFO_MARGIN * 5)
-        //         + capteki_header.width() as i64
-        //         + i as i64 * (CAVEINFO_ICON_SIZE as i64 + CAVEINFO_MARGIN * 2);
-        //     let y = base_y + (64 - CAVEINFO_ICON_SIZE as i64) / 2;
-        //     overlay(&mut canvas_header, &texture, x, y);
-
-        //     for modifier in capinfo.get_texture_modifiers().iter() {
-        //         if let TextureModifier::Falling = modifier {
-        //             let falling_icon_texture = resize(
-        //                 self.mgr
-        //                     .get_img("resources/enemytex_special/falling_icon.png")
-        //                     .change_context(CaveripperError::RenderingError)?,
-        //                 24,
-        //                 24,
-        //                 FilterType::Nearest,
-        //             );
-        //             overlay(&mut canvas_header, &falling_icon_texture, x - 8, y - 2);
-        //         }
-        //     }
-
-        //     let capteki_subtext =
-        //         if capinfo.filler_distribution_weight > 0 && capinfo.minimum_amount > 0 {
-        //             format!(
-        //                 "x{} w{}",
-        //                 capinfo.minimum_amount, capinfo.filler_distribution_weight
-        //             )
-        //         } else if capinfo.minimum_amount == 0 && capinfo.filler_distribution_weight > 0 {
-        //             format!("w{}", capinfo.filler_distribution_weight)
-        //         } else {
-        //             format!("x{}", capinfo.minimum_amount)
-        //         };
-
-        //     let capteki_subtext_texture =
-        //         self.render_text(&capteki_subtext, 24.0, capteki_color, None);
-        //     overlay(
-        //         &mut canvas_header,
-        //         &capteki_subtext_texture,
-        //         x + CAVEINFO_ICON_SIZE as i64 / 2 - capteki_subtext_texture.width() as i64 / 2,
-        //         y + CAVEINFO_ICON_SIZE as i64 - 10,
-        //     );
-        // }
-
-        // // Done with header section
-        // // Start Map Tile section
+        renderer.place_relative(
+            unit_layer,
+            Origin::TopLeft,
+            Offset {
+                from: Origin::BottomLeft,
+                amount: Point([0.0, CAVEINFO_MARGIN * 2.0]),
+            },
+        );
 
         // let mut canvas_maptiles =
         //     RgbaImage::from_pixel(canvas_header.width(), 200, MAPTILES_BACKGROUND.into());
@@ -1390,6 +1105,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
     }
 }
 
+/// Places map unit images for a layout
 fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUnit<'l>>) -> (Layer<'a>, Layer<'a>) {
     let mut radar_image_layer = Layer::new();
     let mut waterbox_layer = Layer::new();
@@ -1503,11 +1219,12 @@ impl Render for SpawnObject<'_> {
                 canvas.overlay(img.as_ref(), Point([0.0, 0.0]));
             }
             SpawnObject::Hole(plugged) | SpawnObject::Geyser(plugged) => {
-                let filename = match self {
-                    SpawnObject::Hole(_) => "resources/enemytex_special/Cave_icon.png",
-                    SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
-                    _ => unreachable!(),
-                };
+                let filename =
+                    match self {
+                        SpawnObject::Hole(_) => "resources/enemytex_special/Cave_icon.png",
+                        SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
+                        _ => unreachable!(),
+                    };
                 let img = helper.get_img(filename).unwrap();
                 canvas.overlay(img, Point([0.0, 0.0]));
                 if *plugged {
