@@ -2,10 +2,12 @@ use std::cmp::max;
 
 use image::{
     imageops::{overlay, resize, FilterType},
-    Rgba, RgbaImage,
+    Rgba, RgbaImage, Pixel,
 };
 
 use crate::point::Point;
+
+use super::pixel_ext::PixelExt;
 
 #[derive(Clone)]
 pub struct Canvas {
@@ -26,7 +28,7 @@ impl Canvas {
 
     /// Create a [CanvasView] into this Canvas that treats `offset` as (0,0).
     pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView {
-        CanvasView { canvas: self, offset }
+        CanvasView { canvas: self, offset, opacity: 1.0 }
     }
 
     pub fn width(&self) -> u32 {
@@ -64,7 +66,9 @@ impl Canvas {
         let x = pos[0].round() as u32;
         let y = pos[1].round() as u32;
         if x < self.buffer.width() && y < self.buffer.height() {
-            self.buffer.put_pixel(x, y, color);
+            let mut pixel = *self.buffer.get_pixel_mut(x, y);
+            pixel.blend(&color);
+            self.buffer.put_pixel(x, y, pixel);
         }
     }
 
@@ -94,18 +98,26 @@ impl From<RgbaImage> for Canvas {
 pub struct CanvasView<'c> {
     canvas: &'c mut Canvas,
     offset: Point<2, f32>,
+    opacity: f32,  // [0,1] inclusive
 }
 
 impl<'c> CanvasView<'c> {
     pub fn draw_pixel(&mut self, pos: Point<2, f32>, color: Rgba<u8>) {
-        self.canvas.draw_pixel(pos + self.offset, color);
+        self.canvas.draw_pixel(pos + self.offset, color.mul_alpha(self.opacity));
     }
 
     pub fn fill(&mut self, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
-        self.canvas.fill(start + self.offset, end + self.offset, color);
+        self.canvas.fill(start + self.offset, end + self.offset, color.mul_alpha(self.opacity));
     }
 
     pub fn overlay(&mut self, top: &RgbaImage, pos: Point<2, f32>) {
+        if self.opacity < 1.0 {
+            let mut top2 = top.clone();
+            top2.pixels_mut().for_each(|pixel| {
+                *pixel = pixel.mul_alpha(self.opacity);
+            });
+            self.canvas.overlay(&top2, pos + self.offset);
+        }
         self.canvas.overlay(top, pos + self.offset);
     }
 
@@ -119,6 +131,13 @@ impl<'d, 'c: 'd> CanvasView<'c> {
         CanvasView {
             canvas: &mut *self.canvas,
             offset: self.offset + offset,
+            opacity: self.opacity,
         }
+    }
+
+    pub fn with_opacity(&'d mut self, opacity: f32) -> CanvasView<'d> {
+        let mut new_view = self.sub_view(Point([0.0, 0.0]));
+        new_view.opacity = opacity.clamp(0.0, 1.0);
+        new_view
     }
 }

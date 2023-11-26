@@ -4,6 +4,7 @@ mod renderer;
 mod shapes;
 mod text;
 mod util;
+mod pixel_ext;
 
 #[cfg(test)]
 mod test;

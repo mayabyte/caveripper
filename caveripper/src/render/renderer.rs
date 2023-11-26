@@ -44,8 +44,8 @@ impl<'r> StickerRenderer<'r> {
 
 /// A grouping of renderables to be drawn together.
 ///
-/// Layers have transparent backgrounds by default and can be given optional padding
-/// and opacity similar to layers in Photoshop.
+/// Layers have transparent backgrounds by default similar to layers in Photoshop. They can
+/// optionally be given margins, borders, and opacity.
 ///
 /// [Layer] also implements [Render], so you can compose Layers inside of Layers to
 /// create nested groupings of related renderables.
@@ -114,26 +114,31 @@ impl<'r> Layer<'r> {
 
 impl<'r> Render for Layer<'r> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        // TODO: opacity
+        let mut canvas2 = if self.opacity != 1.0 {
+            canvas.with_opacity(self.opacity)
+        }
+        else {
+            canvas
+        };
 
         // Border
         if self.border > 0.0 {
             let b = self.bounds() + Point([self.margin + self.border, self.margin + self.border]);
             // Top
-            canvas.fill(b.topleft, Point([b.bottomright[0], b.topleft[1] + self.border]), self.border_color);
+            canvas2.fill(b.topleft, Point([b.bottomright[0], b.topleft[1] + self.border]), self.border_color);
 
             // Left
-            canvas.fill(b.topleft, Point([b.topleft[0] + self.border, b.bottomright[1]]), self.border_color);
+            canvas2.fill(b.topleft, Point([b.topleft[0] + self.border, b.bottomright[1]]), self.border_color);
 
             // Bottom
-            canvas.fill(
+            canvas2.fill(
                 Point([b.topleft[0] + self.border, b.bottomright[1] - self.border]),
                 b.bottomright,
                 self.border_color,
             );
 
             // Right
-            canvas.fill(
+            canvas2.fill(
                 Point([b.bottomright[0] - self.border, b.topleft[1]]),
                 b.bottomright,
                 self.border_color,
@@ -142,12 +147,12 @@ impl<'r> Render for Layer<'r> {
 
         // Normal Renderables
         for (renderable, bounds) in self.renderables.iter() {
-            let sub_view = canvas.sub_view(bounds.topleft + self.margin + self.border);
+            let sub_view = canvas2.sub_view(bounds.topleft + self.margin + self.border);
             renderable.render(sub_view, helper);
         }
 
         // DirectRenderables
-        let raw_canvas = canvas.into_raw();
+        let raw_canvas = canvas2.into_raw();
         for renderable in self.direct_renderables.iter() {
             renderable.render(raw_canvas);
         }
