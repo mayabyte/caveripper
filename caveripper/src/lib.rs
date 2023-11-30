@@ -26,12 +26,10 @@ pub mod query;
 #[path = "assets/assets.rs"]
 pub mod assets;
 
-#[path = "render/render.rs"]
-pub mod render;
-
 pub mod errors;
 pub mod pikmin_math;
 mod point;
+pub mod render;
 pub mod sublevel;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
