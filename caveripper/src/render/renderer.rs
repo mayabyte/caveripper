@@ -82,6 +82,13 @@ impl<'r> Layer<'r> {
         }
     }
 
+    /// Creates a layer with just the provided renderable placed at the origin.
+    pub fn of(renderable: impl Render + 'r) -> Self {
+        let mut layer = Self::new();
+        layer.place(renderable, Point([0.0, 0.0]), Origin::TopLeft);
+        layer
+    }
+
     pub fn set_background_color(&mut self, color: impl Into<Rgba<u8>>) {
         self.background_color = color.into();
     }
@@ -108,6 +115,7 @@ impl<'r> Layer<'r> {
         self
     }
 
+    /// Places the renderable relative to the position and bounds of the previously placed renderable.
     pub fn place_relative(&mut self, renderable: impl Render + 'r, origin: Origin, offset: Offset) -> &mut Self {
         let place_at = self.prev_bounds.topleft + offset.from.offset_from_top_left(self.prev_bounds.dims()) + offset.amount;
         self.place(renderable, place_at, origin)

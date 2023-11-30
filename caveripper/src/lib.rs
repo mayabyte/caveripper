@@ -43,7 +43,6 @@ pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
     if trimmed.len() != 8 {
         Err(report!(CaveripperError::SeedError))
     } else {
-        u32::from_str_radix(trimmed, 16)
-            .change_context(CaveripperError::SeedError)
+        u32::from_str_radix(trimmed, 16).change_context(CaveripperError::SeedError)
     }
 }

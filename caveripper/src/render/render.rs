@@ -30,11 +30,11 @@ use self::{
     coords::Offset,
     renderer::Render,
     shapes::Rectangle,
-    util::{with_border, Colorize, Crop, Resize},
+    util::{with_border, Colorize, Crop, Resize, Rows},
 };
 use crate::{
     assets::{get_special_texture_name, AssetManager},
-    caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, TekiInfo},
+    caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
     layout::{Layout, PlacedMapUnit, SpawnObject},
     point::Point,
@@ -70,6 +70,7 @@ const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 255];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
+const CAVEINFO_WIDTH: f32 = 1200.0;
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
@@ -77,6 +78,7 @@ const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
 const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
+const CAVEINFO_UNIT_MARGIN: f32 = CAVEINFO_MARGIN * 6.0;
 const CAVEINFO_ICON_SIZE: f32 = 64.0;
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
@@ -440,11 +442,7 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
         // --- Spawn Object Info Boxes -- //
-        let mut spawn_object_layer = Layer::new();
-        let teki_box_offset = Offset {
-            from: Origin::TopRight,
-            amount: Point([CAVEINFO_MARGIN, 0.0]),
-        };
+        let mut spawn_object_info_boxes = Rows::new(CAVEINFO_WIDTH, CAVEINFO_MARGIN, CAVEINFO_MARGIN);
 
         let groups: [(&str, u32, Box<dyn Render>); 5] = [
             ("Special", 8, Box::new(Icon::Star)),
@@ -474,23 +472,19 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                 continue;
             }
 
-            spawn_object_layer.place_relative(
-                self.caveinfo_entity_box(
-                    name,
-                    icon,
-                    group_color(group_num),
-                    teki.map(|info| SpawnObject::Teki(info, Point([0.0, 0.0, 0.0]))),
-                    group_score(group_num),
-                    &caveinfo.cave_cfg.game,
-                ),
-                Origin::TopLeft,
-                teki_box_offset,
-            );
+            spawn_object_info_boxes.add(self.caveinfo_entity_box(
+                name,
+                icon,
+                group_color(group_num),
+                teki.map(|info| SpawnObject::Teki(info, Point([0.0, 0.0, 0.0]))),
+                group_score(group_num),
+                &caveinfo.cave_cfg.game,
+            ));
         }
 
         // Cap teki
         if caveinfo.cap_info.len() > 0 {
-            spawn_object_layer.place_relative(
+            spawn_object_info_boxes.add(
                 self.caveinfo_entity_box(
                     "Cap",
                     (),
@@ -503,26 +497,23 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
                     0,
                     &caveinfo.cave_cfg.game,
                 ),
-                Origin::TopLeft,
-                teki_box_offset,
             );
         }
 
         // Treasures
         if caveinfo.item_info.len() > 0 {
-            spawn_object_layer.place_relative(
-                self.caveinfo_entity_box(
-                    "Treasure",
-                    Icon::Treasure,
-                    group_color(2),
-                    caveinfo.item_info.iter().map(|info| SpawnObject::Item(info)),
-                    0,
-                    &caveinfo.cave_cfg.game,
-                ),
-                Origin::TopLeft,
-                teki_box_offset,
-            );
+            spawn_object_info_boxes.add(self.caveinfo_entity_box(
+                "Treasure",
+                Icon::Treasure,
+                group_color(2),
+                caveinfo.item_info.iter().map(|info| SpawnObject::Item(info)),
+                0,
+                &caveinfo.cave_cfg.game,
+            ));
         }
+
+        let mut spawn_object_layer = Layer::of(spawn_object_info_boxes);
+        spawn_object_layer.set_margin(CAVEINFO_MARGIN);
 
         renderer.place_relative(
             spawn_object_layer,
@@ -534,57 +525,41 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         );
 
         // -- Cave Units -- //
-        let mut unit_layer = Layer::new();
-        unit_layer.set_margin(CAVEINFO_MARGIN);
-        unit_layer.set_background_color(MAPTILES_BACKGROUND);
-
-        for unit in caveinfo.cave_units.iter().filter(|unit| unit.rotation == 0) {
-            let mut this_unit_layer = Layer::new();
-            this_unit_layer.place(
-                with_border(
-                    Resize::new(
-                        unit,
-                        unit.width as f32 * GRID_FACTOR * 0.75,
-                        unit.height as f32 * GRID_FACTOR * 0.75,
-                        FilterType::Nearest,
-                    ),
-                    1.0,
-                    CAVEINFO_UNIT_BORDER_COLOR,
-                ),
-                Point([0.0, 0.0]),
-                Origin::TopLeft,
-            );
-            this_unit_layer.place_relative(
-                Text {
-                    text: unit.unit_folder_name.clone(),
-                    font: &self.fonts[1],
-                    size: 14.0,
-                    color: [255, 255, 255, 255].into(),
-                    outline: 0,
-                },
-                Origin::TopLeft,
-                Offset {
-                    from: Origin::BottomLeft,
-                    amount: Point([0.0, 0.0]),
-                },
-            );
-
-            unit_layer.place_relative(
-                this_unit_layer,
-                Origin::TopLeft,
-                Offset {
-                    from: Origin::TopRight,
-                    amount: Point([CAVEINFO_MARGIN * 6.0, 0.0]),
-                },
-            );
+        // Caps and 1x1 halls
+        let mut cap_and_hall_box = Rows::new(
+            GRID_FACTOR * 0.75 * 3.2 + (CAVEINFO_UNIT_MARGIN * 2.0),
+            CAVEINFO_UNIT_MARGIN,
+            CAVEINFO_UNIT_MARGIN,
+        );
+        let caps_and_1x1_halls = caveinfo
+            .cave_units
+            .iter()
+            .filter(|unit| unit.rotation == 0 && unit.room_type != RoomType::Room && unit.height == 1);
+        for unit in caps_and_1x1_halls {
+            cap_and_hall_box.add(self.render_unit_caveinfo(unit));
         }
+
+        // Rooms and larger hall units
+        let mut unit_box = Rows::new(CAVEINFO_WIDTH, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
+        unit_box.add(cap_and_hall_box);
+
+        let larger_units = caveinfo.cave_units.iter().filter(
+            |unit| unit.rotation == 0 && (unit.room_type == RoomType::Room || unit.room_type == RoomType::Hallway && unit.height > 1)
+        );
+        for unit in larger_units {
+            unit_box.add(self.render_unit_caveinfo(unit));
+        }
+
+        let mut unit_layer = Layer::of(unit_box);
+        unit_layer.set_background_color(MAPTILES_BACKGROUND);
+        unit_layer.set_margin(CAVEINFO_UNIT_MARGIN);
 
         renderer.place_relative(
             unit_layer,
             Origin::TopLeft,
             Offset {
                 from: Origin::BottomLeft,
-                amount: Point([0.0, CAVEINFO_MARGIN * 2.0]),
+                amount: Point([0.0, 0.0]),
             },
         );
 
@@ -1102,6 +1077,40 @@ impl<'k, 'a: 'k, 'l: 'a> Renderer<'a> {
         });
 
         layer
+    }
+
+    fn render_unit_caveinfo<'s, 'r: 's>(&'s self, unit: &'r CaveUnit) -> impl Render + 's {
+        let mut this_unit_layer = Layer::new();
+        this_unit_layer.place(
+            with_border(
+                Resize::new(
+                    unit,
+                    unit.width as f32 * GRID_FACTOR * 0.75,
+                    unit.height as f32 * GRID_FACTOR * 0.75,
+                    FilterType::Nearest,
+                ),
+                1.0,
+                CAVEINFO_UNIT_BORDER_COLOR,
+            ),
+            Point([0.0, 0.0]),
+            Origin::TopLeft,
+        );
+        this_unit_layer.place_relative(
+            Text {
+                text: unit.unit_folder_name.clone(),
+                font: &self.fonts[1],
+                size: 14.0,
+                color: [255, 255, 255, 255].into(),
+                outline: 0,
+            },
+            Origin::TopLeft,
+            Offset {
+                from: Origin::BottomLeft,
+                amount: Point([0.0, 0.0]),
+            },
+        );
+
+        this_unit_layer
     }
 }
 

@@ -8,7 +8,7 @@ use num::clamp;
 
 use super::{
     canvas::{Canvas, CanvasView},
-    coords::Origin,
+    coords::{Offset, Origin},
     renderer::{Layer, Render},
 };
 use crate::{assets::AssetManager, point::Point};
@@ -123,4 +123,104 @@ pub fn with_border<'a>(renderable: impl Render + 'a, thickness: f32, color: impl
     layer.set_border(thickness, color);
     layer.place(renderable, Point([0.0, 0.0]), Origin::TopLeft);
     layer
+}
+
+pub struct Rows<'a> {
+    max_width: f32,
+    h_margin: f32,
+    v_margin: f32,
+    renderables: Vec<Box<dyn Render + 'a>>,
+}
+
+impl<'a> Rows<'a> {
+    pub fn new(max_width: f32, h_margin: f32, v_margin: f32) -> Rows<'a> {
+        Rows {
+            max_width,
+            h_margin,
+            v_margin,
+            renderables: vec![],
+        }
+    }
+
+    pub fn add(&mut self, renderable: impl Render + 'a) {
+        self.renderables.push(Box::new(renderable));
+    }
+
+    fn split_rows(&self) -> Vec<Vec<&(dyn Render + 'a)>> {
+        // Inefficient, but I couldn't figure out the right lifetimes for returning a nested iterator
+        // using Itertools::batching or similar
+        let mut rows = vec![vec![]];
+        let mut row_width = 0.0;
+        for renderable in self.renderables.iter().map(AsRef::as_ref) {
+            row_width += renderable.dimensions()[0];
+            if row_width > self.max_width {
+                rows.push(vec![]);
+                row_width = renderable.dimensions()[0];
+            }
+            rows.last_mut().unwrap().push(renderable);
+            row_width += self.h_margin;
+        }
+        rows
+    }
+}
+
+impl<'a> Render for Rows<'a> {
+    fn render(&self, canvas: CanvasView, helper: &AssetManager) {
+        let mut parent_layer = Layer::new();
+        let mut first_row = true;
+        for row in self.split_rows().into_iter() {
+            let mut layer = Layer::new();
+            let mut first_in_row = true;
+            for renderable in row.into_iter() {
+                let margin = if first_in_row {
+                    first_in_row = false;
+                    0.0
+                } else {
+                    self.h_margin
+                };
+                layer.place_relative(
+                    renderable,
+                    Origin::TopLeft,
+                    Offset {
+                        from: Origin::TopRight,
+                        amount: Point([margin, 0.0]),
+                    },
+                );
+            }
+
+            let margin = if first_row {
+                first_row = false;
+                0.0
+            } else {
+                self.v_margin
+            };
+            parent_layer.place_relative(
+                layer,
+                Origin::TopLeft,
+                Offset {
+                    from: Origin::BottomLeft,
+                    amount: Point([0.0, margin]),
+                },
+            );
+        }
+        parent_layer.render(canvas, helper);
+    }
+
+    fn dimensions(&self) -> Point<2, f32> {
+        // Inefficient because it has to iterate over rows twice, but I didn't want to hand-write
+        // the loops for this because it'd be more error prone.
+        let rows = self.split_rows();
+        let width: f32 = rows
+            .iter()
+            .map(|row| row.iter().map(|r| r.dimensions()[0]).sum::<f32>() + ((row.len() - 1) as f32 * self.h_margin))
+            .max_by(f32::total_cmp)
+            .unwrap_or_default();
+        let height: f32 = rows
+            .iter()
+            .map(|row| row.iter().map(|r| r.dimensions()[1]).max_by(f32::total_cmp).unwrap_or_default())
+            .sum::<f32>()
+            + ((rows.len() - 1) as f32 * self.v_margin);
+
+        Point([width, height])
+    }
 }
