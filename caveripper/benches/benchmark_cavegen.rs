@@ -1,10 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rand::{Rng, SeedableRng, rngs::SmallRng};
 use caveripper::{
+    assets::AssetManager,
+    caveinfo::CaveInfo,
     layout::Layout,
-    render::{Renderer, LayoutRenderOptions},
-    assets::AssetManager, caveinfo::CaveInfo,
+    render::{LayoutRenderOptions, RenderHelper},
 };
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn preload_caveinfo(mgr: &AssetManager) -> Vec<CaveInfo> {
     let mut caveinfo = Vec::new();
@@ -13,7 +14,7 @@ fn preload_caveinfo(mgr: &AssetManager) -> Vec<CaveInfo> {
             mgr.caveinfos_from_cave(&format!("{}:{}", cfg.game, cfg.shortened_names.first().unwrap()))
                 .unwrap()
                 .into_iter()
-                .cloned()
+                .cloned(),
         );
     }
     caveinfo
@@ -37,7 +38,7 @@ pub fn benchmark_layout_rendering(c: &mut Criterion) {
     let mgr = AssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
     let all_sublevels = preload_caveinfo(&mgr);
-    let renderer = Renderer::new(&mgr);
+    let renderer = RenderHelper::new(&mgr);
 
     c.bench_function("layout generation + rendering", |b| {
         b.iter(|| {
@@ -48,7 +49,6 @@ pub fn benchmark_layout_rendering(c: &mut Criterion) {
         })
     });
 }
-
 
 criterion_group!(
     name = benches;
