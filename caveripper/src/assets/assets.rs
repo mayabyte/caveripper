@@ -93,7 +93,7 @@ impl AssetManager {
         self.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect()
     }
 
-    pub fn treaure_info(&self, game: &str, name: &str) -> Result<&Treasure, CaveripperError> {
+    pub fn treasure_info(&self, game: &str, name: &str) -> Result<&Treasure, CaveripperError> {
         if let Some(game_map) = self.treasures.get(game) {
             game_map.get(name)
         } else {
@@ -109,15 +109,16 @@ impl AssetManager {
                 )
                 .0
                 .into_owned();
-            let ek_treasures = SHIFT_JIS
-                .decode(
-                    read(&ek_treasure_path)
-                        .change_context(CaveripperError::AssetLoadingError)
-                        .attach(ek_treasure_path)?
-                        .as_slice(),
-                )
-                .0
-                .into_owned();
+            let ek_treasures =
+                SHIFT_JIS
+                    .decode(
+                        read(&ek_treasure_path)
+                            .change_context(CaveripperError::AssetLoadingError)
+                            .attach(ek_treasure_path)?
+                            .as_slice(),
+                    )
+                    .0
+                    .into_owned();
 
             let mut treasures = parse_treasure_config(&treasures);
             treasures.append(&mut parse_treasure_config(&ek_treasures));
@@ -136,6 +137,7 @@ impl AssetManager {
     // Combines the Teki List from all known games.
     pub fn combined_treasure_list(&self) -> Result<Vec<Treasure>, CaveripperError> {
         self.all_games().into_iter().try_fold(Vec::new(), |mut acc, game| {
+            let _ = self.treasure_info(game, ""); // Make sure the game's treasure info is loaded
             acc.extend(
                 self.treasures
                     .get(game)
@@ -239,9 +241,9 @@ impl AssetManager {
                 game.map(|game_name| cfg.game.eq_ignore_ascii_case(game_name)).unwrap_or(true)
                     && (!force_challenge_mode || cfg.is_challenge_mode)
             })
-            .find(|cfg| {
-                cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n)) || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
-            })
+            .find(
+                |cfg| cfg.shortened_names.iter().any(|n| name.eq_ignore_ascii_case(n)) || cfg.full_name.eq_ignore_ascii_case(name.as_ref())
+            )
             .ok_or(CaveripperError::UnrecognizedSublevel)
             .attach_printable_lazy(|| name.to_string())
     }
@@ -253,10 +255,11 @@ impl AssetManager {
         let data = read(self.asset_dir.join(path))
             .change_context(CaveripperError::AssetLoadingError)
             .attach_printable_lazy(|| p_str.clone())?;
-        let text = if path.starts_with("assets") && let (text, _, false) = SHIFT_JIS.decode(&data) {
+        let text = if path.starts_with("assets")
+            && let (text, _, false) = SHIFT_JIS.decode(&data)
+        {
             text.into_owned()
-        }
-        else {
+        } else {
             String::from_utf8(data)
                 .change_context(CaveripperError::AssetLoadingError)
                 .attach_printable_lazy(|| format!("Couldn't decode file {p_str}"))?
@@ -265,12 +268,15 @@ impl AssetManager {
     }
 
     pub fn get_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, CaveripperError> {
-        if let Some(value) = self.caveinfo_cache.get(sublevel) && !sublevel.cfg.game.eq_ignore_ascii_case(DIRECT_MODE_TAG) {
+        if let Some(value) = self.caveinfo_cache.get(sublevel)
+            && !sublevel.cfg.game.eq_ignore_ascii_case(DIRECT_MODE_TAG)
+        {
             Ok(value)
-        }
-        else {
+        } else {
             self.load_caveinfo(&sublevel.cfg)?;
-            self.caveinfo_cache.get(sublevel).ok_or(CaveripperError::UnrecognizedSublevel)
+            self.caveinfo_cache
+                .get(sublevel)
+                .ok_or(CaveripperError::UnrecognizedSublevel)
                 .attach_printable_lazy(|| sublevel.clone())
         }
     }

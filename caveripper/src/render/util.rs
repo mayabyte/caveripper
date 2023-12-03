@@ -230,6 +230,7 @@ impl<'a> Render for Rows<'a> {
         let rows = self.split_rows();
         let width: f32 = rows
             .iter()
+            .filter(|row| !row.is_empty())
             .map(|row| row.iter().map(|r| r.dimensions()[0]).sum::<f32>() + ((row.len() - 1) as f32 * self.h_margin))
             .max_by(f32::total_cmp)
             .unwrap_or_default();

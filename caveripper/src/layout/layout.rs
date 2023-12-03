@@ -321,8 +321,13 @@ pub enum SpawnObject<'a> {
 impl<'a> SpawnObject<'a> {
     pub fn name(&self) -> &str {
         match self {
-            SpawnObject::Teki(info, _) => &info.internal_name,
-            SpawnObject::CapTeki(info, _) => &info.internal_name,
+            SpawnObject::Teki(TekiInfo { internal_name, .. }, _) | SpawnObject::CapTeki(CapInfo { internal_name, .. }, _) => {
+                match internal_name.to_ascii_lowercase().as_str() {
+                    "fkabuto" => "kabuto",
+                    "fminihoudai" => "minihoudai",
+                    _ => &internal_name,
+                }
+            }
             SpawnObject::Item(info) => &info.internal_name,
             SpawnObject::Gate(_, _) => "gate",
             SpawnObject::Hole(_) => "hole",
