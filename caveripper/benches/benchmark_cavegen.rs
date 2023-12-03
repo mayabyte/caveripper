@@ -2,7 +2,7 @@ use caveripper::{
     assets::AssetManager,
     caveinfo::CaveInfo,
     layout::Layout,
-    render::{LayoutRenderOptions, RenderHelper},
+    render::{render_layout, LayoutRenderOptions, RenderHelper},
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
@@ -38,14 +38,14 @@ pub fn benchmark_layout_rendering(c: &mut Criterion) {
     let mgr = AssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
     let all_sublevels = preload_caveinfo(&mgr);
-    let renderer = RenderHelper::new(&mgr);
+    let helper = RenderHelper::new(&mgr);
 
     c.bench_function("layout generation + rendering", |b| {
         b.iter(|| {
             let seed = rng.gen();
             let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())];
             let layout = Layout::generate(seed, caveinfo);
-            black_box(renderer.render_layout(&layout, LayoutRenderOptions::default()))
+            black_box(render_layout(&layout, &helper, LayoutRenderOptions::default()))
         })
     });
 }
