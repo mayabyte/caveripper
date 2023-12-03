@@ -1,29 +1,45 @@
 use image::Rgba;
 
-use super::{
-    canvas::{Canvas, CanvasView},
-    renderer::{DirectRender, Render},
-};
-use crate::{assets::AssetManager, point::Point, render::util::outline};
+use super::{canvas::CanvasView, coords::Bounds, renderer::Render};
+use crate::{assets::AssetManager, point::Point};
 
 pub struct Circle {
     pub radius: f32,
+    pub border_thickness: f32,
     pub color: Rgba<u8>,
+    pub border_color: Rgba<u8>,
 }
 
 impl Render for Circle {
     fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
-        for x in 0..self.radius as u32 * 2 {
-            for z in 0..self.radius as u32 * 2 {
-                if ((self.radius - x as f32).powi(2) + (self.radius - z as f32).powi(2)).sqrt() < self.radius {
-                    canvas.draw_pixel(Point([x as f32, z as f32]), self.color);
+        for x in 0..=(self.radius + 1.0) as u32 * 2 {
+            for z in 0..=(self.radius + 1.0) as u32 * 2 {
+                let dist = ((self.radius - x as f32).powi(2) + (self.radius - z as f32).powi(2)).sqrt();
+                if dist <= self.radius {
+                    let color = if dist >= self.radius - self.border_thickness {
+                        self.border_color
+                    } else {
+                        self.color
+                    };
+                    canvas.draw_pixel(Point([x as f32, z as f32]), color);
                 }
             }
         }
     }
 
     fn dimensions(&self) -> Point<2, f32> {
-        Point([self.radius * 2.0, self.radius * 2.0])
+        Point([(self.radius * 2.0) + 1.0, (self.radius * 2.0) + 1.0])
+    }
+}
+
+impl Default for Circle {
+    fn default() -> Self {
+        Self {
+            radius: 0.0,
+            border_thickness: 0.0,
+            color: [0, 0, 0, 0].into(),
+            border_color: [0, 0, 0, 0].into(),
+        }
     }
 }
 
@@ -43,13 +59,14 @@ impl Render for Rectangle {
     }
 }
 
+/// A line with optional arrows ar either end.
+/// Currently malfunctions when coordinates are negative and I'm not sure why
 pub struct Line {
     pub start: Point<2, f32>,
     pub end: Point<2, f32>,
     pub shorten_start: f32, // Units, not percentage
     pub shorten_end: f32,   // Units, not percentage
     pub forward_arrow: bool,
-    pub outline: u32, // very broken rn do not use
     pub color: Rgba<u8>,
 }
 
@@ -61,20 +78,19 @@ impl Default for Line {
             shorten_start: 0.0,
             shorten_end: 0.0,
             forward_arrow: false,
-            outline: 0,
             color: [255, 255, 255, 255].into(),
         }
     }
 }
 
-impl DirectRender for Line {
-    fn render(&self, mut canvas: &mut Canvas) {
+impl Render for Line {
+    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
         let mut start = self.start;
         let mut end = self.end;
-        canvas.reserve(
-            f32::max(start[0] + 1.0, end[0] + 1.0) as u32,
-            f32::max(start[1] + 1.0, end[1] + 1.0) as u32,
-        );
+        // canvas.reserve(
+        //     f32::max(start[0] + 1.0, end[0] + 1.0) as u32,
+        //     f32::max(start[1] + 1.0, end[1] + 1.0) as u32,
+        // );
 
         let vector = (end - start).normalized(); // Unit vector in the direction of the line
         if vector.0.iter().any(|v| v.is_nan()) {
@@ -95,16 +111,18 @@ impl DirectRender for Line {
             render_basic_line(&mut canvas, arrow_start_left, end, self.color);
             render_basic_line(&mut canvas, arrow_start_right, end, self.color);
         }
+    }
 
-        if self.outline > 0 {
-            let mut outline_canvas = Canvas::from(outline(&canvas.clone().into_inner(), self.outline));
-            outline_canvas.overlay(&canvas.clone().into_inner(), Point([self.outline as f32, self.outline as f32]));
-            *canvas = outline_canvas;
+    fn dimensions(&self) -> Point<2, f32> {
+        Bounds {
+            topleft: self.start,
+            bottomright: self.end,
         }
+        .dims()
     }
 }
 
-fn render_basic_line(canvas: &mut Canvas, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
+fn render_basic_line(canvas: &mut CanvasView, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
     let (mut x1, mut y1, mut x2, mut y2) = (start[0], start[1], end[0], end[1]);
     let steep = (y2 - y1).abs() > (x2 - x1).abs();
 

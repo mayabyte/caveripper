@@ -86,7 +86,7 @@ impl Render for Text<'_> {
     fn dimensions(&self) -> Point<2, f32> {
         let layout = self.layout();
         Point([
-            width_from_layout(&layout) + (self.outline as f32 * 2.0),
+            width_from_layout(&layout) + (self.outline as f32 * 2.0) + 1.0,
             layout.height() + (self.outline as f32 * 2.0),
         ])
     }

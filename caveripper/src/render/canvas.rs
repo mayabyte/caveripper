@@ -2,12 +2,11 @@ use std::cmp::max;
 
 use image::{
     imageops::{overlay, resize, FilterType},
-    Rgba, RgbaImage, Pixel,
+    Pixel, Rgba, RgbaImage,
 };
 
-use crate::point::Point;
-
 use super::pixel_ext::PixelExt;
+use crate::point::Point;
 
 #[derive(Clone)]
 pub struct Canvas {
@@ -28,7 +27,11 @@ impl Canvas {
 
     /// Create a [CanvasView] into this Canvas that treats `offset` as (0,0).
     pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView {
-        CanvasView { canvas: self, offset, opacity: 1.0 }
+        CanvasView {
+            canvas: self,
+            offset,
+            opacity: 1.0,
+        }
     }
 
     pub fn width(&self) -> u32 {
@@ -98,7 +101,7 @@ impl From<RgbaImage> for Canvas {
 pub struct CanvasView<'c> {
     canvas: &'c mut Canvas,
     offset: Point<2, f32>,
-    opacity: f32,  // [0,1] inclusive
+    opacity: f32, // [0,1] inclusive
 }
 
 impl<'c> CanvasView<'c> {
@@ -107,7 +110,8 @@ impl<'c> CanvasView<'c> {
     }
 
     pub fn fill(&mut self, start: Point<2, f32>, end: Point<2, f32>, color: Rgba<u8>) {
-        self.canvas.fill(start + self.offset, end + self.offset, color.mul_alpha(self.opacity));
+        self.canvas
+            .fill(start + self.offset, end + self.offset, color.mul_alpha(self.opacity));
     }
 
     pub fn overlay(&mut self, top: &RgbaImage, pos: Point<2, f32>) {
@@ -119,10 +123,6 @@ impl<'c> CanvasView<'c> {
             self.canvas.overlay(&top2, pos + self.offset);
         }
         self.canvas.overlay(top, pos + self.offset);
-    }
-
-    pub fn into_raw(self) -> &'c mut Canvas {
-        self.canvas
     }
 }
 

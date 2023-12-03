@@ -73,6 +73,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                 Circle {
                     radius: wp.r * COORD_FACTOR / 1.7,
                     color: WAYPOINT_COLOR.into(),
+                    ..Default::default()
                 },
                 wp.pos.two_d() * COORD_FACTOR,
                 Origin::Center,
@@ -86,15 +87,19 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                 if backlink.pos.dist(&wp.pos) < 0.01 {
                     continue;
                 }
-                waypoint_arrow_layer.add_direct_renderable(Line {
-                    start: (wp.pos * COORD_FACTOR).two_d(),
-                    end: (backlink.pos * COORD_FACTOR).two_d(),
-                    shorten_start: 6.0,
-                    shorten_end: 6.0,
-                    forward_arrow: true,
-                    color: CARRY_PATH_COLOR.into(),
-                    ..Default::default()
-                });
+                waypoint_arrow_layer.place(
+                    Line {
+                        start: (wp.pos * COORD_FACTOR).two_d(),
+                        end: (backlink.pos * COORD_FACTOR).two_d(),
+                        shorten_start: 6.0,
+                        shorten_end: 6.0,
+                        forward_arrow: true,
+                        color: CARRY_PATH_COLOR.into(),
+                        ..Default::default()
+                    },
+                    Point([0.0, 0.0]),
+                    Origin::TopLeft,
+                );
             }
         }
         renderer.add_layer(waypoint_arrow_layer);
@@ -130,6 +135,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                     Circle {
                         radius: QUICKGLANCE_CIRCLE_RADIUS,
                         color: color.into(),
+                        ..Default::default()
                     },
                     pos.two_d() * COORD_FACTOR,
                     Origin::Center,
@@ -151,21 +157,29 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
         });
 
         for x in 0..map_dims.0 {
-            grid_layer.add_direct_renderable(Line {
-                start: Point([x as f32 * GRID_FACTOR, 0.0]),
-                end: Point([x as f32 * GRID_FACTOR, map_dims.1 as f32 * GRID_FACTOR]),
-                color: GRID_COLOR.into(),
-                ..Default::default()
-            });
+            grid_layer.place(
+                Line {
+                    start: Point([x as f32 * GRID_FACTOR, 0.0]),
+                    end: Point([x as f32 * GRID_FACTOR, map_dims.1 as f32 * GRID_FACTOR]),
+                    color: GRID_COLOR.into(),
+                    ..Default::default()
+                },
+                Point::zero(),
+                Origin::TopLeft,
+            );
         }
 
         for y in 0..map_dims.1 {
-            grid_layer.add_direct_renderable(Line {
-                start: Point([0.0, y as f32 * GRID_FACTOR]),
-                end: Point([map_dims.0 as f32 * GRID_FACTOR, y as f32 * GRID_FACTOR]),
-                color: GRID_COLOR.into(),
-                ..Default::default()
-            })
+            grid_layer.place(
+                Line {
+                    start: Point([0.0, y as f32 * GRID_FACTOR]),
+                    end: Point([map_dims.0 as f32 * GRID_FACTOR, y as f32 * GRID_FACTOR]),
+                    color: GRID_COLOR.into(),
+                    ..Default::default()
+                },
+                Point::zero(),
+                Origin::TopLeft,
+            );
         }
 
         renderer.add_layer(grid_layer);
@@ -205,14 +219,18 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                 for link in door.door_unit.door_links.iter() {
                     let this_door_pos = door.center();
                     let other_door_pos = RefCell::borrow(&unit.doors[link.door_id]).center();
-                    distance_score_line_layer.add_direct_renderable(Line {
-                        start: this_door_pos.two_d() * COORD_FACTOR,
-                        end: other_door_pos.two_d() * COORD_FACTOR,
-                        shorten_start: 8.0,
-                        shorten_end: 8.0,
-                        color: DISTANCE_SCORE_LINE_COLOR.into(),
-                        ..Default::default()
-                    });
+                    distance_score_line_layer.place(
+                        Line {
+                            start: this_door_pos.two_d() * COORD_FACTOR,
+                            end: other_door_pos.two_d() * COORD_FACTOR,
+                            shorten_start: 8.0,
+                            shorten_end: 8.0,
+                            color: DISTANCE_SCORE_LINE_COLOR.into(),
+                            ..Default::default()
+                        },
+                        Point::zero(),
+                        Origin::TopLeft,
+                    );
 
                     let midpoint = ((this_door_pos + other_door_pos) / 2.0) * COORD_FACTOR;
                     let distance_score = (link.distance / 10.0).round() as u32;

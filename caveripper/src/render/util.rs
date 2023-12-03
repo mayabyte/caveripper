@@ -8,7 +8,7 @@ use num::clamp;
 
 use super::{
     canvas::{Canvas, CanvasView},
-    coords::{Offset, Origin},
+    coords::{Bounds, Offset, Origin},
     renderer::{Layer, Render},
 };
 use crate::{assets::AssetManager, point::Point};
@@ -72,7 +72,7 @@ impl<R: Render> Render for Resize<R> {
 }
 
 #[derive(Default)]
-pub struct Crop<R: Render> {
+pub struct CropRelative<R: Render> {
     pub inner: R,
     pub top: f32,
     pub left: f32,
@@ -80,7 +80,7 @@ pub struct Crop<R: Render> {
     pub bottom: f32,
 }
 
-impl<R: Render> Render for Crop<R> {
+impl<R: Render> Render for CropRelative<R> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         let mut sub_canvas = Canvas::new(self.dimensions());
         self.inner.render(sub_canvas.view(Point([-self.left, -self.top])), helper);
@@ -90,6 +90,24 @@ impl<R: Render> Render for Crop<R> {
     fn dimensions(&self) -> Point<2, f32> {
         let inner_dims = self.inner.dimensions();
         Point([inner_dims[0] - self.right - self.left, inner_dims[1] - self.bottom - self.top])
+    }
+}
+
+#[derive(Default)]
+pub struct CropAbsolute<R: Render> {
+    pub inner: R,
+    pub bounds: Bounds,
+}
+
+impl<R: Render> Render for CropAbsolute<R> {
+    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+        let mut sub_canvas = Canvas::new(self.dimensions());
+        self.inner.render(sub_canvas.view(-self.bounds.topleft), helper);
+        canvas.overlay(&sub_canvas.into_inner(), Point([0.0, 0.0]));
+    }
+
+    fn dimensions(&self) -> Point<2, f32> {
+        self.bounds.dims()
     }
 }
 

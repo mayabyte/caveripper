@@ -28,7 +28,7 @@ pub use render_layout::*;
 use self::{
     canvas::CanvasView,
     renderer::Render,
-    util::{Crop, Resize},
+    util::{CropRelative, Resize},
 };
 use crate::{
     assets::{get_special_texture_name, AssetManager},
@@ -63,7 +63,7 @@ const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 255];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
-const CAVEINFO_WIDTH: f32 = 1200.0;
+const CAVEINFO_WIDTH: f32 = 1150.0;
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
@@ -71,9 +71,8 @@ const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
 const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
-const CAVEINFO_UNIT_MARGIN: f32 = CAVEINFO_MARGIN * 6.0;
+const CAVEINFO_UNIT_MARGIN: f32 = CAVEINFO_MARGIN * 3.0;
 const CAVEINFO_ICON_SIZE: f32 = 64.0;
-const BLACK: [u8; 4] = [0, 0, 0, 255];
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 const CAVEINFO_BOXES_FONT_SIZE: f32 = 42.0;
 
@@ -98,7 +97,7 @@ impl<'a> RenderHelper<'a> {
     }
 
     fn cropped_text(&self, text: impl Into<String>, size: f32, outline: u32, color: impl Into<Rgba<u8>>) -> impl Render + '_ {
-        Crop {
+        CropRelative {
             inner: Text {
                 text: text.into(),
                 font: if size < 20.0 { &self.fonts[1] } else { &self.fonts[0] },
@@ -120,30 +119,6 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
     img.save_with_format(&filename, image::ImageFormat::Png)
         .change_context(CaveripperError::RenderingError)?;
     Ok(())
-}
-
-// fn draw_ring(canvas: &mut RgbaImage, pos: Point<2, f32>, r: f32, color: Rgba<u8>) {
-//     for i in 0..=(r as i32) {
-//         let offset = i as f32;
-//         let height = (r.powi(2) - offset.powi(2)).sqrt();
-//         try_blend(canvas, (pos[0] - offset) as i64, (pos[1] + height) as i64, color);
-//         try_blend(canvas, (pos[0] - offset) as i64, (pos[1] - height) as i64, color);
-//         try_blend(canvas, (pos[0] + offset) as i64, (pos[1] + height) as i64, color);
-//         try_blend(canvas, (pos[0] + offset) as i64, (pos[1] - height) as i64, color);
-//         try_blend(canvas, (pos[0] - height) as i64, (pos[1] + offset) as i64, color);
-//         try_blend(canvas, (pos[0] - height) as i64, (pos[1] - offset) as i64, color);
-//         try_blend(canvas, (pos[0] + height) as i64, (pos[1] + offset) as i64, color);
-//         try_blend(canvas, (pos[0] + height) as i64, (pos[1] - offset) as i64, color);
-//     }
-// }
-
-fn joke_time() -> bool {
-    use chrono::{Datelike, Duration};
-    let now = chrono::Utc::now();
-    [-12, 0, 1].into_iter().any(|offset| {
-        let time = now + Duration::hours(offset);
-        time.month() == 4 && time.day() == 1
-    })
 }
 
 impl Render for CaveUnit {
@@ -244,6 +219,8 @@ enum Icon {
     Plant,
     Treasure,
     Poko,
+    Ship,
+    Exit,
 }
 
 impl Render for Icon {
@@ -254,6 +231,8 @@ impl Render for Icon {
             Icon::Plant => "resources/enemytex_special/leaf_icon.png",
             Icon::Treasure => "resources/enemytex_special/duck.png",
             Icon::Poko => "resources/enemytex_special/Poko_icon.png",
+            Icon::Ship => "resources/enemytex_special/ship.png",
+            Icon::Exit => "resources/enemytex_special/cave_white.png",
         };
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
@@ -265,6 +244,8 @@ impl Render for Icon {
             Icon::Plant => [32.0, 32.0],
             Icon::Treasure => [32.0, 32.0],
             Icon::Poko => [10.0, 12.0],
+            Icon::Ship => [24.0, 24.0],
+            Icon::Exit => [32.0, 32.0],
         })
     }
 }

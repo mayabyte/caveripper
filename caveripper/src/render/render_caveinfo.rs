@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use clap::Args;
 use image::{imageops::FilterType, Rgba, RgbaImage};
+use itertools::Itertools;
 
 use super::{
     coords::{Offset, Origin},
@@ -9,15 +10,16 @@ use super::{
     renderer::{Layer, Render, StickerRenderer},
     shapes::Circle,
     text::Text,
-    util::{with_border, Colorize, Crop, Resize, Rows},
+    util::{with_border, Colorize, CropRelative, Resize, Rows},
     Icon, RenderHelper, CAVEINFO_BOXES_FONT_SIZE, CAVEINFO_ICON_SIZE, CAVEINFO_MARGIN, CAVEINFO_UNIT_BORDER_COLOR, CAVEINFO_UNIT_MARGIN,
-    CAVEINFO_WIDTH, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK,
+    CAVEINFO_WIDTH, COORD_FACTOR, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK,
 };
 use crate::{
     caveinfo::{CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
     layout::SpawnObject,
     point::Point,
+    render::{coords::Bounds, shapes::Line, util::CropAbsolute, CARRY_PATH_COLOR, RENDER_SCALE, WAYPOINT_COLOR, WAYPOINT_DIST_TXT_COLOR},
 };
 
 #[derive(Default, Debug, Args)]
@@ -32,8 +34,11 @@ pub struct CaveinfoRenderOptions {
     pub draw_waypoints: bool,
 
     /// Render waypoint distances. Useful for calculating Distance Score.
-    #[clap(long, default_value_t=true, action=clap::ArgAction::Set)]
+    #[clap(long, default_value_t=false, action=clap::ArgAction::Set)]
     pub draw_waypoint_distances: bool,
+
+    #[clap(long, default_value_t=false, action=clap::ArgAction::Set)]
+    pub hide_small_units: bool,
 }
 
 pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
@@ -86,7 +91,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
         let mut gate_metadata_icon = Layer::new();
         gate_metadata_icon
             .place(
-                Crop {
+                CropRelative {
                     inner: Resize::new_sq(SpawnObject::Gate(gateinfo, 0), CAVEINFO_ICON_SIZE, FilterType::Lanczos3),
                     top: CAVEINFO_ICON_SIZE / 3.6,
                     left: 0.0,
@@ -128,16 +133,10 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             Box::new(Circle {
                 radius: 32.0,
                 color: group_color(1).into(),
+                ..Default::default()
             }),
         ),
-        (
-            "Easy",
-            0,
-            Box::new(Circle {
-                radius: 32.0,
-                color: group_color(0).into(),
-            }),
-        ),
+        ("Easy", 0, Box::new(easy_teki_rings(32.0))),
         ("Plant", 6, Box::new(Icon::Plant)),
         ("Seam", 5, Box::new(())), // TODO: Seam teki icon??
     ];
@@ -192,6 +191,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     let mut spawn_object_layer = Layer::of(spawn_object_info_boxes);
     spawn_object_layer.set_margin(CAVEINFO_MARGIN);
 
+    let spawn_obj_layer_width = spawn_object_layer.dimensions()[0];
     renderer.place_relative(
         spawn_object_layer,
         Origin::TopLeft,
@@ -202,35 +202,92 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     );
 
     // -- Cave Units -- //
+    let mut unit_box = Rows::new(CAVEINFO_WIDTH, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
+
     // Caps and 1x1 halls
-    let mut cap_and_hall_box = Rows::new(
-        GRID_FACTOR * 0.75 * 3.2 + (CAVEINFO_UNIT_MARGIN * 2.0),
-        CAVEINFO_UNIT_MARGIN,
-        CAVEINFO_UNIT_MARGIN,
-    );
-    let caps_and_1x1_halls = caveinfo
-        .cave_units
-        .iter()
-        .filter(|unit| unit.rotation == 0 && unit.room_type != RoomType::Room && unit.height == 1);
-    for unit in caps_and_1x1_halls {
-        cap_and_hall_box.add(render_unit_caveinfo(unit, helper));
+    if !options.hide_small_units {
+        let mut cap_and_hall_box = Rows::new(
+            GRID_FACTOR * 0.75 * 3.2 + (CAVEINFO_UNIT_MARGIN * 2.0),
+            CAVEINFO_UNIT_MARGIN,
+            CAVEINFO_UNIT_MARGIN,
+        );
+        let caps_and_1x1_halls = caveinfo
+            .cave_units
+            .iter()
+            .filter(|unit| unit.rotation == 0 && unit.room_type != RoomType::Room && unit.height == 1);
+        for unit in caps_and_1x1_halls {
+            cap_and_hall_box.add(render_unit_caveinfo(unit, helper, &options));
+        }
+
+        unit_box.add(cap_and_hall_box);
     }
 
     // Rooms and larger hall units
-    let mut unit_box = Rows::new(CAVEINFO_WIDTH, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
-    unit_box.add(cap_and_hall_box);
-
     let larger_units = caveinfo
         .cave_units
         .iter()
         .filter(|unit| unit.rotation == 0 && (unit.room_type == RoomType::Room || unit.room_type == RoomType::Hallway && unit.height > 1));
     for unit in larger_units {
-        unit_box.add(render_unit_caveinfo(unit, helper));
+        if unit.room_type != RoomType::Room && options.hide_small_units {
+            continue;
+        }
+        unit_box.add(render_unit_caveinfo(unit, helper, &options));
     }
 
-    let mut unit_layer = Layer::of(unit_box);
-    unit_layer.set_background_color(MAPTILES_BACKGROUND);
+    let mut unit_layer = Layer::new();
     unit_layer.set_margin(CAVEINFO_UNIT_MARGIN);
+
+    // Unit metadata text
+    let mut text = format!(
+        "Num Rooms: {}      CorridorBetweenRoomsProb: {}%      CapOpenDoorsProb: {}%",
+        caveinfo.num_rooms,
+        caveinfo.corridor_probability * 100.0,
+        caveinfo.cap_probability * 100.0
+    );
+    // If we're not showing alcoves, we need to indicate whether there are caps and/or non-item caps
+    // because it's important for score reading.
+    if options.hide_small_units {
+        let has_item_caps = caveinfo
+            .cave_units
+            .iter()
+            .find(|unit| unit.unit_folder_name.starts_with("item"))
+            .is_some();
+        let has_non_item_caps = caveinfo
+            .cave_units
+            .iter()
+            .find(|unit| unit.unit_folder_name.starts_with("cap"))
+            .is_some();
+        text += &format!(
+            "\nItem Alcoves: {}      Non-Item Caps: {}",
+            has_item_caps.to_string(),
+            has_non_item_caps.to_string()
+        );
+    }
+    let unit_metadata_text = helper.cropped_text(text, 24.0, 0, HEADER_BACKGROUND);
+    unit_layer.place(unit_metadata_text, Point([0.0, 0.0]), Origin::TopLeft);
+
+    unit_layer.place_relative(
+        unit_box,
+        Origin::TopLeft,
+        Offset {
+            from: Origin::BottomLeft,
+            amount: Point([0.0, CAVEINFO_UNIT_MARGIN]),
+        },
+    );
+
+    // Make sure the background extends all the way to the right of the image
+    let unit_layer_width = unit_layer.dimensions()[0];
+    if unit_layer_width < spawn_obj_layer_width {
+        // Negative crop = expanding the bounds
+        unit_layer = Layer::of(CropRelative {
+            inner: unit_layer,
+            right: unit_layer_width - spawn_obj_layer_width,
+            left: 0.0,
+            top: 0.0,
+            bottom: 0.0,
+        });
+    }
+    unit_layer.set_background_color(MAPTILES_BACKGROUND);
 
     renderer.place_relative(
         unit_layer,
@@ -240,305 +297,6 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             amount: Point([0.0, 0.0]),
         },
     );
-
-    // let mut canvas_maptiles =
-    //     RgbaImage::from_pixel(canvas_header.width(), 200, MAPTILES_BACKGROUND.into());
-
-    // let maptiles_metadata_txt = self.render_text(
-    //     &format!(
-    //         "Num Rooms: {}     CorridorBetweenRoomsProb: {}%     CapOpenDoorsProb: {}%",
-    //         caveinfo.num_rooms,
-    //         caveinfo.corridor_probability * 100.0,
-    //         caveinfo.cap_probability * 100.0
-    //     ),
-    //     24.0,
-    //     [220, 220, 220, 255].into(),
-    //     Some(canvas_maptiles.width()),
-    // );
-    // overlay(
-    //     &mut canvas_maptiles,
-    //     &maptiles_metadata_txt,
-    //     canvas_header.width() as i64 / 2 - maptiles_metadata_txt.width() as i64 / 2,
-    //     0,
-    // );
-
-    // let maptile_margin = (RENDER_SCALE * 4.0) as i64;
-    // let mut base_x = maptile_margin;
-    // let mut base_y = maptiles_metadata_txt.height() as i64 + maptile_margin;
-    // let mut max_y = base_y;
-
-    // let rooms = caveinfo
-    //     .cave_units
-    //     .iter()
-    //     .filter(|unit| unit.rotation == 0)
-    //     .filter(|unit| unit.room_type == RoomType::Room);
-
-    // let caps: Vec<_> = caveinfo
-    //     .cave_units
-    //     .iter()
-    //     .filter(|unit| unit.rotation == 0)
-    //     .filter(|unit| unit.room_type == RoomType::DeadEnd)
-    //     .collect();
-
-    // for (i, unit) in caps.iter().enumerate() {
-    //     let unit_texture = unit
-    //         .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-    //         .change_context(CaveripperError::RenderingError)?;
-    //     let y = base_y + i as i64 * ((RENDER_SCALE * 8.0) as i64 + maptile_margin);
-
-    //     if y + unit_texture.height() as i64 > canvas_maptiles.height() as i64 {
-    //         let h = canvas_maptiles.height();
-    //         expand_canvas(
-    //             &mut canvas_maptiles,
-    //             0,
-    //             y as u32 + unit_texture.height() + (maptile_margin as u32) * 2 - h,
-    //             Some([20, 20, 20, 255].into()),
-    //         );
-    //     }
-
-    //     overlay(&mut canvas_maptiles, unit_texture.as_ref(), base_x, y);
-    //     draw_border(
-    //         &mut canvas_maptiles,
-    //         base_x as u32,
-    //         y as u32,
-    //         base_x as u32 + (RENDER_SCALE * 8.0) as u32,
-    //         y as u32 + (RENDER_SCALE * 8.0) as u32,
-    //     );
-
-    //     for spawnpoint in unit.spawnpoints.iter() {
-    //         let sp_x =
-    //             (spawnpoint.pos[0] * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
-    //         let sp_z =
-    //             (spawnpoint.pos[2] * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
-
-    //         let sp_img = match spawnpoint.group {
-    //             6 => colorize(
-    //                 resize(
-    //                     self.mgr
-    //                         .get_img("resources/enemytex_special/leaf_icon.png")
-    //                         .change_context(CaveripperError::RenderingError)?,
-    //                     10,
-    //                     10,
-    //                     FilterType::Lanczos3,
-    //                 ),
-    //                 group_color(6).into(),
-    //             ),
-    //             9 => circle(5, group_color(9).into()),
-    //             _ => circle(5, [255, 0, 0, 255].into()),
-    //         };
-
-    //         overlay(
-    //             &mut canvas_maptiles,
-    //             &sp_img,
-    //             base_x + sp_x - (sp_img.width() / 2) as i64,
-    //             y + sp_z - (sp_img.height() / 2) as i64,
-    //         );
-    //     }
-    // }
-
-    // if !caps.is_empty() {
-    //     base_x += (RENDER_SCALE * 8.0) as i64 + maptile_margin;
-    // }
-
-    // for unit in rooms {
-    //     let mut unit_texture = unit
-    //         .get_texture(&caveinfo.cave_cfg.game, self.mgr)
-    //         .change_context(CaveripperError::RenderingError)?
-    //         .clone();
-
-    //     // If the unit is just too big, we have to expand the whole image
-    //     if unit_texture.width() + 2 > canvas_maptiles.width() {
-    //         let expand_by = (unit_texture.width() + (maptile_margin as u32 * 2) + 2)
-    //             - canvas_maptiles.width();
-    //         expand_canvas(
-    //             &mut canvas_maptiles,
-    //             expand_by,
-    //             0,
-    //             Some(MAPTILES_BACKGROUND.into()),
-    //         );
-    //         expand_canvas(
-    //             &mut canvas_header,
-    //             expand_by,
-    //             0,
-    //             Some(HEADER_BACKGROUND.into()),
-    //         );
-    //     }
-    //     // Normal case: we just overran in this row
-    //     if base_x + unit_texture.width() as i64 + 2 > canvas_maptiles.width() as i64 {
-    //         base_x = maptile_margin;
-    //         base_y = max_y + maptile_margin;
-    //     }
-    //     // This next tile teeeechnically fits, so we just fudge it a little by expanding the width
-    //     else if base_x + unit_texture.width() as i64 + maptile_margin + 2
-    //         > canvas_maptiles.width() as i64
-    //     {
-    //         let expand_by = (base_x + maptile_margin) as u32 + unit_texture.width()
-    //             - canvas_maptiles.width();
-    //         expand_canvas(
-    //             &mut canvas_maptiles,
-    //             expand_by,
-    //             0,
-    //             Some(MAPTILES_BACKGROUND.into()),
-    //         );
-    //         expand_canvas(
-    //             &mut canvas_header,
-    //             expand_by,
-    //             0,
-    //             Some(HEADER_BACKGROUND.into()),
-    //         );
-    //     }
-
-    //     let unit_name_text = self.render_text(
-    //         &unit.unit_folder_name,
-    //         14.0,
-    //         [220, 220, 220, 255].into(),
-    //         Some(unit_texture.width()),
-    //     );
-
-    //     if base_y + (unit_texture.height() + unit_name_text.height()) as i64
-    //         > canvas_maptiles.height() as i64
-    //     {
-    //         let h = canvas_maptiles.height();
-    //         expand_canvas(
-    //             &mut canvas_maptiles,
-    //             0,
-    //             base_y as u32
-    //                 + unit_texture.height()
-    //                 + unit_name_text.height()
-    //                 + (maptile_margin as u32)
-    //                 - h,
-    //             Some([20, 20, 20, 255].into()),
-    //         );
-    //     }
-
-    //     if options.draw_waypoints {
-    //         for waypoint in unit.waypoints.iter() {
-    //             let wp_pos = waypoint.pos * COORD_FACTOR;
-    //             let wp_img_radius = (waypoint.r * COORD_FACTOR).log2() * 3.0;
-
-    //             let wp_img = circle(wp_img_radius as u32, WAYPOINT_COLOR.into());
-    //             overlay(
-    //                 unit_texture.to_mut(),
-    //                 &wp_img,
-    //                 wp_pos[0] as i64 - (wp_img.width() / 2) as i64,
-    //                 wp_pos[2] as i64 - (wp_img.height() / 2) as i64,
-    //             );
-
-    //             for link in waypoint.links.iter() {
-    //                 let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
-    //                 let dest_wp_pos = dest_wp.pos * COORD_FACTOR;
-    //                 draw_arrow_line(
-    //                     unit_texture.to_mut(),
-    //                     wp_pos.into(),
-    //                     dest_wp_pos.into(),
-    //                     CARRY_PATH_COLOR.into(),
-    //                 );
-
-    //                 if options.draw_waypoint_distances {
-    //                     let distance_text = self.render_small_text(
-    //                         &format!("{}", waypoint.pos.p2_dist(&dest_wp.pos) as u32 / 10),
-    //                         10.0,
-    //                         WAYPOINT_DIST_TXT_COLOR.into(),
-    //                     );
-    //                     overlay(
-    //                         unit_texture.to_mut(),
-    //                         &distance_text,
-    //                         (wp_pos[0] - (wp_pos[0] - dest_wp_pos[0]) / 2.0) as i64
-    //                             - (distance_text.width() / 2) as i64,
-    //                         (wp_pos[2] - (wp_pos[2] - dest_wp_pos[2]) / 2.0) as i64
-    //                             - (distance_text.height() / 2) as i64,
-    //                     )
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     for spawnpoint in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
-    //         let sp_x =
-    //             (spawnpoint.pos[0] * COORD_FACTOR) as i64 + (unit_texture.width() / 2) as i64;
-    //         let sp_z =
-    //             (spawnpoint.pos[2] * COORD_FACTOR) as i64 + (unit_texture.height() / 2) as i64;
-
-    //         let sp_img = match spawnpoint.group {
-    //             0 => circle(
-    //                 (spawnpoint.radius * COORD_FACTOR) as u32,
-    //                 group_color(0).into(),
-    //             ),
-    //             1 => circle(5, group_color(1).into()),
-    //             2 => colorize(
-    //                 resize(
-    //                     self.mgr
-    //                         .get_img("resources/enemytex_special/duck.png")
-    //                         .change_context(CaveripperError::RenderingError)?,
-    //                     14,
-    //                     14,
-    //                     FilterType::Lanczos3,
-    //                 ),
-    //                 group_color(2).into(),
-    //             ), // treasure
-    //             4 => resize(
-    //                 self.mgr
-    //                     .get_img("resources/enemytex_special/cave_white.png")
-    //                     .change_context(CaveripperError::RenderingError)?,
-    //                 18,
-    //                 18,
-    //                 FilterType::Lanczos3,
-    //             ),
-    //             6 => colorize(
-    //                 resize(
-    //                     self.mgr
-    //                         .get_img("resources/enemytex_special/leaf_icon.png")
-    //                         .change_context(CaveripperError::RenderingError)?,
-    //                     10,
-    //                     10,
-    //                     FilterType::Lanczos3,
-    //                 ),
-    //                 group_color(6).into(),
-    //             ),
-    //             7 => resize(
-    //                 self.mgr
-    //                     .get_img("resources/enemytex_special/ship.png")
-    //                     .change_context(CaveripperError::RenderingError)?,
-    //                 16,
-    //                 16,
-    //                 FilterType::Lanczos3,
-    //             ),
-    //             8 => colorize(
-    //                 resize(
-    //                     self.mgr
-    //                         .get_img("resources/enemytex_special/star.png")
-    //                         .change_context(CaveripperError::RenderingError)?,
-    //                     16,
-    //                     16,
-    //                     FilterType::Lanczos3,
-    //                 ),
-    //                 group_color(8).into(),
-    //             ),
-    //             _ => circle(5, [255, 0, 0, 255].into()),
-    //         };
-
-    //         overlay(
-    //             unit_texture.to_mut(),
-    //             &sp_img,
-    //             sp_x - (sp_img.width() / 2) as i64,
-    //             sp_z - (sp_img.height() / 2) as i64,
-    //         );
-    //     }
-
-    //     overlay(&mut canvas_maptiles, unit_texture.as_ref(), base_x, base_y);
-    //     draw_border(
-    //         &mut canvas_maptiles,
-    //         base_x as u32 - 1,
-    //         base_y as u32 - 1,
-    //         base_x as u32 + unit_texture.width(),
-    //         base_y as u32 + unit_texture.height(),
-    //     );
-    //     overlay(
-    //         &mut canvas_maptiles,
-    //         &unit_name_text,
-    //         base_x,
-    //         base_y + unit_texture.height() as i64,
-    //     );
 
     //     // Draw door indices
     //     for (i, door) in unit.doors.iter().enumerate() {
@@ -568,17 +326,6 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     //         );
     //     }
 
-    //     max_y = max(max_y, base_y + unit_texture.height() as i64);
-    //     base_x += unit_texture.width() as i64 + maptile_margin;
-    // }
-
-    // // Combine sections
-    // let header_height = canvas_header.height() as i64;
-    // expand_canvas(&mut canvas_header, 0, canvas_maptiles.height(), None);
-    // overlay(&mut canvas_header, &canvas_maptiles, 0, header_height);
-
-    // Ok(canvas_header)
-    //renderer.add_layer(caveinfo_layer);
     Ok(renderer.render(helper.mgr))
 }
 
@@ -739,7 +486,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
                 num_str += &format!("w{weight}");
             }
             full_so_layer_p.place_relative(
-                helper.cropped_text(num_str, 20.0, 0, color),
+                helper.cropped_text(num_str, 24.0, 0, color),
                 Origin::TopCenter,
                 Offset {
                     from: Origin::BottomCenter,
@@ -761,23 +508,130 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     layer
 }
 
-fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper) -> impl Render + 'h {
-    let mut this_unit_layer = Layer::new();
-    this_unit_layer.place(
-        with_border(
-            Resize::new(
-                unit,
-                unit.width as f32 * GRID_FACTOR * 0.75,
-                unit.height as f32 * GRID_FACTOR * 0.75,
-                FilterType::Nearest,
-            ),
-            1.0,
-            CAVEINFO_UNIT_BORDER_COLOR,
+fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper, options: &CaveinfoRenderOptions) -> impl Render + 'h {
+    const CAVEINFO_GRID_FACTOR: f32 = GRID_FACTOR * 0.75;
+    const CAVEINFO_COORD_FACTOR: f32 = COORD_FACTOR * 0.75;
+
+    let mut unit_layer = Layer::new();
+    unit_layer.place(
+        Resize::new(
+            unit,
+            unit.width as f32 * CAVEINFO_GRID_FACTOR,
+            unit.height as f32 * CAVEINFO_GRID_FACTOR,
+            FilterType::Nearest,
         ),
         Point([0.0, 0.0]),
         Origin::TopLeft,
     );
-    this_unit_layer.place_relative(
+
+    // Waypoints
+    let mut waypoint_layer = Layer::new();
+    let mut waypoint_arrow_layer = Layer::new();
+    let mut waypoint_distance_layer = Layer::new();
+    waypoint_layer.set_opacity(0.6);
+    waypoint_arrow_layer.set_opacity(0.6);
+
+    let offset = Point([unit.width as f32 * CAVEINFO_GRID_FACTOR, unit.height as f32 * CAVEINFO_GRID_FACTOR]) / 2.0;
+    for wp in unit.waypoints.iter() {
+        let wp_pos = wp.pos.two_d() * CAVEINFO_COORD_FACTOR + offset;
+        waypoint_layer.place(
+            Circle {
+                radius: wp.r.log2() * 3.0, // just what looks good
+                color: WAYPOINT_COLOR.into(),
+                ..Default::default()
+            },
+            wp_pos,
+            Origin::Center,
+        );
+
+        // Arrows for links
+        for link in wp.links.iter() {
+            let dest_wp = unit.waypoints.iter().find(|wp| wp.index == *link).unwrap();
+            let dest_wp_pos = dest_wp.pos.two_d() * CAVEINFO_COORD_FACTOR + offset;
+            waypoint_arrow_layer.place(
+                Line {
+                    start: wp_pos,
+                    end: dest_wp_pos,
+                    shorten_start: 6.0,
+                    shorten_end: 6.0,
+                    forward_arrow: true,
+                    color: CARRY_PATH_COLOR.into(),
+                    ..Default::default()
+                },
+                Point::zero(),
+                Origin::TopLeft,
+            );
+
+            if options.draw_waypoint_distances {
+                let distance_score = wp.pos.p2_dist(&dest_wp.pos) as u32 / 10;
+                let midpoint = (wp_pos + dest_wp_pos) / 2.0;
+                waypoint_distance_layer.place(
+                    helper.cropped_text(distance_score.to_string(), 14.0, 0, WAYPOINT_DIST_TXT_COLOR),
+                    midpoint,
+                    Origin::Center,
+                );
+            }
+        }
+    }
+
+    // WP layer's top-left is actually the center of the room because raw WP coords
+    // are centered on the center of the unit
+    unit_layer
+        .place(waypoint_layer, Point::zero(), Origin::TopLeft)
+        .place(waypoint_arrow_layer, Point::zero(), Origin::TopLeft)
+        .place(waypoint_distance_layer, Point::zero(), Origin::TopLeft);
+
+    // Spawn points
+    for sp in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
+        let icon: Box<dyn Render> = match sp.group {
+            0 => Box::new(easy_teki_rings(sp.radius * CAVEINFO_COORD_FACTOR)),
+            1 => Box::new(Circle {
+                radius: RENDER_SCALE * 0.5,
+                color: group_color(1).into(),
+                ..Default::default()
+            }),
+            2 => Box::new(Colorize {
+                renderable: Icon::Treasure,
+                color: group_color(2).into(),
+            }),
+            4 => Box::new(Icon::Exit),
+            6 => Box::new(Resize {
+                renderable: Colorize {
+                    renderable: Icon::Plant,
+                    color: group_color(6).into(),
+                },
+                width: RENDER_SCALE,
+                height: RENDER_SCALE,
+                filter: FilterType::Lanczos3,
+            }),
+            7 => Box::new(Icon::Ship),
+            8 => Box::new(Resize {
+                renderable: Colorize {
+                    renderable: Icon::Star,
+                    color: group_color(8).into(),
+                },
+                width: RENDER_SCALE * 1.75,
+                height: RENDER_SCALE * 1.75,
+                filter: FilterType::Lanczos3,
+            }),
+            _ => Box::new(()),
+        };
+        unit_layer.place(icon, sp.pos.two_d() * CAVEINFO_COORD_FACTOR + offset, Origin::Center);
+    }
+
+    // Compose everything and add unit name text
+    let mut layer = Layer::of(with_border(
+        CropAbsolute {
+            inner: unit_layer,
+            bounds: Bounds {
+                topleft: Point([0.0, 0.0]),
+                bottomright: Point([unit.width as f32 * CAVEINFO_GRID_FACTOR, unit.height as f32 * CAVEINFO_GRID_FACTOR]),
+            },
+        },
+        1.0,
+        CAVEINFO_UNIT_BORDER_COLOR,
+    ));
+    layer.place_relative(
         Text {
             text: unit.unit_folder_name.clone(),
             font: &helper.fonts[1],
@@ -792,5 +646,31 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
         },
     );
 
-    this_unit_layer
+    layer
+}
+
+fn easy_teki_rings(r: f32) -> impl Render {
+    let mut layer = Layer::new();
+    let mut radius = r;
+    for _ in 0..3 {
+        layer.place(
+            Circle {
+                radius,
+                border_thickness: 1.0,
+                border_color: group_color(0).into(),
+                ..Default::default()
+            },
+            Point::zero(),
+            Origin::Center,
+        );
+        radius *= 0.85;
+    }
+    // Hack to shift the circles as if they were placed with Origin::TopLeft
+    CropRelative {
+        inner: layer,
+        top: -r,
+        left: -r,
+        right: r,
+        bottom: r,
+    }
 }

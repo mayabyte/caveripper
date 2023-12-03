@@ -56,7 +56,6 @@ impl<'r> StickerRenderer<'r> {
 /// create nested groupings of related renderables.
 pub struct Layer<'r> {
     renderables: Vec<(Box<dyn Render + 'r>, Bounds)>,
-    direct_renderables: Vec<Box<dyn DirectRender>>,
     background_color: Rgba<u8>,
     opacity: f32,
     margin: f32,
@@ -69,7 +68,6 @@ impl<'r> Layer<'r> {
     pub fn new() -> Self {
         Self {
             renderables: vec![],
-            direct_renderables: vec![],
             background_color: [0, 0, 0, 0].into(),
             opacity: 1.0,
             margin: 0.0,
@@ -132,10 +130,6 @@ impl<'r> Layer<'r> {
                 amount: Point([0.0, 0.0]),
             },
         )
-    }
-
-    pub fn add_direct_renderable(&mut self, renderable: impl DirectRender + 'static) {
-        self.direct_renderables.push(Box::new(renderable));
     }
 
     /// Bounds of the renderable space in this layer, not including border or margin
@@ -209,12 +203,6 @@ impl<'r> Render for Layer<'r> {
             let sub_view = canvas2.sub_view(bounds.topleft + self.margin + self.border);
             renderable.render(sub_view, helper);
         }
-
-        // DirectRenderables
-        let raw_canvas = canvas2.into_raw();
-        for renderable in self.direct_renderables.iter() {
-            renderable.render(raw_canvas);
-        }
     }
 
     fn dimensions(&self) -> Point<2, f32> {
@@ -228,13 +216,6 @@ pub trait Render {
 
     /// The dimensions of the image produced by [render].
     fn dimensions(&self) -> Point<2, f32>;
-}
-
-/// API for rendering pixels straight onto the canvas without using the
-/// Sticker machinery. When using this API, the implementor is responsible
-/// for resizing the canvas to fit what is drawn.
-pub trait DirectRender {
-    fn render(&self, canvas: &mut Canvas);
 }
 
 impl Render for () {

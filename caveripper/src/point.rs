@@ -11,6 +11,13 @@ use serde::{ser::SerializeSeq, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<const N: usize, T>(pub [T; N]);
 
+impl<const N: usize, T: Zero + Copy> Point<N, T> {
+    #[inline]
+    pub fn zero() -> Self {
+        Self([T::zero(); N])
+    }
+}
+
 impl<const N: usize, T> Point<N, T> {
     /// Euclidean distance between two Points.
     pub fn dist(&self, other: &Self) -> T
