@@ -167,6 +167,7 @@ impl Display for CaveInfo {
 /// `carrying` field.
 #[derive(Debug, Clone, Serialize)]
 pub struct TekiInfo {
+    pub game: String, // Not part of caveinfo; this is for romhack support
     pub internal_name: String,
     pub carrying: Option<String>, // The object held by this Teki, if any.
     pub minimum_amount: u32,
@@ -179,6 +180,7 @@ pub struct TekiInfo {
 /// rather sitting out in the open or buried.
 #[derive(Debug, Clone, Serialize)]
 pub struct ItemInfo {
+    pub game: String, // Not part of caveinfo; this is for romhack support
     pub internal_name: String,
     pub min_amount: u8,
     pub filler_distribution_weight: u32,
@@ -210,6 +212,7 @@ pub struct GateInfo {
 /// "alcoves". Nothing can spawn in "caps" as you might expect.
 #[derive(Debug, Clone, Serialize)]
 pub struct CapInfo {
+    pub game: String, // Not part of caveinfo; this is for romhack support
     pub internal_name: String,
     pub carrying: Option<String>, // The object held by this Cap Teki, if any.
     pub minimum_amount: u32,
@@ -257,6 +260,7 @@ impl AsRef<TekiInfo> for TekiInfo {
 /// https://pikmintkb.com/wiki/Cave_unit_definition_file
 #[derive(Debug, Clone, Serialize)]
 pub struct CaveUnit {
+    pub game: String, // Not part of caveinfo; this is for romhack support
     pub unit_folder_name: String,
     pub width: u16,  // In cave grid cells, not in-game coords
     pub height: u16, // In cave grid cells, not in-game coords

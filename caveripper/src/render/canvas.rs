@@ -10,7 +10,7 @@ use crate::point::Point;
 
 #[derive(Clone)]
 pub struct Canvas {
-    buffer: RgbaImage, // TODO: store in a RwLock or something so stickers can be rendered in parallel
+    buffer: RgbaImage,
 }
 
 #[allow(dead_code)]

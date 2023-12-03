@@ -142,7 +142,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
         ),
         ("Easy", 0, Box::new(easy_teki_rings(32.0))),
         ("Plant", 6, Box::new(Icon::Plant)),
-        ("Seam", 5, Box::new(())), // TODO: Seam teki icon??
+        ("Seam", 5, Box::new(())),
     ];
 
     for (name, group_num, icon) in groups.into_iter() {

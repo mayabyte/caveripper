@@ -125,8 +125,7 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
 
 impl Render for CaveUnit {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        // TODO: pass game somehow
-        let filename = PathBuf::from_iter(["assets", "pikmin2", "mapunits", &self.unit_folder_name, "arc", "texture.png"]);
+        let filename = PathBuf::from_iter(["assets", &self.game, "mapunits", &self.unit_folder_name, "arc", "texture.png"]);
         let mut img = helper.get_img(&filename).unwrap().to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
@@ -166,15 +165,19 @@ impl Render for CaveUnit {
 impl Render for SpawnObject<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
         match self {
-            SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => {
+            SpawnObject::Teki(TekiInfo { game, .. }, _) | SpawnObject::CapTeki(CapInfo { game, .. }, _) => {
                 let filename = match get_special_texture_name(self.name()) {
                     Some(special_name) => PathBuf::from_iter(["resources", "enemytex_special", special_name]),
-                    None => PathBuf::from_iter(["assets", "pikmin2", "teki", &format!("{}.png", self.name().to_ascii_lowercase())]),
+                    None => PathBuf::from_iter(["assets", &game, "teki", &format!("{}.png", self.name().to_ascii_lowercase())]),
                 };
                 let teki_img = resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3);
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
-            SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).render(canvas, helper),
+            SpawnObject::Item(info) => TreasureRenderer {
+                name: &info.internal_name,
+                game: &info.game,
+            }
+            .render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
                 let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
                 let mut img = Cow::Borrowed(helper.get_img(filename).unwrap());
@@ -212,7 +215,11 @@ impl Render for SpawnObject<'_> {
             // image dimensions. Currently these are all scaled to 40x40 but
             // quality could be better if this can be avoided.
             SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => Point([40.0, 40.0]),
-            SpawnObject::Item(info) => TreasureRenderer(&info.internal_name).dimensions(),
+            SpawnObject::Item(info) => TreasureRenderer {
+                name: &info.internal_name,
+                game: &info.game,
+            }
+            .dimensions(),
             SpawnObject::Gate(_, _rotation) => Point([48.0, 48.0]),
             SpawnObject::Hole(_) => Point([32.0, 32.0]),
             SpawnObject::Geyser(_) => Point([40.0, 40.0]),
@@ -222,10 +229,13 @@ impl Render for SpawnObject<'_> {
 }
 
 /// Helper to reduce asset manager lookups
-struct TreasureRenderer<'a>(pub &'a str);
+struct TreasureRenderer<'a> {
+    pub name: &'a str,
+    pub game: &'a str,
+}
 impl Render for TreasureRenderer<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        let filename = PathBuf::from_iter(["assets", "pikmin2", "treasures", &format!("{}.png", self.0.to_ascii_lowercase())]);
+        let filename = PathBuf::from_iter(["assets", self.game, "treasures", &format!("{}.png", self.name.to_ascii_lowercase())]);
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
 
@@ -294,14 +304,19 @@ fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>) -> im
     // Carrying Treasures
     if let SpawnObject::Teki(
         TekiInfo {
-            carrying: Some(treasure), ..
+            carrying: Some(treasure),
+            game,
+            ..
         },
         _,
     ) = spawn_object.as_ref()
     {
         layer.place(
             Resize::new(
-                TreasureRenderer(treasure),
+                TreasureRenderer {
+                    name: treasure,
+                    game: &game,
+                },
                 CARRIED_TREASURE_SIZE,
                 CARRIED_TREASURE_SIZE,
                 FilterType::Lanczos3,
