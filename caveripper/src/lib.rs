@@ -26,12 +26,10 @@ pub mod query;
 #[path = "assets/assets.rs"]
 pub mod assets;
 
-#[path = "render/render.rs"]
-pub mod render;
-
 pub mod errors;
 pub mod pikmin_math;
 mod point;
+pub mod render;
 pub mod sublevel;
 
 pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
@@ -43,7 +41,6 @@ pub fn parse_seed(src: &str) -> Result<u32, Report<CaveripperError>> {
     if trimmed.len() != 8 {
         Err(report!(CaveripperError::SeedError))
     } else {
-        u32::from_str_radix(trimmed, 16)
-            .change_context(CaveripperError::SeedError)
+        u32::from_str_radix(trimmed, 16).change_context(CaveripperError::SeedError)
     }
 }

@@ -1,24 +1,32 @@
 mod cli;
 mod extract;
 
+use std::{
+    fs::read_to_string,
+    io::stdin,
+    time::{Duration, Instant},
+};
+
 use atty::Stream;
-use cli::*;
-use clap::Parser;
-use error_stack::Result;
-use extract::extract_iso;
-use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle, ProgressIterator};
-use rand::prelude::*;
-use rayon::{self, iter::{IntoParallelIterator, ParallelIterator}};
-use std::{fs::read_to_string, io::stdin, time::{Instant, Duration}};
 use caveripper::{
     assets::AssetManager,
+    errors::CaveripperError,
     layout::Layout,
-    render::{
-        Renderer,
-        save_image,
-    },
+    parse_seed,
+    pikmin_math::PikminRng,
     query::{find_matching_layouts_parallel, Query},
-    parse_seed, errors::CaveripperError, sublevel::Sublevel, pikmin_math::PikminRng
+    render::{render_caveinfo, render_layout, save_image, RenderHelper},
+    sublevel::Sublevel,
+};
+use clap::Parser;
+use cli::*;
+use error_stack::Result;
+use extract::extract_iso;
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressIterator, ProgressStyle};
+use rand::prelude::*;
+use rayon::{
+    self,
+    iter::{IntoParallelIterator, ParallelIterator},
 };
 use simple_logger::SimpleLogger;
 
@@ -27,7 +35,7 @@ fn main() -> Result<(), CaveripperError> {
     // command parsing can involve sublevel string parsing, which requires
     // loading assets.
     let mgr = AssetManager::init()?;
-    let renderer = Renderer::new(&mgr);
+    let helper = RenderHelper::new(&mgr);
 
     let args = Cli::parse();
     match args.verbosity {
@@ -38,40 +46,58 @@ fn main() -> Result<(), CaveripperError> {
 
     // Run the desired command.
     match args.subcommand {
-        Commands::Generate { sublevel, seed, render_options } => {
+        Commands::Generate {
+            sublevel,
+            seed,
+            render_options,
+        } => {
             let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
             let caveinfo = mgr.get_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, caveinfo);
             let _ = std::fs::create_dir("output");
             save_image(
-                &renderer.render_layout(&layout, render_options)?,
-                format!("output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed)
+                &render_layout(&layout, &helper, render_options)?,
+                format!("output/{}_{:#010X}.png", layout.cave_name, layout.starting_seed),
             )?;
-            println!("🍞 Saved layout image as \"output/{}_{:#010X}.png\"", layout.cave_name, layout.starting_seed);
-        },
-        Commands::Caveinfo { sublevel, text, render_options } => {
+            println!(
+                "🍞 Saved layout image as \"output/{}_{:#010X}.png\"",
+                layout.cave_name, layout.starting_seed
+            );
+        }
+        Commands::Caveinfo {
+            sublevel,
+            text,
+            render_options,
+        } => {
             let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
             let caveinfo = mgr.get_caveinfo(&sublevel)?;
             if text {
                 println!("{caveinfo}");
-            }
-            else {
+            } else {
                 let _ = std::fs::create_dir("output");
                 save_image(
-                    &renderer.render_caveinfo(caveinfo, render_options)?,
-                    format!("output/{}_Caveinfo.png", caveinfo.name())
+                    &render_caveinfo(caveinfo, &helper, render_options)?,
+                    format!("output/{}_Caveinfo.png", caveinfo.name()),
                 )?;
                 println!("🍞 Saved caveinfo image as \"{}_Caveinfo.png\"", caveinfo.name());
             }
-        },
+        }
         Commands::Search { query, timeout_s, num } => {
             let query = Query::try_parse(&query, &mgr)?;
             let start_time = Instant::now();
-            let timeout = if timeout_s > 0 { Some(Duration::from_secs(timeout_s)) } else { None };
+            let timeout =
+                if timeout_s > 0 {
+                    Some(Duration::from_secs(timeout_s))
+                } else {
+                    None
+                };
             let deadline = timeout.map(|t| Instant::now() + t);
 
-            let progress_bar = ProgressBar::new_spinner()
-                .with_style(ProgressStyle::default_spinner().template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]").unwrap());
+            let progress_bar = ProgressBar::new_spinner().with_style(
+                ProgressStyle::default_spinner()
+                    .template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]")
+                    .unwrap(),
+            );
 
             if !atty::is(Stream::Stdout) {
                 progress_bar.finish_and_clear();
@@ -82,17 +108,19 @@ fn main() -> Result<(), CaveripperError> {
                 &mgr,
                 deadline,
                 (num > 0).then_some(num),
-                Some(|| { progress_bar.inc(1); }),
+                Some(|| {
+                    progress_bar.inc(1);
+                }),
                 |seed| {
                     progress_bar.suspend(|| println!("{seed:#010X}"));
-                }
+                },
             );
 
             progress_bar.finish_and_clear();
             if atty::is(Stream::Stdout) {
                 eprintln!("🍞 Finished in {:0.3}s.", start_time.elapsed().as_secs_f32());
             }
-        },
+        }
         Commands::SearchFrom { start_from, query, max } => {
             let query = Query::try_parse(&query, &mgr)?;
             let rng = PikminRng::new(start_from);
@@ -103,59 +131,57 @@ fn main() -> Result<(), CaveripperError> {
                 .progress_with(progress_bar.clone())
                 .filter(|(_, seed)| query.matches(*seed, &mgr))
                 .for_each(|(offset, seed)| {
-                    progress_bar.suspend(
-                        || println!("{seed:#010X}\tOffset: {} ({:#0X})", offset + 1, offset + 1)
-                    );
+                    progress_bar.suspend(|| println!("{seed:#010X}\tOffset: {} ({:#0X})", offset + 1, offset + 1));
                 });
         }
         Commands::Stats { query, num_to_search } => {
             let query = Query::try_parse(&query, &mgr)?;
-            let num_matched = (0..num_to_search).into_par_iter()
-                .progress()
-                .filter(|_| {
-                    let seed: u32 = random();
-                    query.matches(seed, &mgr)
-                })
-                .count();
+            let num_matched =
+                (0..num_to_search)
+                    .into_par_iter()
+                    .progress()
+                    .filter(|_| {
+                        let seed: u32 = random();
+                        query.matches(seed, &mgr)
+                    })
+                    .count();
             println!(
                 "🍞 {num_matched} out of {num_to_search} ({:.03}%) match the condition '{query}'.",
                 (num_matched as f32 / num_to_search as f32) * 100.0
             );
-        },
+        }
         Commands::Filter { query, file } => {
             let query = Query::try_parse(&query, &mgr)?;
             // Read from a file. In this case, we can check the seeds in parallel.
             if let Some(filename) = file {
-                read_to_string(filename).unwrap().lines()
+                read_to_string(filename)
+                    .unwrap()
+                    .lines()
                     .collect::<Vec<_>>()
                     .into_par_iter()
                     .filter_map(|line| parse_seed(line).ok())
-                    .filter(|seed| {
-                        query.matches(*seed, &mgr)
-                    })
+                    .filter(|seed| query.matches(*seed, &mgr))
                     .for_each(|seed| {
                         println!("{seed:#010X}");
                     });
             }
             // Read from stdin and print as results become ready
             else {
-                stdin().lines()
+                stdin()
+                    .lines()
                     .filter_map(|line| parse_seed(&line.ok()?).ok())
-                    .filter(|seed| {
-                        query.matches(*seed, &mgr)
-                    })
+                    .filter(|seed| query.matches(*seed, &mgr))
                     .for_each(|seed| {
                         println!("{seed:#010X}");
                     });
             }
-        },
+        }
         Commands::Extract { iso_path, game_name } => {
-            let progress_bar = ProgressBar::new_spinner()
-                .with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
+            let progress_bar = ProgressBar::new_spinner().with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
             extract_iso(game_name, iso_path, &progress_bar).expect("Failed to extract ISO");
             progress_bar.finish_and_clear();
             println!("🍞 Done extracting ISO.");
-        },
+        }
     }
 
     Ok(())
