@@ -157,6 +157,15 @@ impl<'r> Layer<'r> {
     fn bounds(&self) -> Bounds {
         self.drawable_bounds().expand_by(self.margin + self.border)
     }
+
+    /// Moves all renderables proportionally down and right such that the contents
+    /// of the layer begin at (0,0) and nothing goes into the negative quadrants
+    pub fn justify(&mut self) {
+        let offset = -self.drawable_bounds().topleft;
+        for (_, bounds) in self.renderables.iter_mut() {
+            *bounds = *bounds + offset;
+        }
+    }
 }
 
 impl<'r> Render for Layer<'r> {

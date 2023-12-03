@@ -15,7 +15,6 @@ use crate::{
         render_spawn_object,
         renderer::{Layer, StickerRenderer},
         shapes::{Circle, Line},
-        text::Text,
         CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
         QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ROAMING_COLOR,
         QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR,
@@ -197,13 +196,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                 format!("{}", unit.total_score)
             };
             score_text_layer.place(
-                Text {
-                    text,
-                    font: &helper.fonts[1],
-                    size: 24.0,
-                    color: SCORE_TEXT_COLOR.into(),
-                    outline: 2,
-                },
+                helper.cropped_text(text, 24.0, 2, SCORE_TEXT_COLOR),
                 Point([
                     (unit.x as f32 + (unit.unit.width as f32 / 2.0)) * GRID_FACTOR,
                     (unit.z as f32 + (unit.unit.height as f32 / 2.0)) * GRID_FACTOR,
@@ -233,13 +226,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                     let midpoint = ((this_door_pos + other_door_pos) / 2.0) * COORD_FACTOR;
                     let distance_score = (link.distance / 10.0).round() as u32;
                     distance_score_text_layer.place(
-                        Text {
-                            text: format!("{}", distance_score),
-                            font: &helper.fonts[1],
-                            size: 24.0,
-                            color: DISTANCE_SCORE_TEXT_COLOR.into(),
-                            outline: 2,
-                        },
+                        helper.cropped_text(format!("{}", distance_score), 24.0, 2, DISTANCE_SCORE_TEXT_COLOR),
                         midpoint.two_d(),
                         Origin::Center,
                     );

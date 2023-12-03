@@ -15,7 +15,7 @@ use super::{
     CAVEINFO_WIDTH, COORD_FACTOR, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK,
 };
 use crate::{
-    caveinfo::{CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
+    caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
     layout::SpawnObject,
     point::Point,
@@ -123,6 +123,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
         title_row.place_relative(gate_metadata_icon, Origin::TopLeft, metadata_icon_offset);
     }
 
+    let title_row_width = title_row.dimensions()[0];
     renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
     // --- Spawn Object Info Boxes -- //
@@ -157,6 +158,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             teki.map(|info| SpawnObject::Teki(info, Point([0.0, 0.0, 0.0]))),
             group_score(group_num),
             &caveinfo.cave_cfg.game,
+            caveinfo.is_challenge_mode(),
             helper,
         ));
     }
@@ -174,6 +176,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
                 .map(|info| SpawnObject::Teki(info.as_ref(), Point([0.0, 0.0, 0.0]))),
             0,
             &caveinfo.cave_cfg.game,
+            caveinfo.is_challenge_mode(),
             helper,
         ));
     }
@@ -187,6 +190,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             caveinfo.item_info.iter().map(|info| SpawnObject::Item(info)),
             0,
             &caveinfo.cave_cfg.game,
+            caveinfo.is_challenge_mode(),
             helper,
         ));
     }
@@ -194,7 +198,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     let mut spawn_object_layer = Layer::of(spawn_object_info_boxes);
     spawn_object_layer.set_margin(CAVEINFO_MARGIN);
 
-    let spawn_obj_layer_width = spawn_object_layer.dimensions()[0];
+    let top_width = f32::max(spawn_object_layer.dimensions()[0], title_row_width);
     renderer.place_relative(
         spawn_object_layer,
         Origin::TopLeft,
@@ -280,11 +284,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
 
     // Make sure the background extends all the way to the right of the image
     let unit_layer_width = unit_layer.dimensions()[0];
-    if unit_layer_width < spawn_obj_layer_width {
+    if unit_layer_width < top_width {
         // Negative crop = expanding the bounds
         unit_layer = Layer::of(CropRelative {
             inner: unit_layer,
-            right: unit_layer_width - spawn_obj_layer_width,
+            right: unit_layer_width - top_width,
             left: 0.0,
             top: 0.0,
             bottom: 0.0,
@@ -362,6 +366,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     spawn_objects: impl Iterator<Item = SpawnObject<'r>>,
     score: u32,
     game: &str,
+    is_challenge_mode: bool,
     helper: &'h RenderHelper,
 ) -> Layer<'r> {
     let color = color.into();
@@ -385,7 +390,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     };
 
     let mut header_row = Layer::new();
-    let header_placement = header_row.place(icon, Point([0.0, 0.0]), Origin::TopLeft).place_relative(
+    header_row.place(icon, Point([0.0, 0.0]), Origin::TopLeft).place_relative(
         helper.cropped_text(title, CAVEINFO_BOXES_FONT_SIZE, 0, OFF_BLACK),
         Origin::TopLeft,
         Offset {
@@ -395,7 +400,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     );
 
     if score > 0 {
-        header_placement.place_relative(
+        header_row.place_relative(
             helper.cropped_text(format!("Score: {score}"), 20.0, 0, OFF_BLACK),
             Origin::CenterLeft,
             Offset {
@@ -405,14 +410,13 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
         );
     }
 
-    let placement = layer
+    layer
         .place(header_row, Point([0.0, 0.0]), Origin::TopLeft)
         .anchor_next(Origin::BottomLeft);
 
-    spawn_objects.fold(placement, |p, so| {
+    spawn_objects.for_each(|so| {
         let mut so_and_value_layer = Layer::new();
-        let so_and_value_layer_p =
-            so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone())), Point([0.0, 0.0]), Origin::TopLeft);
+        so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone())), Point([0.0, 0.0]), Origin::TopLeft);
 
         // Carrying info
         if let SpawnObject::Item(ItemInfo { internal_name, .. })
@@ -449,7 +453,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
                         amount: Point([CAVEINFO_MARGIN / 4.0, 0.0]),
                     },
                 );
-            so_and_value_layer_p
+            so_and_value_layer
                 .place_relative(
                     metadata_layer,
                     Origin::TopLeft,
@@ -474,10 +478,9 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
         }
 
         // Number and Weight text
-
         let mut full_so_layer = Layer::new();
-        let full_so_layer_p = full_so_layer.place(so_and_value_layer, Point([0.0, 0.0]), Origin::TopLeft);
-        if let SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) = so {
+        full_so_layer.place(so_and_value_layer, Point([0.0, 0.0]), Origin::TopLeft);
+        if let SpawnObject::Teki(TekiInfo { carrying, .. }, _) | SpawnObject::CapTeki(CapInfo { carrying, .. }, _) = so {
             let mut num_str = String::new();
             let amount = so.amount();
             let weight = so.weight();
@@ -488,24 +491,51 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
             if weight > 0 {
                 num_str += &format!("w{weight}");
             }
-            full_so_layer_p.place_relative(
-                helper.cropped_text(num_str, 24.0, 0, color),
+
+            let mut text_layer = Layer::new();
+            text_layer.place(helper.cropped_text(num_str, 24.0, 0, color), Point::zero(), Origin::TopLeft);
+            if let Some(carrying) = carrying
+                && !is_challenge_mode
+            {
+                // This is just way too obtrusive in challenge mode
+                text_layer.place_relative(
+                    helper.cropped_text(format!(" ({carrying})"), 18.0, 0, OFF_BLACK),
+                    Origin::CenterLeft,
+                    Offset {
+                        from: Origin::CenterRight,
+                        amount: Point([0.0, 0.0]),
+                    },
+                );
+            }
+
+            full_so_layer.place_relative(
+                text_layer,
                 Origin::TopCenter,
                 Offset {
                     from: Origin::BottomCenter,
-                    amount: Point([0.0, CAVEINFO_MARGIN / 3.0]),
+                    amount: Point([0.0, 0.0]),
+                },
+            );
+        } else if let SpawnObject::Item(info) = so {
+            full_so_layer.place_relative(
+                helper.cropped_text(&info.internal_name, 18.0, 0, OFF_BLACK),
+                Origin::TopCenter,
+                Offset {
+                    from: Origin::BottomCenter,
+                    amount: Point::zero(),
                 },
             );
         }
 
-        p.place_relative(
+        full_so_layer.justify();
+        layer.place_relative(
             full_so_layer,
             Origin::TopLeft,
             Offset {
                 from: Origin::TopRight,
                 amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
             },
-        )
+        );
     });
 
     layer
