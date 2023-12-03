@@ -19,7 +19,10 @@ use crate::{
     errors::CaveripperError,
     layout::SpawnObject,
     point::Point,
-    render::{coords::Bounds, shapes::Line, util::CropAbsolute, CARRY_PATH_COLOR, RENDER_SCALE, WAYPOINT_COLOR, WAYPOINT_DIST_TXT_COLOR},
+    render::{
+        coords::Bounds, shapes::Line, util::CropAbsolute, CARRY_PATH_COLOR, DISTANCE_SCORE_LINE_COLOR, DISTANCE_SCORE_TEXT_COLOR,
+        RENDER_SCALE, WAYPOINT_COLOR, WAYPOINT_DIST_TXT_COLOR,
+    },
 };
 
 #[derive(Default, Debug, Args)]
@@ -531,7 +534,7 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
     waypoint_layer.set_opacity(0.6);
     waypoint_arrow_layer.set_opacity(0.6);
 
-    let offset = Point([unit.width as f32 * CAVEINFO_GRID_FACTOR, unit.height as f32 * CAVEINFO_GRID_FACTOR]) / 2.0;
+    let offset = unit.center() * CAVEINFO_GRID_FACTOR;
     for wp in unit.waypoints.iter() {
         let wp_pos = wp.pos.two_d() * CAVEINFO_COORD_FACTOR + offset;
         waypoint_layer.place(
@@ -574,8 +577,6 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
         }
     }
 
-    // WP layer's top-left is actually the center of the room because raw WP coords
-    // are centered on the center of the unit
     unit_layer
         .place(waypoint_layer, Point::zero(), Origin::TopLeft)
         .place(waypoint_arrow_layer, Point::zero(), Origin::TopLeft)
@@ -618,6 +619,56 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
         };
         unit_layer.place(icon, sp.pos.two_d() * CAVEINFO_COORD_FACTOR + offset, Origin::Center);
     }
+
+    // Distance score lines
+    let mut distance_score_line_layer = Layer::new();
+    let mut distance_score_text_layer = Layer::new();
+    for door in unit.doors.iter() {
+        for link in door.door_links.iter() {
+            let this_door_pos = unit.center_of_door(door);
+            let other_door_pos = unit.center_of_door(&unit.doors[link.door_id]);
+            distance_score_line_layer.place(
+                Line {
+                    start: this_door_pos * CAVEINFO_GRID_FACTOR,
+                    end: other_door_pos * CAVEINFO_GRID_FACTOR,
+                    shorten_start: 8.0,
+                    shorten_end: 8.0,
+                    color: DISTANCE_SCORE_LINE_COLOR.into(),
+                    ..Default::default()
+                },
+                Point::zero(),
+                Origin::TopLeft,
+            );
+
+            let mut midpoint = ((this_door_pos + other_door_pos) / 2.0) * CAVEINFO_GRID_FACTOR;
+            let distance_score = (link.distance / 10.0).round() as u32;
+            let text = helper.cropped_text(distance_score.to_string(), 15.0, 1, DISTANCE_SCORE_TEXT_COLOR);
+
+            // If the text would be clipped by the edge of the image, we need to move it inwards a bit
+            let bounds = Origin::Center.to_bounds(&text, midpoint);
+            if bounds.topleft[0] < 0.0
+                || bounds.topleft[1] < 0.0
+                || bounds.bottomright[0] > unit.width as f32 * CAVEINFO_GRID_FACTOR
+                || bounds.bottomright[1] > unit.height as f32 * CAVEINFO_GRID_FACTOR
+            {
+                let room_center = unit.center() * CAVEINFO_GRID_FACTOR;
+                let inwards_unit_vector = (midpoint - room_center).normalized();
+                if inwards_unit_vector[0].abs() > inwards_unit_vector[1].abs() {
+                    midpoint -= Point([text.dimensions()[0] / 2.0, 0.0]) * inwards_unit_vector[0].signum();
+                } else {
+                    midpoint -= Point([0.0, text.dimensions()[1] / 2.0]) * inwards_unit_vector[1].signum();
+                }
+            }
+
+            distance_score_text_layer.place(text, midpoint, Origin::Center);
+        }
+    }
+
+    unit_layer.place(distance_score_line_layer, Point::zero(), Origin::TopLeft).place(
+        distance_score_text_layer,
+        Point::zero(),
+        Origin::TopLeft,
+    );
 
     // Compose everything and add unit name text
     let mut layer = Layer::of(with_border(

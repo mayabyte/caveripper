@@ -352,6 +352,19 @@ impl CaveUnit {
     pub fn center(&self) -> Point<2, f32> {
         Point([self.width as f32 / 2.0, self.height as f32 / 2.0])
     }
+
+    /// Returns the position of the center of this door (where Seam Teki would be spawned)
+    /// in map coordinates (NOT IN-GAME COORDINATES)
+    pub fn center_of_door(&self, door: &DoorUnit) -> Point<2, f32> {
+        let (x, y) = match door.direction {
+            0 => (door.side_lateral_offset as f32 + 0.5, 0.0),
+            1 => (self.width as f32, door.side_lateral_offset as f32 + 0.5),
+            2 => (door.side_lateral_offset as f32 + 0.5, self.height as f32),
+            3 => (0.0, door.side_lateral_offset as f32 + 0.5),
+            _ => panic!("Invalid door direction"),
+        };
+        Point([x, y])
+    }
 }
 
 /// Defines a cuboid of water in a room tile.

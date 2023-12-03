@@ -54,14 +54,15 @@ impl Render for Text<'_> {
         let layout = self.layout();
 
         for glyph in layout.glyphs().iter() {
-            let mut base_glyph_canvas = Canvas::new(Point([glyph.width as f32, glyph.height as f32]));
+            let mut base_glyph_canvas =
+                Canvas::new(Point([glyph.width as f32 + self.outline as f32, glyph.height as f32 + self.outline as f32]));
 
             let (metrics, bitmap) = self.font.rasterize_config(glyph.key);
             for (i, v) in bitmap.into_iter().enumerate() {
                 let x = i % metrics.width;
                 let y = i / metrics.width;
                 base_glyph_canvas.draw_pixel(
-                    Point([x as f32, y as f32]),
+                    Point([x as f32 + self.outline as f32, y as f32 + self.outline as f32]),
                     [
                         self.color.0[0].saturating_add(255 - v),
                         self.color.0[1].saturating_add(255 - v),

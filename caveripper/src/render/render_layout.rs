@@ -4,7 +4,7 @@ use clap::Args;
 use image::{imageops::FilterType, RgbaImage};
 use log::info;
 
-use super::{shapes::Rectangle, util::Resize, RenderHelper, WATERBOX_COLOR};
+use super::{util::Resize, RenderHelper};
 use crate::{
     caveinfo::{CapInfo, TekiInfo},
     errors::CaveripperError,
@@ -16,7 +16,7 @@ use crate::{
         renderer::{Layer, StickerRenderer},
         shapes::{Circle, Line},
         text::Text,
-        CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_LINE_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
+        CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
         QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ROAMING_COLOR,
         QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR,
     },
@@ -59,10 +59,8 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
     renderer.set_global_background_color(LAYOUT_BACKGROUND_COLOR);
 
     /* Map Units */
-    let (map_unit_layer, mut waterbox_layer) = render_map_units(layout.map_units.iter());
-    waterbox_layer.set_opacity(0.2);
+    let map_unit_layer = render_map_units(layout.map_units.iter());
     renderer.add_layer(map_unit_layer);
-    renderer.add_layer(waterbox_layer);
 
     /* Waypoints */
     if options.draw_waypoints {
@@ -225,7 +223,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                             end: other_door_pos.two_d() * COORD_FACTOR,
                             shorten_start: 8.0,
                             shorten_end: 8.0,
-                            color: DISTANCE_SCORE_LINE_COLOR.into(),
+                            color: DISTANCE_SCORE_TEXT_COLOR.into(),
                             ..Default::default()
                         },
                         Point::zero(),
@@ -239,7 +237,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                             text: format!("{}", distance_score),
                             font: &helper.fonts[1],
                             size: 24.0,
-                            color: DISTANCE_SCORE_LINE_COLOR.into(),
+                            color: DISTANCE_SCORE_TEXT_COLOR.into(),
                             outline: 2,
                         },
                         midpoint.two_d(),
@@ -258,9 +256,8 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
 }
 
 /// Places map unit images for a layout
-fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUnit<'l>>) -> (Layer<'a>, Layer<'a>) {
+fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUnit<'l>>) -> Layer<'a> {
     let mut radar_image_layer = Layer::new();
-    let mut waterbox_layer = Layer::new();
 
     for map_unit in map_units {
         let unit_def = map_unit.unit;
@@ -275,23 +272,7 @@ fn render_map_units<'a, 'l: 'a>(map_units: impl Iterator<Item = &'a PlacedMapUni
             Point([render_pos_x, render_pos_z]),
             Origin::TopLeft,
         );
-
-        // Waterboxes
-        for waterbox in unit_def.waterboxes.iter() {
-            waterbox_layer.place(
-                Rectangle {
-                    width: waterbox.width() * COORD_FACTOR,
-                    height: waterbox.height() * COORD_FACTOR,
-                    color: WATERBOX_COLOR.into(),
-                },
-                Point([
-                    render_pos_x + (unit_img_width / 2.0) + (waterbox.p1[0] * COORD_FACTOR),
-                    render_pos_z + (unit_img_height / 2.0) + (waterbox.p1[2] * COORD_FACTOR),
-                ]),
-                Origin::TopLeft,
-            );
-        }
     }
 
-    (radar_image_layer, waterbox_layer)
+    radar_image_layer
 }

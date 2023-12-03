@@ -28,6 +28,7 @@ pub use render_layout::*;
 use self::{
     canvas::CanvasView,
     renderer::Render,
+    shapes::Rectangle,
     util::{CropRelative, Resize},
 };
 use crate::{
@@ -63,13 +64,14 @@ const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 255];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
-const CAVEINFO_WIDTH: f32 = 1150.0;
+const CAVEINFO_WIDTH: f32 = 1500.0;
 const WAYPOINT_DIST_TXT_COLOR: [u8; 4] = [36, 54, 14, 255];
 const HEADER_BACKGROUND: [u8; 4] = [220, 220, 220, 255];
 const MAPTILES_BACKGROUND: [u8; 4] = [20, 20, 20, 255];
 const GRID_COLOR: [u8; 4] = [255, 0, 0, 150];
 const SCORE_TEXT_COLOR: [u8; 4] = [59, 255, 226, 255];
-const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [255, 56, 129, 255];
+const DISTANCE_SCORE_TEXT_COLOR: [u8; 4] = [99, 147, 242, 255];
+const DISTANCE_SCORE_LINE_COLOR: [u8; 4] = [58, 101, 186, 255];
 const CAVEINFO_MARGIN: f32 = RENDER_SCALE / 2.0;
 const CAVEINFO_UNIT_MARGIN: f32 = CAVEINFO_MARGIN * 3.0;
 const CAVEINFO_ICON_SIZE: f32 = 64.0;
@@ -134,11 +136,30 @@ impl Render for CaveUnit {
             img = rotate90(&img);
         }
 
+        img =
+            resize(
+                &img,
+                (self.width as f32 * GRID_FACTOR) as u32,
+                (self.height as f32 * GRID_FACTOR) as u32,
+                FilterType::Nearest,
+            );
         canvas.overlay(&img, Point([0.0, 0.0]));
+
+        // Waterboxes
+        for waterbox in self.waterboxes.iter() {
+            let mut view = canvas.sub_view((self.center() * GRID_FACTOR) + (waterbox.p1.two_d() * COORD_FACTOR));
+            let view2 = view.with_opacity(0.2);
+            Rectangle {
+                width: waterbox.width() * COORD_FACTOR,
+                height: waterbox.height() * COORD_FACTOR,
+                color: WATERBOX_COLOR.into(),
+            }
+            .render(view2, helper);
+        }
     }
 
     fn dimensions(&self) -> Point<2, f32> {
-        Point([self.width as f32 * 8.0, self.height as f32 * 8.0])
+        Point([self.width as f32 * GRID_FACTOR, self.height as f32 * GRID_FACTOR])
     }
 }
 
