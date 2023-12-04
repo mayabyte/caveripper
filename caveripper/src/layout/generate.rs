@@ -1,16 +1,17 @@
-use std::{rc::Rc, cell::{RefCell, OnceCell}, cmp::{min, max}};
+use std::{
+    cell::{OnceCell, RefCell},
+    cmp::{max, min},
+    rc::Rc,
+};
+
 use log::debug;
+
 use crate::{
-    pikmin_math::{PikminRng, self},
-    caveinfo::{CaveUnit, CaveInfo, RoomType, TekiInfo, CapInfo, ItemInfo},
-    layout::{
-        PlacedDoor,
-        SpawnObject,
-        PlacedMapUnit,
-        PlacedSpawnPoint,
-        Layout,
-        boxes_overlap
-    }, sublevel::Sublevel, point::Point,
+    caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
+    layout::{boxes_overlap, Layout, PlacedDoor, PlacedMapUnit, PlacedSpawnPoint, SpawnObject},
+    pikmin_math::{self, PikminRng},
+    point::Point,
+    sublevel::Sublevel,
 };
 
 pub struct LayoutBuilder<'a> {
@@ -119,11 +120,13 @@ impl<'a> LayoutBuilder<'a> {
 
         // Pick the first room in the queue that has a 'start' spawnpoint (for the ship pod)
         // and place it as the first room.
-        let start_map_unit = self.room_queue.iter().find(|room| room.has_start_spawnpoint())
+        let start_map_unit = self
+            .room_queue
+            .iter()
+            .find(|room| room.has_start_spawnpoint())
             .expect("No room with start spawnpoint found.");
         debug!("Placing starting map unit of type '{}'", start_map_unit.unit_folder_name);
         self.place_map_unit(PlacedMapUnit::new(start_map_unit, 0, 0), true);
-
 
         // Keep placing map units until all doors have been closed
         if self.open_doors().next().is_some() {
@@ -133,18 +136,19 @@ impl<'a> LayoutBuilder<'a> {
                 let mut unit_to_place = None;
 
                 // Check if the number of placed rooms has reached the max, and place one if not
-                if self.map_units.iter()
-                    .filter(|unit| unit.unit.room_type == RoomType::Room)
-                    .count() < caveinfo.num_rooms as usize
-                {
+                if self.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room).count() < caveinfo.num_rooms as usize {
                     // Choose a random door to attempt to add a room onto
                     let open_doors: Vec<_> = self.open_doors().collect();
                     let destination_door = open_doors[self.rng.rand_int(open_doors.len() as u32) as usize].clone();
 
                     // Calculate the corridor probability for this generation step
                     let mut corridor_probability = caveinfo.corridor_probability;
-                    if self.map_has_diameter_36 { corridor_probability = 0f32; }
-                    if self.map_units[destination_door.borrow().parent_idx.unwrap()].unit.room_type == RoomType::Room { corridor_probability *= 2f32; }
+                    if self.map_has_diameter_36 {
+                        corridor_probability = 0f32;
+                    }
+                    if self.map_units[destination_door.borrow().parent_idx.unwrap()].unit.room_type == RoomType::Room {
+                        corridor_probability *= 2f32;
+                    }
 
                     let room_type_priority = if self.rng.rand_f32() < corridor_probability {
                         [RoomType::Hallway, RoomType::Room, RoomType::DeadEnd]
@@ -155,14 +159,15 @@ impl<'a> LayoutBuilder<'a> {
                     // Try to place a room of each type in the order defined above, only moving on to
                     // the next type if none of the available units fit.
                     'place_room: for room_type in room_type_priority {
-                        let unit_queue = match room_type {
-                            RoomType::Room => &self.room_queue,
-                            RoomType::DeadEnd => &self.cap_queue,
-                            RoomType::Hallway => {
-                                self.shuffle_corridor_priority(caveinfo);
-                                &self.corridor_queue
-                            }
-                        };
+                        let unit_queue =
+                            match room_type {
+                                RoomType::Room => &self.room_queue,
+                                RoomType::DeadEnd => &self.cap_queue,
+                                RoomType::Hallway => {
+                                    self.shuffle_corridor_priority(caveinfo);
+                                    &self.corridor_queue
+                                }
+                            };
 
                         for map_unit in unit_queue.iter() {
                             let mut door_priority = (0..map_unit.num_doors).collect();
@@ -186,7 +191,9 @@ impl<'a> LayoutBuilder<'a> {
                     self.mark_random_open_doors_as_caps(caveinfo);
 
                     // Create a list of 'hallway' units (corridors with exactly 2 doors)
-                    let mut hallway_queue: Vec<&CaveUnit> = self.corridor_queue.iter()
+                    let mut hallway_queue: Vec<&CaveUnit> = self
+                        .corridor_queue
+                        .iter()
                         .filter(|corridor| corridor.width == 1 && corridor.height == 1 && corridor.num_doors == 2)
                         .cloned()
                         .collect();
@@ -213,11 +220,21 @@ impl<'a> LayoutBuilder<'a> {
                             let dx = candidate.borrow().x - open_door.x;
                             let dz = candidate.borrow().z - open_door.z;
 
-                            if dx.abs() >= 10 || dz.abs() >= 10 { continue; }
-                            if open_door.door_unit.direction == 0 && dz > 0 { continue; }
-                            if open_door.door_unit.direction == 1 && dx < 0 { continue; }
-                            if open_door.door_unit.direction == 2 && dz < 0 { continue; }
-                            if open_door.door_unit.direction == 3 && dx > 0 { continue; }
+                            if dx.abs() >= 10 || dz.abs() >= 10 {
+                                continue;
+                            }
+                            if open_door.door_unit.direction == 0 && dz > 0 {
+                                continue;
+                            }
+                            if open_door.door_unit.direction == 1 && dx < 0 {
+                                continue;
+                            }
+                            if open_door.door_unit.direction == 2 && dz < 0 {
+                                continue;
+                            }
+                            if open_door.door_unit.direction == 3 && dx > 0 {
+                                continue;
+                            }
 
                             let distance = dx.abs() + dz.abs();
                             if distance < link_door_dist {
@@ -227,7 +244,7 @@ impl<'a> LayoutBuilder<'a> {
                         }
                         let link_door = match link_door {
                             None => continue,
-                            Some(d) => d
+                            Some(d) => d,
                         };
 
                         // Temp variables to make the below formula easier to write
@@ -244,63 +261,162 @@ impl<'a> LayoutBuilder<'a> {
                         // exists a smaller formula to describe it.
                         let priority = match open_door_dir {
                             0 => {
-                                if dz > -2 { if dx >= 0 { 1 } else { 3 } }
-                                else { match dx {
-                                    _ if dx < -1 => 3,
-                                    -1 => if link_door_dir == 2 || link_door_dir == 3 { 3 } else { 0 },
-                                    0  => if link_door_dir == 0 || link_door_dir == 3 { 3 } else { 0 },
-                                    1  => if link_door_dir == 1 || link_door_dir == 2 { 1 } else { 0 },
-                                    _ if dx > 1 => 1,
-                                    _ => unreachable!()
-                                }}
-                            },
+                                if dz > -2 {
+                                    if dx >= 0 {
+                                        1
+                                    } else {
+                                        3
+                                    }
+                                } else {
+                                    match dx {
+                                        _ if dx < -1 => 3,
+                                        -1 => {
+                                            if link_door_dir == 2 || link_door_dir == 3 {
+                                                3
+                                            } else {
+                                                0
+                                            }
+                                        }
+                                        0 => {
+                                            if link_door_dir == 0 || link_door_dir == 3 {
+                                                3
+                                            } else {
+                                                0
+                                            }
+                                        }
+                                        1 => {
+                                            if link_door_dir == 1 || link_door_dir == 2 {
+                                                1
+                                            } else {
+                                                0
+                                            }
+                                        }
+                                        _ if dx > 1 => 1,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
                             1 => {
-                                if dx == 0 { if dz > 0 { 2 } else { 0 } }
-                                else { match dz {
-                                    _ if dz < -1 => 0,
-                                    -1 => if link_door_dir == 0 || link_door_dir == 3 { 0 } else { 1 },
-                                    0  => if link_door_dir == 0 || link_door_dir == 1 { 0 } else { 1 },
-                                    1  => if link_door_dir == 2 || link_door_dir == 3 { 2 } else { 1 },
-                                    _ if dz > 1 => 2,
-                                    _ => unreachable!()
-                                }}
-                            },
+                                if dx == 0 {
+                                    if dz > 0 {
+                                        2
+                                    } else {
+                                        0
+                                    }
+                                } else {
+                                    match dz {
+                                        _ if dz < -1 => 0,
+                                        -1 => {
+                                            if link_door_dir == 0 || link_door_dir == 3 {
+                                                0
+                                            } else {
+                                                1
+                                            }
+                                        }
+                                        0 => {
+                                            if link_door_dir == 0 || link_door_dir == 1 {
+                                                0
+                                            } else {
+                                                1
+                                            }
+                                        }
+                                        1 => {
+                                            if link_door_dir == 2 || link_door_dir == 3 {
+                                                2
+                                            } else {
+                                                1
+                                            }
+                                        }
+                                        _ if dz > 1 => 2,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
                             2 => {
-                                if dz == 0 { if dx > 0 { 1 } else { 3 } }
-                                else { match dx {
-                                    _ if dx < -1 => 3,
-                                    -1 => if link_door_dir == 0 || link_door_dir == 3 { 3 } else { 2 },
-                                    0  => if link_door_dir == 2 || link_door_dir == 3 { 3 } else { 2 },
-                                    1  => if link_door_dir == 0 || link_door_dir == 1 { 1 } else { 2 },
-                                    _ if dx > 1 => 1,
-                                    _ => unreachable!()
-                                }}
-                            },
+                                if dz == 0 {
+                                    if dx > 0 {
+                                        1
+                                    } else {
+                                        3
+                                    }
+                                } else {
+                                    match dx {
+                                        _ if dx < -1 => 3,
+                                        -1 => {
+                                            if link_door_dir == 0 || link_door_dir == 3 {
+                                                3
+                                            } else {
+                                                2
+                                            }
+                                        }
+                                        0 => {
+                                            if link_door_dir == 2 || link_door_dir == 3 {
+                                                3
+                                            } else {
+                                                2
+                                            }
+                                        }
+                                        1 => {
+                                            if link_door_dir == 0 || link_door_dir == 1 {
+                                                1
+                                            } else {
+                                                2
+                                            }
+                                        }
+                                        _ if dx > 1 => 1,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
                             3 => {
-                                if dx > -2 { if dz > 0 { 2 } else { 0 } }
-                                else { match dz {
-                                    _ if dz < -1 => 0,
-                                    -1 => if link_door_dir == 0 || link_door_dir == 1 { 0 } else { 3 },
-                                    0  => if link_door_dir == 0 || link_door_dir == 3 { 0 } else { 3 },
-                                    1  => if link_door_dir == 1 || link_door_dir == 2 { 2 } else { 3 },
-                                    _ if dz > 1 => 2,
-                                    _ => unreachable!()
-                                }}
-                            },
-                            _ => panic!("Invalid direction in hallway snaking")
+                                if dx > -2 {
+                                    if dz > 0 {
+                                        2
+                                    } else {
+                                        0
+                                    }
+                                } else {
+                                    match dz {
+                                        _ if dz < -1 => 0,
+                                        -1 => {
+                                            if link_door_dir == 0 || link_door_dir == 1 {
+                                                0
+                                            } else {
+                                                3
+                                            }
+                                        }
+                                        0 => {
+                                            if link_door_dir == 0 || link_door_dir == 3 {
+                                                0
+                                            } else {
+                                                3
+                                            }
+                                        }
+                                        1 => {
+                                            if link_door_dir == 1 || link_door_dir == 2 {
+                                                2
+                                            } else {
+                                                3
+                                            }
+                                        }
+                                        _ if dz > 1 => 2,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
+                            _ => panic!("Invalid direction in hallway snaking"),
                         };
 
                         // Try placing a hallway with the desired shape. If that doesn't work,
                         // try placing a straight hallway instead.
-                        let dir_hallway_0 = (open_door_dir + 2) % 4;  // Flip the direction 180 degrees
+                        let dir_hallway_0 = (open_door_dir + 2) % 4; // Flip the direction 180 degrees
                         for dir_hallway_1 in [priority, open_door_dir] {
                             for hallway_unit in hallway_queue.iter() {
                                 let door_dir_0 = hallway_unit.doors[0].direction;
                                 let door_dir_1 = hallway_unit.doors[1].direction;
                                 if door_dir_0 == dir_hallway_0 && door_dir_1 == dir_hallway_1 {
                                     unit_to_place = self.try_place_unit_at(open_door.clone(), hallway_unit, 0);
-                                }
-                                else if door_dir_0 == dir_hallway_1 && door_dir_1 == dir_hallway_0 {
+                                } else if door_dir_0 == dir_hallway_1 && door_dir_1 == dir_hallway_0 {
                                     unit_to_place = self.try_place_unit_at(open_door.clone(), hallway_unit, 1);
                                 }
                                 if unit_to_place.is_some() {
@@ -312,8 +428,10 @@ impl<'a> LayoutBuilder<'a> {
                 }
 
                 if let Some(unit_to_place) = unit_to_place {
-                    debug!("Placing unit of type '{}' at ({}, {})",
-                            unit_to_place.unit.unit_folder_name, unit_to_place.x, unit_to_place.z);
+                    debug!(
+                        "Placing unit of type '{}' at ({}, {})",
+                        unit_to_place.unit.unit_folder_name, unit_to_place.x, unit_to_place.z
+                    );
                     self.place_map_unit(unit_to_place, true);
                 }
                 // If neither a room nor a hallway can be placed via the 'normal' logic above,
@@ -326,13 +444,13 @@ impl<'a> LayoutBuilder<'a> {
                             let unit_queue = match room_type {
                                 RoomType::Room => &self.room_queue,
                                 RoomType::DeadEnd => &self.cap_queue,
-                                RoomType::Hallway => {
-                                    &self.corridor_queue
-                                }
+                                RoomType::Hallway => &self.corridor_queue,
                             };
                             for num_doors in 1..=caveinfo.max_num_doors_single_unit() {
                                 for map_unit in unit_queue {
-                                    if map_unit.num_doors != num_doors { continue; }
+                                    if map_unit.num_doors != num_doors {
+                                        continue;
+                                    }
 
                                     let mut door_priority = (0..num_doors).collect();
                                     self.rng.rand_swaps(&mut door_priority);
@@ -348,18 +466,24 @@ impl<'a> LayoutBuilder<'a> {
                         }
                     }
                     if let Some(cap_to_place) = cap_to_place {
-                        debug!("Placing cap of type '{}' at ({}, {})",
-                            cap_to_place.unit.unit_folder_name, cap_to_place.x, cap_to_place.z);
+                        debug!(
+                            "Placing cap of type '{}' at ({}, {})",
+                            cap_to_place.unit.unit_folder_name, cap_to_place.x, cap_to_place.z
+                        );
                         self.place_map_unit(cap_to_place, true);
                     }
                 }
 
-                if self.open_doors().next().is_some() { continue; }
+                if self.open_doors().next().is_some() {
+                    continue;
+                }
                 let mut cap_to_replace = None;
 
                 // changeCapToHallMapUnit //
                 // Change all alcoves with a corridor directly behind them into a corridor unit.
-                let hallway_unit_names: Vec<&str> = self.corridor_queue.iter()
+                let hallway_unit_names: Vec<&str> = self
+                    .corridor_queue
+                    .iter()
                     .filter(|unit| unit.width == 1 && unit.height == 1 && unit.num_doors == 2)
                     // Filter out east-to-west hallways. Not sure why this is done.
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
@@ -367,11 +491,13 @@ impl<'a> LayoutBuilder<'a> {
                     .collect();
 
                 if !hallway_unit_names.is_empty() {
-                    { // subscope to avoid conflicting borrows again
+                    {
+                        // subscope to avoid conflicting borrows again
                         'change_cap_to_hallway: for i in 0..self.map_units.len() {
-
                             let placed_unit = &self.map_units[i];
-                            if placed_unit.unit.room_type != RoomType::DeadEnd { continue; }
+                            if placed_unit.unit.room_type != RoomType::DeadEnd {
+                                continue;
+                            }
 
                             // Compute space behind alcove
                             let (space_x, space_z) = match placed_unit.doors[0].borrow().door_unit.direction {
@@ -379,21 +505,16 @@ impl<'a> LayoutBuilder<'a> {
                                 1 => (placed_unit.x - 1, placed_unit.z),
                                 2 => (placed_unit.x, placed_unit.z - 1),
                                 3 => (placed_unit.x + 1, placed_unit.z),
-                                _ => panic!("Invalid door direction in changeCapToHallMapUnit")
+                                _ => panic!("Invalid door direction in changeCapToHallMapUnit"),
                             };
 
                             // Check for a corridor in the space behind this alcove
-                            let corridor_behind_idx = self.map_units.iter()
+                            let corridor_behind_idx = self
+                                .map_units
+                                .iter()
                                 .enumerate()
                                 .filter(|(_, unit)| unit.unit.room_type == RoomType::Hallway)
-                                .find_map(|(idx, unit)| {
-                                    if unit.x == space_x && unit.z == space_z {
-                                        Some(idx)
-                                    }
-                                    else {
-                                        None
-                                    }
-                                });
+                                .find_map(|(idx, unit)| if unit.x == space_x && unit.z == space_z { Some(idx) } else { None });
 
                             if let Some(corridor_behind_idx) = corridor_behind_idx {
                                 // Set reflexive adjacent_door pointers to None before deletion
@@ -420,8 +541,7 @@ impl<'a> LayoutBuilder<'a> {
                                 if i > corridor_behind_idx {
                                     self.map_units.remove(i);
                                     self.map_units.remove(corridor_behind_idx);
-                                }
-                                else {
+                                } else {
                                     self.map_units.remove(corridor_behind_idx);
                                     self.map_units.remove(i);
                                 }
@@ -443,25 +563,33 @@ impl<'a> LayoutBuilder<'a> {
                         }
                     }
                     if let Some(cap_to_replace) = cap_to_replace {
-                        debug!("Replacing cap at ({}, {}) with hallway unit of type '{}'",
-                            cap_to_replace.x, cap_to_replace.z, cap_to_replace.unit.unit_folder_name);
+                        debug!(
+                            "Replacing cap at ({}, {}) with hallway unit of type '{}'",
+                            cap_to_replace.x, cap_to_replace.z, cap_to_replace.unit.unit_folder_name
+                        );
                         self.place_map_unit(cap_to_replace, true);
                     }
                 }
-                if self.open_doors().next().is_some() { continue; }
+                if self.open_doors().next().is_some() {
+                    continue;
+                }
 
                 // Look for instances of two 1x1 hallway units in a row and change them to
                 // single 2x1 hallway units.
                 // This section is easily the worst piece of code in this whole file.
 
                 // Create list of 1x1 and 2x1 hallway unit names
-                let hallway_unit_names_1x1: Vec<String> = self.corridor_queue.iter()
+                let hallway_unit_names_1x1: Vec<String> = self
+                    .corridor_queue
+                    .iter()
                     .filter(|unit| unit.room_type == RoomType::Hallway)
                     .filter(|unit| unit.width == 1 && unit.height == 1 && unit.num_doors == 2)
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
                     .map(|unit| unit.unit_folder_name.clone())
                     .collect();
-                let hallway_unit_names_2x1: Vec<String> = self.corridor_queue.iter()
+                let hallway_unit_names_2x1: Vec<String> = self
+                    .corridor_queue
+                    .iter()
                     .filter(|unit| unit.room_type == RoomType::Hallway)
                     .filter(|unit| unit.width == 1 && unit.height == 2 && unit.num_doors == 2)
                     .filter(|unit| unit.doors[0].direction == 0 && unit.doors[1].direction == 2)
@@ -487,7 +615,18 @@ impl<'a> LayoutBuilder<'a> {
                     let mut unit_2_idx = 99999999;
                     for j in 0..2 {
                         md = Some(self.map_units[unit_1_idx].doors[j].clone());
-                        unit_2_idx = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow().parent_idx.unwrap();
+                        unit_2_idx = md
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .adjacent_door
+                            .as_ref()
+                            .unwrap()
+                            .upgrade()
+                            .unwrap()
+                            .borrow()
+                            .parent_idx
+                            .unwrap();
                         if hallway_unit_names_1x1.contains(&self.map_units[unit_2_idx].unit.unit_folder_name) {
                             od = md.as_ref().unwrap().borrow().adjacent_door.as_ref().unwrap().upgrade();
                             break;
@@ -508,18 +647,21 @@ impl<'a> LayoutBuilder<'a> {
 
                         // Find which door to expand from
                         expand_from = if unit_1.x > unit_2.x || unit_1.z < unit_2.z {
-                            unit_1.doors[
-                                md.unwrap().borrow().door_unit.door_links[0].door_id
-                            ]
-                            .borrow().adjacent_door
-                            .as_ref().unwrap().upgrade().unwrap()
-                        }
-                        else {
-                            unit_2.doors[
-                                od.unwrap().borrow().door_unit.door_links[0].door_id
-                            ]
-                            .borrow().adjacent_door
-                            .as_ref().unwrap().upgrade().unwrap()
+                            unit_1.doors[md.unwrap().borrow().door_unit.door_links[0].door_id]
+                                .borrow()
+                                .adjacent_door
+                                .as_ref()
+                                .unwrap()
+                                .upgrade()
+                                .unwrap()
+                        } else {
+                            unit_2.doors[od.unwrap().borrow().door_unit.door_links[0].door_id]
+                                .borrow()
+                                .adjacent_door
+                                .as_ref()
+                                .unwrap()
+                                .upgrade()
+                                .unwrap()
                         };
 
                         // Set reflexive adjacent_door pointers to None before deletion
@@ -538,14 +680,11 @@ impl<'a> LayoutBuilder<'a> {
                         desired_direction = if unit_1.x == unit_2.x { 0 } else { 1 };
                     };
 
-
-
                     // Delete the 1x1 hallway units
                     if unit_1_idx > unit_2_idx {
                         self.map_units.remove(unit_1_idx);
                         self.map_units.remove(unit_2_idx);
-                    }
-                    else {
+                    } else {
                         self.map_units.remove(unit_2_idx);
                         self.map_units.remove(unit_1_idx);
                     }
@@ -558,8 +697,12 @@ impl<'a> LayoutBuilder<'a> {
                     for new_unit in self.corridor_queue.iter() {
                         if &new_unit.unit_folder_name == name_chosen_2x1 && new_unit.doors[0].direction == desired_direction {
                             if let Some(approved_unit) = self.try_place_unit_at(expand_from.clone(), new_unit, 0) {
-                                debug!("Combining hallway units into type '{}' at ({}, {})",
-                                    new_unit.unit_folder_name, expand_from.borrow().x, expand_from.borrow().z);
+                                debug!(
+                                    "Combining hallway units into type '{}' at ({}, {})",
+                                    new_unit.unit_folder_name,
+                                    expand_from.borrow().x,
+                                    expand_from.borrow().z
+                                );
                                 self.place_map_unit(approved_unit, true);
                                 num_placed_units += 1;
                                 placed = true;
@@ -571,7 +714,8 @@ impl<'a> LayoutBuilder<'a> {
                     assert!(
                         placed,
                         "Deleted hallway units to combine but couldn't place a new hallway unit in their place! Seed: {:#X}, Sublevel: {}",
-                        self.starting_seed, caveinfo.name()
+                        self.starting_seed,
+                        caveinfo.name()
                     );
                 }
 
@@ -601,7 +745,8 @@ impl<'a> LayoutBuilder<'a> {
         // Set the start point, a.k.a. the Research Pod
         {
             let mut candidates: Vec<&mut PlacedSpawnPoint> = self.map_units[0]
-                .spawnpoints.iter_mut()
+                .spawnpoints
+                .iter_mut()
                 .filter(|sp| sp.spawnpoint_unit.group == 7)
                 .collect();
             let chosen = self.rng.rand_int(candidates.len() as u32) as usize;
@@ -617,9 +762,7 @@ impl<'a> LayoutBuilder<'a> {
             self.place_hole(SpawnObject::Hole(caveinfo.exit_plugged), is_challenge_mode);
         }
         if caveinfo.is_final_floor || caveinfo.has_geyser {
-            self.place_hole(
-                SpawnObject::Geyser(is_challenge_mode && caveinfo.is_final_floor),
-                is_challenge_mode);
+            self.place_hole(SpawnObject::Geyser(is_challenge_mode && caveinfo.is_final_floor), is_challenge_mode);
         }
 
         // Place door hazards, AKA 'seam teki' (Enemy Group 5)
@@ -651,8 +794,7 @@ impl<'a> LayoutBuilder<'a> {
                 // Note: this *should not* hit RNG if spawnpoints has zero elements.
                 let chosen_spot = if !spawnpoints.is_empty() {
                     Some(&spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()])
-                }
-                else {
+                } else {
                     None
                 };
 
@@ -662,7 +804,15 @@ impl<'a> LayoutBuilder<'a> {
 
                 if let (Some(chosen_spot), Some(teki_to_spawn)) = (chosen_spot, teki_to_spawn) {
                     chosen_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Teki(teki_to_spawn, Point::default())));
-                    chosen_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
+                    chosen_spot
+                        .borrow()
+                        .adjacent_door
+                        .as_ref()
+                        .unwrap()
+                        .upgrade()
+                        .unwrap()
+                        .borrow_mut()
+                        .seam_spawnpoint = Rc::clone(&chosen_spot.borrow().seam_spawnpoint);
                     self.placed_teki += 1;
                     debug!(
                         "Placed Teki \'{}\' on door seam at ({}, {}).",
@@ -670,8 +820,7 @@ impl<'a> LayoutBuilder<'a> {
                         chosen_spot.borrow().x,
                         chosen_spot.borrow().z
                     );
-                }
-                else {
+                } else {
                     // Exit the loop if there are no valid spots remaining, or if we've reached the
                     // spawn limit for this teki type.
                     break;
@@ -682,15 +831,25 @@ impl<'a> LayoutBuilder<'a> {
         // Place 'special enemies', AKA Enemy Group 8
         {
             // Valid spawn points are >=300 units away from the ship, and >=150 units away from the hole or geyser.
-            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self
+                .map_units
+                .iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 8
-                    && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 150.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 150.0).unwrap_or(true)
+                        && spawnpoint.contains.is_empty()
+                        && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
+                        && self
+                            .placed_exit_hole
+                            .as_ref()
+                            .map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 150.0)
+                            .unwrap_or(true)
+                        && self
+                            .placed_exit_geyser
+                            .as_ref()
+                            .map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 150.0)
+                            .unwrap_or(true)
                 })
                 .collect();
 
@@ -699,8 +858,7 @@ impl<'a> LayoutBuilder<'a> {
                 let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
-                }
-                else {
+                } else {
                     None
                 };
 
@@ -711,8 +869,7 @@ impl<'a> LayoutBuilder<'a> {
                     chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, Point::default()));
                     self.placed_teki += 1;
                     debug!("Placed Teki \'{}\' in Group 8 at {}.", teki_to_spawn.internal_name, chosen_spot.pos);
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -721,15 +878,25 @@ impl<'a> LayoutBuilder<'a> {
         // Place 'hard enemies', AKA Enemy Group 1
         {
             // Valid spawn points are >=300 units away from the ship, and >=200 units away from the hole or geyser.
-            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self
+                .map_units
+                .iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 1
-                    && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
-                    && self.placed_exit_hole.as_ref().map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 200.0).unwrap_or(true)
-                    && self.placed_exit_geyser.as_ref().map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 200.0).unwrap_or(true)
+                        && spawnpoint.contains.is_empty()
+                        && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
+                        && self
+                            .placed_exit_hole
+                            .as_ref()
+                            .map(|hole| hole.pos.p2_dist(&spawnpoint.pos) >= 200.0)
+                            .unwrap_or(true)
+                        && self
+                            .placed_exit_geyser
+                            .as_ref()
+                            .map(|geyser| geyser.pos.p2_dist(&spawnpoint.pos) >= 200.0)
+                            .unwrap_or(true)
                 })
                 .collect();
 
@@ -738,8 +905,7 @@ impl<'a> LayoutBuilder<'a> {
                 let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
-                }
-                else {
+                } else {
                     None
                 };
 
@@ -750,8 +916,7 @@ impl<'a> LayoutBuilder<'a> {
                     chosen_spot.contains.push(SpawnObject::Teki(teki_to_spawn, Point::default()));
                     self.placed_teki += 1;
                     debug!("Placed Teki \'{}\' in Group 1 at {}.", teki_to_spawn.internal_name, chosen_spot.pos);
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -760,13 +925,15 @@ impl<'a> LayoutBuilder<'a> {
         // Place 'easy enemies', AKA Enemy Group 0
         {
             // Valid spawn points are >=300 units away from the ship.
-            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self
+                .map_units
+                .iter_mut()
                 .filter(|map_unit| map_unit.unit.room_type == RoomType::Room)
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
                 .filter(|spawnpoint| {
                     spawnpoint.spawnpoint_unit.group == 0
-                    && spawnpoint.contains.is_empty()
-                    && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
+                        && spawnpoint.contains.is_empty()
+                        && self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos) >= 300.0
                 })
                 .collect();
 
@@ -776,15 +943,15 @@ impl<'a> LayoutBuilder<'a> {
                 let mut max_num = 0;
 
                 // Note: this *should not* hit RNG if spawnpoints is empty.
-                let chosen_spot = if !spawnpoints.is_empty() {
-                    let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
-                    min_num = spawnpoints[idx].spawnpoint_unit.min_num;
-                    max_num = spawnpoints[idx].spawnpoint_unit.max_num;
-                    Some(spawnpoints.remove(idx))
-                }
-                else {
-                    None
-                };
+                let chosen_spot =
+                    if !spawnpoints.is_empty() {
+                        let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
+                        min_num = spawnpoints[idx].spawnpoint_unit.min_num;
+                        max_num = spawnpoints[idx].spawnpoint_unit.max_num;
+                        Some(spawnpoints.remove(idx))
+                    } else {
+                        None
+                    };
 
                 // Note: this *still hits RNG* even if the above results in None.
                 let teki_to_spawn = choose_rand_teki(&self.rng as *const _, caveinfo, 0, num_spawned);
@@ -799,8 +966,7 @@ impl<'a> LayoutBuilder<'a> {
                         }
                     }
                     cumulative_min - num_spawned
-                }
-                else {
+                } else {
                     caveinfo.max_main_objects - self.placed_teki
                 };
 
@@ -847,12 +1013,13 @@ impl<'a> LayoutBuilder<'a> {
                                     // loop conditions.
                                     (
                                         (&to_spawn[t1i] as *const _ as *mut SpawnObject).as_mut().unwrap(),
-                                        (&to_spawn[t2i] as *const _ as *mut SpawnObject).as_mut().unwrap()
+                                        (&to_spawn[t2i] as *const _ as *mut SpawnObject).as_mut().unwrap(),
                                     )
                                 };
 
-                                let (SpawnObject::Teki(_, pos1), SpawnObject::Teki(_, pos2)) = (t1, t2)
-                                    else { panic!(); /* should always succeed */};
+                                let (SpawnObject::Teki(_, pos1), SpawnObject::Teki(_, pos2)) = (t1, t2) else {
+                                    panic!(); /* should always succeed */
+                                };
 
                                 let delta = *pos1 - *pos2;
                                 let dist = pos1.p2_dist(pos2);
@@ -871,12 +1038,9 @@ impl<'a> LayoutBuilder<'a> {
                     chosen_spot.contains.append(&mut to_spawn);
                     debug!(
                         "Placed {} Teki \'{}\' in Group 0 near the spawnpoint at {}.",
-                        num_spawned_final,
-                        teki_to_spawn.internal_name,
-                        chosen_spot.pos,
+                        num_spawned_final, teki_to_spawn.internal_name, chosen_spot.pos,
                     );
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -893,23 +1057,19 @@ impl<'a> LayoutBuilder<'a> {
         // N.B. when people say "plants can contribute to score", they mean when plant teki
         // are spwaned in groups other than 6. Group 6 does not affect score.
         {
-            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self.map_units.iter_mut()
+            let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = self
+                .map_units
+                .iter_mut()
                 .flat_map(|map_unit| map_unit.spawnpoints.iter_mut())
-                .filter(|spawnpoint| {
-                    spawnpoint.spawnpoint_unit.group == 6
-                    && spawnpoint.contains.is_empty()
-                })
+                .filter(|spawnpoint| spawnpoint.spawnpoint_unit.group == 6 && spawnpoint.contains.is_empty())
                 .collect();
 
-            let min_sum: u32 = caveinfo.teki_group(6)
-                .map(|teki| teki.minimum_amount)
-                .sum();
+            let min_sum: u32 = caveinfo.teki_group(6).map(|teki| teki.minimum_amount).sum();
             for num_spawned in 0..min_sum {
                 let chosen_spot = if !spawnpoints.is_empty() {
                     let idx = self.rng.rand_int(spawnpoints.len() as u32) as usize;
                     Some(spawnpoints.remove(idx))
-                }
-                else {
+                } else {
                     None
                 };
 
@@ -920,11 +1080,9 @@ impl<'a> LayoutBuilder<'a> {
                     self.placed_teki += 1;
                     debug!(
                         "Placed Plant-Group Teki \'{}\' at {}.",
-                        teki_to_spawn.internal_name,
-                        chosen_spot.pos
+                        teki_to_spawn.internal_name, chosen_spot.pos
                     );
-                }
-                else {
+                } else {
                     // Exit the loop if there are no valid spots remaining, or if we've reached the
                     // spawn limit for this teki type.
                     break;
@@ -941,7 +1099,9 @@ impl<'a> LayoutBuilder<'a> {
                 // Find all possible spawn points, plus an 'effective treasure score' for each.
                 for map_unit in self.map_units.iter_mut() {
                     if map_unit.unit.room_type == RoomType::Room {
-                        let num_items_in_this_unit = map_unit.spawnpoints.iter()
+                        let num_items_in_this_unit = map_unit
+                            .spawnpoints
+                            .iter()
                             .flat_map(|spawnpoint| spawnpoint.contains.iter())
                             .filter(|spawn_object| matches!(spawn_object, SpawnObject::Item(_)))
                             .count();
@@ -960,9 +1120,10 @@ impl<'a> LayoutBuilder<'a> {
                             spawnpoints.push(spawnpoint);
                             spawnpoint_weights.push(effective_treasure_score);
                         }
-                    }
-                    else if map_unit.unit.unit_folder_name.contains("item") {
-                        let spawnpoint = map_unit.spawnpoints.iter_mut()
+                    } else if map_unit.unit.unit_folder_name.contains("item") {
+                        let spawnpoint = map_unit
+                            .spawnpoints
+                            .iter_mut()
                             .find(|spawnpoint| spawnpoint.spawnpoint_unit.group == 9)
                             .expect("No Cap Spawnpoint (group 9) in item unit!");
                         if !spawnpoint.contains.is_empty() {
@@ -987,7 +1148,8 @@ impl<'a> LayoutBuilder<'a> {
                         chosen_spot = Some(&mut spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()]);
                     } else {
                         let max_weight = *spawnpoint_weights.iter().max().unwrap();
-                        let mut max_spawnpoints: Vec<_> = spawnpoints.iter_mut()
+                        let mut max_spawnpoints: Vec<_> = spawnpoints
+                            .iter_mut()
                             .zip(spawnpoint_weights)
                             .filter(|(_, w)| *w == max_weight)
                             .map(|(sp, _)| sp)
@@ -1002,8 +1164,10 @@ impl<'a> LayoutBuilder<'a> {
 
                 if let (Some(chosen_spot), Some(chosen_treasure)) = (chosen_spot, chosen_treasure) {
                     chosen_spot.contains.push(SpawnObject::Item(chosen_treasure));
-                    debug!("Placed treasure \"{}\" at {} - score {}.",
-                        chosen_treasure.internal_name, chosen_spot.pos, chosen_spot.treasure_score);
+                    debug!(
+                        "Placed treasure \"{}\" at {} - score {}.",
+                        chosen_treasure.internal_name, chosen_spot.pos, chosen_spot.treasure_score
+                    );
                 }
             }
         }
@@ -1018,7 +1182,9 @@ impl<'a> LayoutBuilder<'a> {
                     continue;
                 }
 
-                let spawnpoint = map_unit.spawnpoints.iter_mut()
+                let spawnpoint = map_unit
+                    .spawnpoints
+                    .iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
                 if !spawnpoint.contains.is_empty() {
@@ -1039,22 +1205,25 @@ impl<'a> LayoutBuilder<'a> {
                     continue;
                 }
 
-                let spawnpoint = map_unit.spawnpoints.iter_mut()
+                let spawnpoint = map_unit
+                    .spawnpoints
+                    .iter_mut()
                     .find(|sp| sp.spawnpoint_unit.group == 9)
                     .expect("Alcove does not have Alcove Spawn Point!");
                 if spawnpoint.contains.iter().any(|spawn_object| {
                     matches!(spawn_object, SpawnObject::CapTeki(teki, _) if teki.is_candypop() || teki.is_falling())
-                    || matches!(spawn_object, SpawnObject::Hole(_) | SpawnObject::Geyser(_))
-                })
-                {
+                        || matches!(spawn_object, SpawnObject::Hole(_) | SpawnObject::Geyser(_))
+                }) {
                     continue;
                 }
-
 
                 if let Some((teki_to_spawn, num_to_spawn)) = choose_rand_cap_teki(&self.rng as *const _, caveinfo, num_spawned, true) {
                     spawnpoint.contains.push(SpawnObject::CapTeki(teki_to_spawn, num_to_spawn));
                     num_spawned += num_to_spawn;
-                    debug!("Spawned Falling Cap Teki \"{}\" in cap at {}.", teki_to_spawn.internal_name, spawnpoint.pos);
+                    debug!(
+                        "Spawned Falling Cap Teki \"{}\" in cap at {}.",
+                        teki_to_spawn.internal_name, spawnpoint.pos
+                    );
                 }
             }
         }
@@ -1082,8 +1251,15 @@ impl<'a> LayoutBuilder<'a> {
                 if let (Some(gate_to_spawn), Some(spawn_spot)) = (gate_to_spawn, spawn_spot) {
                     let rotation = spawn_spot.borrow().door_unit.direction;
                     spawn_spot.borrow_mut().seam_spawnpoint = Rc::new(Some(SpawnObject::Gate(gate_to_spawn, rotation)));
-                    spawn_spot.borrow().adjacent_door.as_ref().unwrap().upgrade().unwrap().borrow_mut().seam_spawnpoint
-                        = Rc::clone(&spawn_spot.borrow().seam_spawnpoint);
+                    spawn_spot
+                        .borrow()
+                        .adjacent_door
+                        .as_ref()
+                        .unwrap()
+                        .upgrade()
+                        .unwrap()
+                        .borrow_mut()
+                        .seam_spawnpoint = Rc::clone(&spawn_spot.borrow().seam_spawnpoint);
                 }
             }
         }
@@ -1091,7 +1267,9 @@ impl<'a> LayoutBuilder<'a> {
         // In Colossal Caverns, place Onions
         if caveinfo.cave_cfg.is_colossal_caverns() {
             const NUM_ONIONS: usize = 3;
-            let num_valid_rooms = self.map_units.iter()
+            let num_valid_rooms = self
+                .map_units
+                .iter()
                 .filter(|unit| unit.unit.room_type == RoomType::Room)
                 .filter(|unit| unit.spawnpoints.iter().find(|sp| sp.spawnpoint_unit.group == 7).is_some())
                 .count();
@@ -1103,8 +1281,7 @@ impl<'a> LayoutBuilder<'a> {
             let mut color = 0;
             let mut room_num = 0;
             for unit in self.map_units.iter_mut().filter(|unit| unit.unit.room_type == RoomType::Room) {
-                let spawn_point = unit.spawnpoints.iter_mut()
-                    .find(|sp| sp.spawnpoint_unit.group == 7);
+                let spawn_point = unit.spawnpoints.iter_mut().find(|sp| sp.spawnpoint_unit.group == 7);
                 if let Some(spawn_spot) = spawn_point {
                     room_num += 1;
                     if room_num == (color + 1) * room_interval {
@@ -1121,7 +1298,7 @@ impl<'a> LayoutBuilder<'a> {
 
         // Done!
         Layout {
-            sublevel: Sublevel::from_cfg(&caveinfo.cave_cfg, caveinfo.floor_num as usize+1),
+            sublevel: Sublevel::from_cfg(&caveinfo.cave_cfg, caveinfo.floor_num as usize + 1),
             starting_seed: self.starting_seed,
             cave_name: self.cave_name,
             map_units: self.map_units,
@@ -1155,14 +1332,17 @@ impl<'a> LayoutBuilder<'a> {
             for spawnpoint in map_unit.spawnpoints.iter() {
                 for spawn_object in spawnpoint.contains.iter() {
                     match spawn_object {
-                        SpawnObject::Teki(TekiInfo{group:1, ..}, _) => map_unit.teki_score += 10,
-                        SpawnObject::Teki(TekiInfo{group:0, ..}, _) => map_unit.teki_score += 2,
-                        _ => {/* do nothing */}
+                        SpawnObject::Teki(TekiInfo { group: 1, .. }, _) => map_unit.teki_score += 10,
+                        SpawnObject::Teki(TekiInfo { group: 0, .. }, _) => map_unit.teki_score += 2,
+                        _ => { /* do nothing */ }
                     };
                 }
             }
             if map_unit.teki_score > 0 {
-                debug!("Set Teki Score for map tile \"{}\" at ({}, {}) to {}.", map_unit.unit.unit_folder_name, map_unit.x, map_unit.z, map_unit.teki_score);
+                debug!(
+                    "Set Teki Score for map tile \"{}\" at ({}, {}) to {}.",
+                    map_unit.unit.unit_folder_name, map_unit.x, map_unit.z, map_unit.teki_score
+                );
             }
 
             // Set Seam Teki Score for each door with a seam teki
@@ -1172,7 +1352,10 @@ impl<'a> LayoutBuilder<'a> {
                     door.seam_teki_score += 5;
                 }
                 if door.seam_teki_score > 0 {
-                    debug!("Set Seam Teki Score for door at ({}, {}) to {}.", door.x, door.z, door.seam_teki_score);
+                    debug!(
+                        "Set Seam Teki Score for door at ({}, {}) to {}.",
+                        door.x, door.z, door.seam_teki_score
+                    );
                 }
             }
         }
@@ -1197,15 +1380,26 @@ impl<'a> LayoutBuilder<'a> {
             // SAFETY: the adjacent unit will never also be the current unit, therefore it
             // cannot be concurrently modified. Doors are handled inside RefCells and are
             // thus safe from this hack.
-            let adj_unit: &mut PlacedMapUnit = unsafe {
-                (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
-            };
+            let adj_unit: &mut PlacedMapUnit =
+                unsafe {
+                    (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit)
+                        .as_mut()
+                        .unwrap()
+                };
 
             adj_door.borrow_mut().door_score = door.borrow().door_score;
             adj_unit.total_score = min(door.borrow().door_score.unwrap() + adj_unit.teki_score, adj_unit.total_score);
 
-            debug!("Set Door Score for starting room door at ({}, {}) to {}.", door.borrow().x, door.borrow().z, door.borrow().door_score.unwrap());
-            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
+            debug!(
+                "Set Door Score for starting room door at ({}, {}) to {}.",
+                door.borrow().x,
+                door.borrow().z,
+                door.borrow().door_score.unwrap()
+            );
+            debug!(
+                "Set Total Score for map unit \"{}\" at ({}, {}) to {}.",
+                adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score
+            );
         }
 
         // Set scores in a roughly breadth-first fashion by finding the smallest
@@ -1230,8 +1424,10 @@ impl<'a> LayoutBuilder<'a> {
                         let teki_score = map_unit.teki_score;
                         let seam_teki_score = other_door.borrow().seam_teki_score;
 
-                        let potential_score = dist_score + (teki_score * u32::from(door_link.tekiflag))
-                            + seam_teki_score + start_door.borrow().door_score.unwrap();
+                        let potential_score = dist_score
+                            + (teki_score * u32::from(door_link.tekiflag))
+                            + seam_teki_score
+                            + start_door.borrow().door_score.unwrap();
                         if selected_score.map(|s| potential_score < s).unwrap_or(true) {
                             selected_score = Some(potential_score);
                             selected_door = Some(other_door);
@@ -1248,18 +1444,29 @@ impl<'a> LayoutBuilder<'a> {
             selected_door.borrow_mut().door_score = selected_score;
             let adj_door = self.get_adjacent_door(Rc::clone(&selected_door));
             adj_door.borrow_mut().door_score = selected_score;
-            debug!("Set Door Score for door at ({}, {}) to {}.", selected_door.borrow().x, selected_door.borrow().z, selected_score.unwrap());
+            debug!(
+                "Set Door Score for door at ({}, {}) to {}.",
+                selected_door.borrow().x,
+                selected_door.borrow().z,
+                selected_score.unwrap()
+            );
 
             // SAFETY: the adjacent unit will never also be the current unit, therefore it
             // cannot be concurrently modified. Doors are handled inside RefCells and are
             // thus safe from this hack.
-            let adj_unit: &mut PlacedMapUnit = unsafe {
-                (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit).as_mut().unwrap()
-            };
+            let adj_unit: &mut PlacedMapUnit =
+                unsafe {
+                    (&self.map_units[adj_door.borrow().parent_idx.unwrap()] as *const _ as *mut PlacedMapUnit)
+                        .as_mut()
+                        .unwrap()
+                };
 
             let candidate_adj_unit_total_score = selected_score.unwrap() + adj_unit.teki_score;
             adj_unit.total_score = min(candidate_adj_unit_total_score, adj_unit.total_score);
-            debug!("Set Total Score for map unit \"{}\" at ({}, {}) to {}.", adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score);
+            debug!(
+                "Set Total Score for map unit \"{}\" at ({}, {}) to {}.",
+                adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score
+            );
         }
     }
 
@@ -1269,12 +1476,16 @@ impl<'a> LayoutBuilder<'a> {
 
         // We need to do this because the compiler cannot figure out that the borrows from
         // self.map_units are never overlapping.
-        let (mut rooms, rest): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) = self.map_units.iter_mut()
-            .partition(|unit| unit.unit.room_type == RoomType::Room);
-        let (mut caps, mut hallways): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) = rest.into_iter()
-            .partition(|unit| unit.unit.room_type == RoomType::DeadEnd);
+        let (mut rooms, rest): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) =
+            self.map_units.iter_mut().partition(|unit| unit.unit.room_type == RoomType::Room);
+        let (mut caps, mut hallways): (Vec<&mut PlacedMapUnit>, Vec<&mut PlacedMapUnit>) =
+            rest.into_iter().partition(|unit| unit.unit.room_type == RoomType::DeadEnd);
 
-        for (unit_type, unit_type_iter) in [(RoomType::Room, &mut rooms), (RoomType::DeadEnd, &mut caps), (RoomType::Hallway, &mut hallways)] {
+        for (unit_type, unit_type_iter) in [
+            (RoomType::Room, &mut rooms),
+            (RoomType::DeadEnd, &mut caps),
+            (RoomType::Hallway, &mut hallways),
+        ] {
             // Only use hallway spawn points if there are zero other available locations.
             if unit_type == RoomType::Hallway && !hole_spawnpoints.is_empty() {
                 continue;
@@ -1312,16 +1523,18 @@ impl<'a> LayoutBuilder<'a> {
         let hole_location = if is_challenge_mode {
             let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect();
             hole_spawnpoints.remove(self.rng.rand_index_weight(weights.as_slice()).unwrap())
-        }
-        else {
+        } else {
             // Only consider the spots with the highest score
-            let max_hole_score = hole_spawnpoints.iter()
-                .filter(|sp| sp.contains.is_empty())
-                .map(|sp| sp.hole_score)
-                .max()
-                .unwrap();
+            let max_hole_score =
+                hole_spawnpoints
+                    .iter()
+                    .filter(|sp| sp.contains.is_empty())
+                    .map(|sp| sp.hole_score)
+                    .max()
+                    .unwrap();
 
-            let mut candidate_spawnpoints = hole_spawnpoints.into_iter()
+            let mut candidate_spawnpoints = hole_spawnpoints
+                .into_iter()
                 .filter(|sp| sp.hole_score == max_hole_score)
                 .filter(|sp| sp.contains.is_empty())
                 .collect::<Vec<_>>();
@@ -1329,16 +1542,15 @@ impl<'a> LayoutBuilder<'a> {
             candidate_spawnpoints.remove(self.rng.rand_int(candidate_spawnpoints.len() as u32) as usize)
         };
 
-
         match to_place {
             SpawnObject::Hole(_) => {
                 self.placed_exit_hole = Some(hole_location.to_owned());
                 debug!("Placed Exit Hole at {}.", hole_location.pos);
-            },
+            }
             SpawnObject::Geyser(_) => {
                 self.placed_exit_geyser = Some(hole_location.to_owned());
                 debug!("Placed Exit Geyser at {}.", hole_location.pos);
-            },
+            }
             _ => panic!("Tried to place an object other than Hole or Geyser in place_hole"),
         }
 
@@ -1364,25 +1576,25 @@ impl<'a> LayoutBuilder<'a> {
 
             // If there are no grounded teki or treasures here, don't consider this cap.
             // Alcoves with falling teki only do not count.
-            if !map_unit.spawnpoints[0].contains.iter()
-                .any(|so| {
-                    match so {
-                        SpawnObject::CapTeki(capteki, _) if !capteki.is_falling() => true,
-                        SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser(_) => true,
-                        _ => false,
-                    }
-                })
-            {
+            if !map_unit.spawnpoints[0].contains.iter().any(|so| match so {
+                SpawnObject::CapTeki(capteki, _) if !capteki.is_falling() => true,
+                SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser(_) => true,
+                _ => false,
+            }) {
                 continue;
             }
 
             // If there is a falling Candypop Bud here, don't consider this cap.
-            if map_unit.spawnpoints[0].contains.iter()
-                .any(|so| {
-                    if let SpawnObject::CapTeki(capteki, _) = so && capteki.is_candypop() && capteki.is_falling() { true }
-                    else { false }
-                })
-            {
+            if map_unit.spawnpoints[0].contains.iter().any(|so| {
+                if let SpawnObject::CapTeki(capteki, _) = so
+                    && capteki.is_candypop()
+                    && capteki.is_falling()
+                {
+                    true
+                } else {
+                    false
+                }
+            }) {
                 continue;
             }
 
@@ -1395,7 +1607,8 @@ impl<'a> LayoutBuilder<'a> {
         }
         if !spawnpoints.is_empty() {
             let spot = spawnpoints.get(self.rng.rand_int(spawnpoints.len() as u32) as usize).cloned();
-            debug!("Chose gate spawn point at ({}, {}) via spawn path 1.",
+            debug!(
+                "Chose gate spawn point at ({}, {}) via spawn path 1.",
                 spot.as_ref().unwrap().borrow().x,
                 spot.as_ref().unwrap().borrow().z
             );
@@ -1409,7 +1622,9 @@ impl<'a> LayoutBuilder<'a> {
             }
 
             // Ignore the map unit containing the ship
-            if map_unit.spawnpoints.iter()
+            if map_unit
+                .spawnpoints
+                .iter()
                 .flat_map(|spawnpoint| spawnpoint.contains.iter())
                 .any(|spawn_object| matches!(spawn_object, SpawnObject::Ship))
             {
@@ -1426,7 +1641,8 @@ impl<'a> LayoutBuilder<'a> {
             }
 
             if min_door_score < u32::MAX && min_door.unwrap().borrow().seam_spawnpoint.is_none() {
-                debug!("Chose gate spawn point at ({}, {}) via spawn path 2.",
+                debug!(
+                    "Chose gate spawn point at ({}, {}) via spawn path 2.",
                     min_door.as_ref().unwrap().borrow().x,
                     min_door.as_ref().unwrap().borrow().z
                 );
@@ -1463,8 +1679,11 @@ impl<'a> LayoutBuilder<'a> {
             }
 
             if !spawnpoints.is_empty() {
-                let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
-                debug!("Chose gate spawn point at ({}, {}) via spawn path 3.",
+                let spot = spawnpoints
+                    .get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap())
+                    .cloned();
+                debug!(
+                    "Chose gate spawn point at ({}, {}) via spawn path 3.",
                     spot.as_ref().unwrap().borrow().x,
                     spot.as_ref().unwrap().borrow().z
                 );
@@ -1481,16 +1700,18 @@ impl<'a> LayoutBuilder<'a> {
                 spawnpoints.push(Rc::clone(door));
                 let weight = if map_unit.unit.room_type == RoomType::Hallway {
                     10 / map_unit.doors.len()
-                }
-                else {
+                } else {
                     map_unit.doors.len()
                 };
                 spawnpoint_weights.push(weight as u32);
             }
         }
         if !spawnpoints.is_empty() {
-            let spot = spawnpoints.get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()).cloned();
-            debug!("Chose gate spawn point at ({}, {}) via spawn path 4.",
+            let spot = spawnpoints
+                .get(self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap())
+                .cloned();
+            debug!(
+                "Chose gate spawn point at ({}, {}) via spawn path 4.",
                 spot.as_ref().unwrap().borrow().x,
                 spot.as_ref().unwrap().borrow().z
             );
@@ -1529,7 +1750,7 @@ impl<'a> LayoutBuilder<'a> {
         self.map_min_z = min(self.map_min_z, last_placed_unit.z);
         self.map_max_x = max(self.map_max_x, last_placed_unit.x + last_placed_unit.unit.width as i32);
         self.map_max_z = max(self.map_max_z, last_placed_unit.z + last_placed_unit.unit.height as i32);
-        self.map_has_diameter_36 = self.map_max_x-self.map_min_x >= 36 || self.map_max_z-self.map_min_z >= 36;
+        self.map_has_diameter_36 = self.map_max_x - self.map_min_x >= 36 || self.map_max_z - self.map_min_z >= 36;
     }
 
     /// After placing a map unit, a targeted shuffle is performed to increase the chances of
@@ -1545,15 +1766,14 @@ impl<'a> LayoutBuilder<'a> {
                 for unit in self.map_units.iter().filter(|unit| unit.unit.room_type == RoomType::Room) {
                     if let Some(entry) = room_type_counter.iter_mut().find(|(name, _)| name == &unit.unit.unit_folder_name) {
                         entry.1 += 1;
-                    }
-                    else {
+                    } else {
                         room_type_counter.push((&unit.unit.unit_folder_name, 1));
                     }
                 }
 
                 // Sort the room names by frequency (ascending) using a swapping sort.
                 for i in 0..room_type_counter.len() {
-                    for j in i+1..room_type_counter.len() {
+                    for j in i + 1..room_type_counter.len() {
                         if room_type_counter[i].1 > room_type_counter[j].1 {
                             room_type_counter.swap(i, j);
                         }
@@ -1565,7 +1785,7 @@ impl<'a> LayoutBuilder<'a> {
                 // *most* frequent room types will be at the end since they're done last,
                 // and all the rooms that haven't been used yet will be at the front.
                 for room_type in room_type_counter {
-                    let room_type = room_type.0;  // Don't need the frequency anymore
+                    let room_type = room_type.0; // Don't need the frequency anymore
                     let mut idx = 0;
                     let mut matching_rooms = Vec::new();
                     while idx < self.room_queue.len() {
@@ -1601,8 +1821,9 @@ impl<'a> LayoutBuilder<'a> {
         }
     }
 
-    fn open_doors<'b>(&'b self) -> impl Iterator<Item=Rc<RefCell<PlacedDoor<'a>>>> + 'b {
-        self.map_units.iter()
+    fn open_doors<'b>(&'b self) -> impl Iterator<Item = Rc<RefCell<PlacedDoor<'a>>>> + 'b {
+        self.map_units
+            .iter()
             .flat_map(|unit| unit.doors.iter().cloned())
             .filter(|door| door.borrow().adjacent_door.is_none())
     }
@@ -1615,19 +1836,19 @@ impl<'a> LayoutBuilder<'a> {
         // If few open doors, prioritize corridor units with many doors
         if num_open_doors < 4 {
             for i in 0..max_num_doors_single_unit {
-                corridor_priority.push(max_num_doors_single_unit-i);
+                corridor_priority.push(max_num_doors_single_unit - i);
             }
         }
         // If many open doors, prioritize hallways
         else if num_open_doors >= 10 {
             for i in 0..max_num_doors_single_unit {
-                corridor_priority.push(i+1);
+                corridor_priority.push(i + 1);
             }
         }
         // Otherwise prioritize randomly
         else {
             for i in 0..max_num_doors_single_unit {
-                corridor_priority.push(i+1);
+                corridor_priority.push(i + 1);
             }
             self.rng.rand_swaps(&mut corridor_priority);
         }
@@ -1639,8 +1860,9 @@ impl<'a> LayoutBuilder<'a> {
             while i < self.corridor_queue.len() {
                 if self.corridor_queue[i].num_doors == num_doors {
                     new_corridor_queue.push(self.corridor_queue.remove(i));
+                } else {
+                    i += 1;
                 }
-                else { i += 1; }
             }
         }
         self.corridor_queue = new_corridor_queue;
@@ -1648,7 +1870,12 @@ impl<'a> LayoutBuilder<'a> {
 
     /// Attempts to place a new map unit connected to destination_door, if it fits.
     /// Returns true if the map unit was successfully placed, otherwise returns false.
-    fn try_place_unit_at(&self, destination_door: Rc<RefCell<PlacedDoor<'a>>>, new_unit: &'a CaveUnit, door_index: usize) -> Option<PlacedMapUnit<'a>> {
+    fn try_place_unit_at(
+        &self,
+        destination_door: Rc<RefCell<PlacedDoor<'a>>>,
+        new_unit: &'a CaveUnit,
+        door_index: usize,
+    ) -> Option<PlacedMapUnit<'a>> {
         // Ensure doors are facing each other
         if !destination_door.borrow().door_unit.facing(&new_unit.doors[door_index]) {
             return None;
@@ -1656,11 +1883,23 @@ impl<'a> LayoutBuilder<'a> {
 
         let new_unit_door = &new_unit.doors[door_index];
         let (candidate_unit_x, candidate_unit_z) = match new_unit_door.direction {
-            0 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as i32, destination_door.borrow().z),
-            1 => (destination_door.borrow().x - new_unit.width as i32, destination_door.borrow().z - new_unit_door.side_lateral_offset as i32),
-            2 => (destination_door.borrow().x - new_unit_door.side_lateral_offset as i32, destination_door.borrow().z - new_unit.height as i32),
-            3 => (destination_door.borrow().x, destination_door.borrow().z - new_unit_door.side_lateral_offset as i32),
-            _ => panic!("Invalid door direction")
+            0 => (
+                destination_door.borrow().x - new_unit_door.side_lateral_offset as i32,
+                destination_door.borrow().z,
+            ),
+            1 => (
+                destination_door.borrow().x - new_unit.width as i32,
+                destination_door.borrow().z - new_unit_door.side_lateral_offset as i32,
+            ),
+            2 => (
+                destination_door.borrow().x - new_unit_door.side_lateral_offset as i32,
+                destination_door.borrow().z - new_unit.height as i32,
+            ),
+            3 => (
+                destination_door.borrow().x,
+                destination_door.borrow().z - new_unit_door.side_lateral_offset as i32,
+            ),
+            _ => panic!("Invalid door direction"),
         };
         let candidate_unit = PlacedMapUnit::new(new_unit, candidate_unit_x, candidate_unit_z);
 
@@ -1676,21 +1915,28 @@ impl<'a> LayoutBuilder<'a> {
         // facing straight into the outer wall of a placed room, which we don't want.
         for new_door in candidate_unit.doors.iter() {
             // If the door lines up with an existing door, we can move on.
-            if self.open_doors().any(|open_door| new_door.borrow().lines_up_with(&open_door.borrow())) {
+            if self
+                .open_doors()
+                .any(|open_door| new_door.borrow().lines_up_with(&open_door.borrow()))
+            {
                 continue;
             }
 
             // However if there are any that don't line up, we need to check the space in front.
             let open_space_x = new_door.borrow().x - (if new_door.borrow().door_unit.direction == 3 { 1 } else { 0 });
             let open_space_z = new_door.borrow().z - (if new_door.borrow().door_unit.direction == 0 { 1 } else { 0 });
-            if self.map_units.iter()
-                .any(|placed_unit| {
-                    boxes_overlap(
-                        open_space_x, open_space_z, 1, 1,
-                        placed_unit.x, placed_unit.z, placed_unit.unit.width, placed_unit.unit.height
-                    )
-                })
-            {
+            if self.map_units.iter().any(|placed_unit| {
+                boxes_overlap(
+                    open_space_x,
+                    open_space_z,
+                    1,
+                    1,
+                    placed_unit.x,
+                    placed_unit.z,
+                    placed_unit.unit.width,
+                    placed_unit.unit.height,
+                )
+            }) {
                 return None;
             }
         }
@@ -1698,7 +1944,11 @@ impl<'a> LayoutBuilder<'a> {
         // Same thing again, but this time checking existing doors against the new map unit
         for open_door in self.open_doors() {
             // If the door lines up with an existing door, we can move on.
-            if candidate_unit.doors.iter().any(|new_door| open_door.borrow().lines_up_with(&new_door.borrow())) {
+            if candidate_unit
+                .doors
+                .iter()
+                .any(|new_door| open_door.borrow().lines_up_with(&new_door.borrow()))
+            {
                 continue;
             }
 
@@ -1706,8 +1956,14 @@ impl<'a> LayoutBuilder<'a> {
             let open_space_x = open_door.borrow().x - (if open_door.borrow().door_unit.direction == 3 { 1 } else { 0 });
             let open_space_z = open_door.borrow().z - (if open_door.borrow().door_unit.direction == 0 { 1 } else { 0 });
             if boxes_overlap(
-                open_space_x, open_space_z, 1, 1,
-                candidate_unit.x, candidate_unit.z, candidate_unit.unit.width, candidate_unit.unit.height
+                open_space_x,
+                open_space_z,
+                1,
+                1,
+                candidate_unit.x,
+                candidate_unit.z,
+                candidate_unit.unit.width,
+                candidate_unit.unit.height,
             ) {
                 return None;
             }
@@ -1726,7 +1982,7 @@ impl<'a> LayoutBuilder<'a> {
         }
         self.marked_open_doors_as_caps = true;
 
-        let mut num_marked = 0;  // We'll stop after 16 maximum.
+        let mut num_marked = 0; // We'll stop after 16 maximum.
         for open_door in self.open_doors() {
             if self.rng.rand_f32() < caveinfo.cap_probability {
                 open_door.borrow_mut().marked_as_cap = true;
@@ -1738,7 +1994,6 @@ impl<'a> LayoutBuilder<'a> {
         }
     }
 }
-
 
 /// https://github.com/JHaack4/CaveGen/blob/2c99bf010d2f6f80113ed7eaf11d9d79c6cff367/CaveGen.java#L2177
 /// RNG is a raw pointer to avoid issues with borrowing self (LayoutBuilder).
@@ -1760,9 +2015,8 @@ fn choose_rand_teki(rng: *const PikminRng, caveinfo: &CaveInfo, group: u32, num_
     }
 
     if !filler_teki.is_empty() {
-        Some(unsafe{filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]})
-    }
-    else {
+        Some(unsafe { filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()] })
+    } else {
         None
     }
 }
@@ -1785,9 +2039,8 @@ fn choose_rand_item(rng: *const PikminRng, caveinfo: &CaveInfo, num_spawned: u32
     }
 
     if !filler_items.is_empty() {
-        Some(unsafe{filler_items[rng.as_ref().unwrap().rand_index_weight(filler_item_weights.as_slice()).unwrap()]})
-    }
-    else {
+        Some(unsafe { filler_items[rng.as_ref().unwrap().rand_index_weight(filler_item_weights.as_slice()).unwrap()] })
+    } else {
         None
     }
 }
@@ -1797,23 +2050,19 @@ fn choose_rand_cap_teki(rng: *const PikminRng, caveinfo: &CaveInfo, num_spawned:
     let mut filler_teki = Vec::new();
     let mut filler_teki_weights = Vec::new();
 
-    for teki in caveinfo.cap_info.iter()
-        .filter(|teki| {
-            if falling {
-                teki.is_falling() && !teki.is_candypop()
-            }
-            else {
-                !teki.is_falling() || teki.is_candypop()
-            }
-        })
-    {
+    for teki in caveinfo.cap_info.iter().filter(|teki| {
+        if falling {
+            teki.is_falling() && !teki.is_candypop()
+        } else {
+            !teki.is_falling() || teki.is_candypop()
+        }
+    }) {
         cumulative_mins += teki.minimum_amount;
         if num_spawned < cumulative_mins {
             if teki.group == 0 && num_spawned + 1 < cumulative_mins {
-                return Some((teki, 2))
-            }
-            else {
-                return Some((teki, 1))
+                return Some((teki, 2));
+            } else {
+                return Some((teki, 1));
             }
         }
 
@@ -1824,18 +2073,16 @@ fn choose_rand_cap_teki(rng: *const PikminRng, caveinfo: &CaveInfo, num_spawned:
     }
 
     if !filler_teki.is_empty() {
-        let teki = unsafe{&filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()]};
+        let teki = unsafe { &filler_teki[rng.as_ref().unwrap().rand_index_weight(filler_teki_weights.as_slice()).unwrap()] };
         if teki.group == 0 {
             Some((teki, 2))
-        }
-        else {
+        } else {
             Some((teki, 1))
         }
-    }
-    else {
+    } else {
         // Rand still gets called in this case. Possible programming bug in the original game,
         // but required to match generation exactly.
-        unsafe{rng.as_ref().unwrap().rand_raw()};
+        unsafe { rng.as_ref().unwrap().rand_raw() };
         None
     }
 }
