@@ -42,6 +42,7 @@ pikmin2,    Cave of Pain,          true,   ch_MAT_flier.txt,                CH27
 pikmin2,    Bully Den,             true,   ch_MIYA_trap.txt,                CH28, BD
 pikmin2,    Sniper Room,           true,   ch_MUKI_bombing.txt,             CH29, SR, snr
 pikmin2,    Emperor's Realm,       true,   ch_MUKI_king.txt,                CH30, ER
+pikmin2,    Colossal Caverns,      false,  colossal.txt,                    colossal
 newyear,    Bamboo Garden,         false,  tutorial_1.txt,                  BG
 newyear,    Satellite Koppai,      false,  tutorial_2.txt,                  SK,
 newyear,    Cave With No Name,     false,  tutorial_3.txt,                  CWNN

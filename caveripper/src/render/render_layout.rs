@@ -17,7 +17,7 @@ use crate::{
         shapes::{Circle, Line},
         CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
         QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ROAMING_COLOR,
-        QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR,
+        QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ONION_RED,
     },
 };
 
@@ -119,12 +119,20 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
                     match internal_name.to_ascii_lowercase().as_str() {
                         "whitepom" => Some(QUICKGLANCE_IVORY_CANDYPOP_COLOR),
                         "blackpom" => Some(QUICKGLANCE_VIOLET_CANDYPOP_COLOR),
-                        "minihoudai" | "kumochappy" | "leafchappy" => Some(QUICKGLANCE_ROAMING_COLOR),
+                        "minihoudai" | "kumochappy" | "leafchappy" | "bigtreasure" => Some(QUICKGLANCE_ROAMING_COLOR),
                         _ => None,
                     }
                 }
                 SpawnObject::Hole(_) | SpawnObject::Geyser(_) => Some(QUICKGLANCE_EXIT_COLOR),
                 SpawnObject::Ship => Some(QUICKGLANCE_SHIP_COLOR),
+                SpawnObject::Onion(color) => {
+                    match color {
+                        0 => Some(QUICKGLANCE_ONION_BLUE),
+                        1 => Some(QUICKGLANCE_ONION_RED),
+                        2 => Some(QUICKGLANCE_ONION_YELLOW),
+                        _ => None,
+                    }
+                }
                 _ => None,
             };
             if let Some(color) = color {

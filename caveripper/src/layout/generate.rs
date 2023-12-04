@@ -1088,6 +1088,37 @@ impl<'a> LayoutBuilder<'a> {
             }
         }
 
+        // In Colossal Caverns, place Onions
+        if caveinfo.cave_cfg.is_colossal_caverns() {
+            const NUM_ONIONS: usize = 3;
+            let num_valid_rooms = self.map_units.iter()
+                .filter(|unit| unit.unit.room_type == RoomType::Room)
+                .filter(|unit| unit.spawnpoints.iter().find(|sp| sp.spawnpoint_unit.group == 7).is_some())
+                .count();
+            let mut room_interval = num_valid_rooms / NUM_ONIONS;
+            if room_interval == 0 {
+                room_interval = 1;
+            }
+
+            let mut color = 0;
+            let mut room_num = 0;
+            for unit in self.map_units.iter_mut().filter(|unit| unit.unit.room_type == RoomType::Room) {
+                let spawn_point = unit.spawnpoints.iter_mut()
+                    .find(|sp| sp.spawnpoint_unit.group == 7);
+                if let Some(spawn_spot) = spawn_point {
+                    room_num += 1;
+                    if room_num == (color + 1) * room_interval {
+                        spawn_spot.contains.push(SpawnObject::Onion(color as u32));
+                        debug!("Placed Onion of color {color} at {}", spawn_spot.pos);
+                        color += 1;
+                    }
+                }
+                if color >= NUM_ONIONS {
+                    break;
+                }
+            }
+        }
+
         // Done!
         Layout {
             sublevel: Sublevel::from_cfg(&caveinfo.cave_cfg, caveinfo.floor_num as usize+1),

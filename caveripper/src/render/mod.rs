@@ -61,6 +61,9 @@ const QUICKGLANCE_SHIP_COLOR: [u8; 4] = [255, 40, 40, 255];
 const QUICKGLANCE_VIOLET_CANDYPOP_COLOR: [u8; 4] = [255, 0, 245, 255];
 const QUICKGLANCE_IVORY_CANDYPOP_COLOR: [u8; 4] = [100, 100, 100, 255];
 const QUICKGLANCE_ROAMING_COLOR: [u8; 4] = [200, 0, 130, 255];
+const QUICKGLANCE_ONION_RED: [u8; 4] = [245, 39, 24, 255];
+const QUICKGLANCE_ONION_YELLOW: [u8; 4] = [34, 235, 12, 255];
+const QUICKGLANCE_ONION_BLUE: [u8; 4] = [34, 12, 235, 255];
 const WAYPOINT_COLOR: [u8; 4] = [130, 199, 56, 255];
 const WATERBOX_COLOR: [u8; 4] = [0, 100, 230, 255];
 const CARRY_PATH_COLOR: [u8; 4] = [83, 125, 29, 200];
@@ -206,6 +209,10 @@ impl Render for SpawnObject<'_> {
                 let filename = "resources/enemytex_special/pod_icon.png";
                 canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
             }
+            SpawnObject::Onion(color) => {
+                let filename = format!("resources/enemytex_special/onion{color}.png");
+                canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
+            }
         }
     }
 
@@ -224,6 +231,7 @@ impl Render for SpawnObject<'_> {
             SpawnObject::Hole(_) => Point([32.0, 32.0]),
             SpawnObject::Geyser(_) => Point([40.0, 40.0]),
             SpawnObject::Ship => Point([30.0, 30.0]),
+            SpawnObject::Onion(_) => Point([24.0, 24.0]),
         }
     }
 }

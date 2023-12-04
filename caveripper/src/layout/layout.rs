@@ -316,6 +316,7 @@ pub enum SpawnObject<'a> {
     Hole(bool),              // Plugged or not
     Geyser(bool),            // Plugged or not
     Ship,
+    Onion(u32), // Color ID in the order Blue, Red, Yellow, Purple, White
 }
 
 impl<'a> SpawnObject<'a> {
@@ -333,6 +334,7 @@ impl<'a> SpawnObject<'a> {
             SpawnObject::Hole(_) => "hole",
             SpawnObject::Geyser(_) => "geyser",
             SpawnObject::Ship => "ship",
+            SpawnObject::Onion(_) => "onion",
         }
     }
 
@@ -345,6 +347,7 @@ impl<'a> SpawnObject<'a> {
             SpawnObject::Hole(_) => 0,
             SpawnObject::Geyser(_) => 0,
             SpawnObject::Ship => 0,
+            SpawnObject::Onion(_) => 0,
         }
     }
 
@@ -357,6 +360,7 @@ impl<'a> SpawnObject<'a> {
             SpawnObject::Hole(_) => 0,
             SpawnObject::Geyser(_) => 0,
             SpawnObject::Ship => 0,
+            SpawnObject::Onion(_) => 0,
         }
     }
 }

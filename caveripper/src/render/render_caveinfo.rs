@@ -12,7 +12,7 @@ use super::{
     text::Text,
     util::{with_border, Colorize, CropRelative, Resize, Rows},
     Icon, RenderHelper, CAVEINFO_BOXES_FONT_SIZE, CAVEINFO_ICON_SIZE, CAVEINFO_MARGIN, CAVEINFO_UNIT_BORDER_COLOR, CAVEINFO_UNIT_MARGIN,
-    CAVEINFO_WIDTH, COORD_FACTOR, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK,
+    CAVEINFO_WIDTH, COORD_FACTOR, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK, QUICKGLANCE_ONION_BLUE,
 };
 use crate::{
     caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
@@ -24,6 +24,9 @@ use crate::{
         RENDER_SCALE, WAYPOINT_COLOR, WAYPOINT_DIST_TXT_COLOR,
     },
 };
+
+const CAVEINFO_GRID_FACTOR: f32 = GRID_FACTOR * 0.75;
+const CAVEINFO_COORD_FACTOR: f32 = COORD_FACTOR * 0.75;
 
 #[derive(Default, Debug, Args)]
 #[clap(next_help_heading = "Rendering options")]
@@ -127,7 +130,11 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     renderer.place(title_row, Point([0.0, 0.0]), Origin::TopLeft);
 
     // --- Spawn Object Info Boxes -- //
-    let mut spawn_object_info_boxes = Rows::new(CAVEINFO_WIDTH, CAVEINFO_MARGIN, CAVEINFO_MARGIN);
+    let mut max_width = CAVEINFO_WIDTH;
+    if caveinfo.cave_cfg.is_colossal_caverns() {
+        max_width *= 3.0;
+    }
+    let mut spawn_object_info_boxes = Rows::new(max_width, CAVEINFO_MARGIN, CAVEINFO_MARGIN);
 
     let groups: [(&str, u32, Box<dyn Render>); 5] = [
         ("Special", 8, Box::new(Icon::Star)),
@@ -156,6 +163,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             icon,
             group_color(group_num),
             teki.map(|info| SpawnObject::Teki(info, Point([0.0, 0.0, 0.0]))),
+            max_width,
             group_score(group_num),
             &caveinfo.cave_cfg.game,
             caveinfo.is_challenge_mode(),
@@ -174,6 +182,22 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
                 .iter()
                 // We don't want the special treatment cap teki get for layout rendering
                 .map(|info| SpawnObject::Teki(info.as_ref(), Point([0.0, 0.0, 0.0]))),
+            max_width,
+            0,
+            &caveinfo.cave_cfg.game,
+            caveinfo.is_challenge_mode(),
+            helper,
+        ));
+    }
+
+    // Onions
+    if caveinfo.cave_cfg.is_colossal_caverns() {
+        spawn_object_info_boxes.add(caveinfo_entity_box(
+            "Onion",
+            (),
+            QUICKGLANCE_ONION_BLUE,
+            [SpawnObject::Onion(0), SpawnObject::Onion(1), SpawnObject::Onion(2)].into_iter(),
+            max_width,
             0,
             &caveinfo.cave_cfg.game,
             caveinfo.is_challenge_mode(),
@@ -188,6 +212,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             Icon::Treasure,
             group_color(2),
             caveinfo.item_info.iter().map(|info| SpawnObject::Item(info)),
+            max_width,
             0,
             &caveinfo.cave_cfg.game,
             caveinfo.is_challenge_mode(),
@@ -209,20 +234,20 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     );
 
     // -- Cave Units -- //
-    let mut unit_box = Rows::new(CAVEINFO_WIDTH, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
+    let mut unit_box = Rows::new(max_width, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
 
     // Caps and 1x1 halls
     if !options.hide_small_units {
-        let mut cap_and_hall_box = Rows::new(
-            GRID_FACTOR * 0.75 * 3.2 + (CAVEINFO_UNIT_MARGIN * 2.0),
-            CAVEINFO_UNIT_MARGIN,
-            CAVEINFO_UNIT_MARGIN,
-        );
-        let caps_and_1x1_halls = caveinfo
+        let caps_and_1x1_halls: Vec<_> = caveinfo
             .cave_units
             .iter()
-            .filter(|unit| unit.rotation == 0 && unit.room_type != RoomType::Room && unit.height == 1);
-        for unit in caps_and_1x1_halls {
+            .filter(|unit| unit.rotation == 0 && unit.room_type != RoomType::Room && unit.height == 1)
+            .collect();
+        let num_per_row = (caps_and_1x1_halls.len() as f32 / 2.0).ceil();
+
+        let cap_and_hall_width = CAVEINFO_GRID_FACTOR * (num_per_row * 1.05) + (CAVEINFO_UNIT_MARGIN * (num_per_row - 1.0));
+        let mut cap_and_hall_box = Rows::new(cap_and_hall_width, CAVEINFO_UNIT_MARGIN, CAVEINFO_UNIT_MARGIN);
+        for unit in caps_and_1x1_halls.iter() {
             cap_and_hall_box.add(render_unit_caveinfo(unit, helper, &options));
         }
 
@@ -364,6 +389,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     icon: impl Render + 'r,
     color: impl Into<Rgba<u8>>,
     spawn_objects: impl Iterator<Item = SpawnObject<'r>>,
+    max_width: f32,
     score: u32,
     game: &str,
     is_challenge_mode: bool,
@@ -414,7 +440,8 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
         .place(header_row, Point([0.0, 0.0]), Origin::TopLeft)
         .anchor_next(Origin::BottomLeft);
 
-    spawn_objects.for_each(|so| {
+    let mut spawn_object_rows = Rows::new(max_width, CAVEINFO_MARGIN / 2.0, CAVEINFO_MARGIN / 2.0);
+    for so in spawn_objects {
         let mut so_and_value_layer = Layer::new();
         so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone())), Point([0.0, 0.0]), Origin::TopLeft);
 
@@ -528,23 +555,21 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
         }
 
         full_so_layer.justify();
-        layer.place_relative(
-            full_so_layer,
-            Origin::TopLeft,
-            Offset {
-                from: Origin::TopRight,
-                amount: Point([CAVEINFO_MARGIN / 2.0, 0.0]),
-            },
-        );
-    });
+        spawn_object_rows.add(full_so_layer);
+    }
+    layer.place_relative(
+        spawn_object_rows,
+        Origin::TopLeft,
+        Offset {
+            from: Origin::TopRight,
+            amount: Point::zero(),
+        },
+    );
 
     layer
 }
 
 fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper, options: &CaveinfoRenderOptions) -> impl Render + 'h {
-    const CAVEINFO_GRID_FACTOR: f32 = GRID_FACTOR * 0.75;
-    const CAVEINFO_COORD_FACTOR: f32 = COORD_FACTOR * 0.75;
-
     let mut unit_layer = Layer::new();
     unit_layer.place(
         Resize::new(

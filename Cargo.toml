@@ -1,6 +1,5 @@
 [workspace]
 resolver = "2"
-members = ["caveripper", "cli", "bindings"]
+members = ["caveripper", "cli"]
 
-# bindings are not built by default
 default-members = ["caveripper", "cli"]

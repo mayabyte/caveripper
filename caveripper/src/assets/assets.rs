@@ -347,9 +347,15 @@ pub struct CaveConfig {
 }
 
 impl CaveConfig {
+    pub fn is_colossal_caverns(&self) -> bool {
+        self.full_name.eq_ignore_ascii_case("Colossal Caverns")
+    }
+
     pub(crate) fn get_caveinfo_path(&self) -> PathBuf {
         if self.game.eq_ignore_ascii_case("caveinfo") {
             PathBuf::from(&self.caveinfo_filename)
+        } else if self.is_colossal_caverns() {
+            PathBuf::from_iter(["resources", "colossal_caverns", "caveinfo", &self.caveinfo_filename])
         } else {
             PathBuf::from_iter(["assets", &self.game, "caveinfo", &self.caveinfo_filename])
         }

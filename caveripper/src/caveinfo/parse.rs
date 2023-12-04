@@ -79,7 +79,11 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Resul
 }
 
 fn parse_unitfile(unitfile: &str, cave_cfg: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveUnit>, CaveInfoError> {
-    let unitfile_path = PathBuf::from_iter(["assets", &cave_cfg.game, "unitfiles", unitfile]);
+    let unitfile_path = if cave_cfg.is_colossal_caverns() {
+        PathBuf::from_iter(["resources", "colossal_caverns", "unitfiles", unitfile])
+    } else {
+        PathBuf::from_iter(["assets", &cave_cfg.game, "unitfiles", unitfile])
+    };
     let unitfile_txt = mgr.get_txt_file(&unitfile_path).change_context(CaveInfoError::FileRead)?;
     let units = parse_sections(&unitfile_txt)
         .change_context(CaveInfoError::CaveUnitDefinition)
