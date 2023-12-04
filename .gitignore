@@ -3,6 +3,7 @@ target/
 output/*
 assets/**/*
 *.iso
+*.gcm
 .vscode
 *.so
 *.pyd

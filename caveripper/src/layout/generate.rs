@@ -1285,7 +1285,7 @@ impl<'a> LayoutBuilder<'a> {
                 if let Some(spawn_spot) = spawn_point {
                     room_num += 1;
                     if room_num == (color + 1) * room_interval {
-                        spawn_spot.contains.push(SpawnObject::Onion(color as u32));
+                        spawn_spot.contains.push(SpawnObject::Onion((NUM_ONIONS - 1 - color) as u32));
                         debug!("Placed Onion of color {color} at {}", spawn_spot.pos);
                         color += 1;
                     }

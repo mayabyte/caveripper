@@ -41,7 +41,7 @@ impl Sublevel {
                 if c1.eq_ignore_ascii_case("colossal") {
                     Ok(Sublevel {
                         cfg: mgr
-                            .find_cave_cfg("colossal", Some("pikmin2"), false)
+                            .find_cave_cfg("colossal", game.as_deref(), false)
                             .change_context(CaveripperError::UnrecognizedSublevel)?
                             .clone(),
                         floor: 1,

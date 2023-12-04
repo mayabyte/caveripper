@@ -282,8 +282,12 @@ impl AssetManager {
     }
 
     pub fn get_img<P: AsRef<Path>>(&self, path: P) -> Result<&RgbaImage, CaveripperError> {
-        let p_str: String = path.as_ref().to_string_lossy().into();
-        let path: PathBuf = self.asset_dir.join(path.as_ref());
+        let mut p_str: String = path.as_ref().to_string_lossy().into();
+
+        // CC doesn't come with most image assets, so we fall back to vanilla
+        p_str = p_str.replace("colossal", "pikmin2");
+
+        let path: PathBuf = self.asset_dir.join(&p_str);
 
         if let Some(value) = self.img_cache.get(&p_str) {
             Ok(value)
@@ -354,8 +358,6 @@ impl CaveConfig {
     pub(crate) fn get_caveinfo_path(&self) -> PathBuf {
         if self.game.eq_ignore_ascii_case("caveinfo") {
             PathBuf::from(&self.caveinfo_filename)
-        } else if self.is_colossal_caverns() {
-            PathBuf::from_iter(["resources", "colossal_caverns", "caveinfo", &self.caveinfo_filename])
         } else {
             PathBuf::from_iter(["assets", &self.game, "caveinfo", &self.caveinfo_filename])
         }
