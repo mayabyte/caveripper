@@ -158,21 +158,25 @@ impl AssetManager {
             let mut all_teki = vec!["egg".to_string(), "bomb".to_string()];
 
             let teki_path = self.asset_dir.join("assets").join(game).join("teki");
-            let teki = read_dir(&teki_path)
-                .change_context(CaveripperError::AssetLoadingError)
-                .attach(teki_path)?
-                .filter_map(|r| r.ok())
-                .filter(|entry| entry.path().is_file())
-                .map(|file_entry| {
-                    file_entry
-                        .file_name()
-                        .into_string()
-                        .unwrap()
-                        .strip_suffix(".png")
-                        .unwrap()
-                        .to_ascii_lowercase()
-                });
-            all_teki.extend(teki);
+
+            // Colossal Caverns doesn't have a teki folder so we need to check for this
+            if teki_path.exists() {
+                let teki = read_dir(&teki_path)
+                    .change_context(CaveripperError::AssetLoadingError)
+                    .attach_printable(teki_path.to_str().unwrap_or_default().to_owned())?
+                    .filter_map(|r| r.ok())
+                    .filter(|entry| entry.path().is_file())
+                    .map(|file_entry| {
+                        file_entry
+                            .file_name()
+                            .into_string()
+                            .unwrap()
+                            .strip_suffix(".png")
+                            .unwrap()
+                            .to_ascii_lowercase()
+                    });
+                all_teki.extend(teki);
+            }
 
             let _ = self.teki.insert(game.to_string(), all_teki);
             Ok(self.teki.get(game).unwrap())
