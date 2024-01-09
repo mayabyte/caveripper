@@ -4,7 +4,7 @@ mod extract;
 use std::{
     fs::read_to_string,
     io::stdin,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, path::PathBuf,
 };
 
 use atty::Stream;
@@ -21,7 +21,7 @@ use caveripper::{
 use clap::Parser;
 use cli::*;
 use error_stack::Result;
-use extract::extract_iso;
+use extract::{extract_iso, extract_szs, bti::BtiImage};
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressIterator, ProgressStyle};
 use rand::prelude::*;
 use rayon::{
@@ -181,6 +181,38 @@ fn main() -> Result<(), CaveripperError> {
             extract_iso(game_name, iso_path, &progress_bar).expect("Failed to extract ISO");
             progress_bar.finish_and_clear();
             println!("🍞 Done extracting ISO.");
+        }
+        Commands::ExtractSzs { file_path } => {
+            let data = std::fs::read(&file_path).expect("Couldn't read provided file path!");
+            let extracted = extract_szs(data).expect("Couldn't decompress file as SZS!");
+            let filename = file_path.file_name().unwrap().to_string_lossy();
+            let folder_name = filename.strip_suffix(".szs").unwrap_or(&filename);
+            for (path, bytes) in extracted.into_iter() {
+                let mut full_path = PathBuf::new();
+                full_path.push(folder_name);
+                full_path.push(path);
+                std::fs::create_dir_all(&full_path.parent().unwrap_or(&full_path))
+                    .expect(&format!("Couldn't create subdirectory {} for extracted files!", full_path.to_string_lossy()));
+                std::fs::write(full_path, bytes).expect("Failed to write file data!");
+            }
+        }
+        Commands::ExtractBti { file_path } => {
+            let data = std::fs::read(&file_path).expect("Couldn't read provided file path!");
+            let bti = BtiImage::decode(&data);
+            let dest_path = file_path.with_file_name(
+                format!(
+                    "{}png", 
+                    file_path.file_name().unwrap().to_string_lossy().strip_suffix("bti").unwrap(),
+                ));
+            image::save_buffer_with_format(
+                dest_path,
+                bti.pixels().flatten().cloned().collect::<Vec<_>>().as_slice(),
+                bti.width as u32,
+                bti.height as u32,
+                image::ColorType::Rgba8,
+                image::ImageFormat::Png,
+            )
+            .unwrap();
         }
     }
 

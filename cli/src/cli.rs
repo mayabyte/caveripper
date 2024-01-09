@@ -151,7 +151,7 @@ pub enum Commands {
         file: Option<String>,
     },
 
-    /// Extracts a game ISO interactively.
+    /// Extracts a game ISO into Caveripper's config folder.
     #[clap(
         arg_required_else_help = true,
     )]
@@ -165,7 +165,30 @@ pub enum Commands {
             help = "The name for this ISO. Will attempt to auto-detect if not provided.",
         )]
         game_name: Option<String>,
-    }
+    },
+
+    /// Extracts a single SZS compressed file
+    #[clap(
+        arg_required_else_help = true,
+        name = "extract-szs",
+    )]
+    ExtractSzs {
+        #[clap(
+            help = "The SZS file to extract"
+        )]
+        file_path: PathBuf
+    },
+
+    #[clap(
+        arg_required_else_help = true,
+        name = "extract-bti",
+    )]
+    ExtractBti {
+        #[clap(
+            help = "The BTI file to extract"
+        )]
+        file_path: PathBuf
+    },
 }
 
 const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";

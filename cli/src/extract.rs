@@ -1,4 +1,4 @@
-mod bti;
+pub mod bti;
 /// File extraction from Pikmin 2 & romhack ISOs.
 mod rarc;
 mod util;
@@ -19,7 +19,7 @@ use log::warn;
 use rarc::Rarc;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
-use yaz0::Yaz0Archive;
+use yaz0::{Yaz0Archive, Error as Yaz0Error};
 
 pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progress: &ProgressBar) -> Result<(), anyhow::Error> {
     let iso_path = iso_path.as_ref();
@@ -37,6 +37,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
             match game_id {
                 "GPVE01" | "GPVJ01" | "GPVP01" => "pikmin2",
                 "PIKE25" => "251",
+                "POKE42" => "216",
                 "WSAE64" => "newyear",
                 _ => return Err(anyhow!("Unrecognized game ISO {} and no game override provided", game_id)),
             }
@@ -130,15 +131,8 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
                 }
 
                 let data = f.read(&mut iso_reader)?;
-                let arc =
-                    if &data[..4] == b"Yaz0" {
-                        Yaz0Archive::new(Cursor::new(data.as_slice()))?.decompress()?
-                    } else {
-                        data
-                    };
-                let rarc = Rarc::new(arc.as_slice()).expect("Rarc decompression error!");
 
-                for (subpath, data) in rarc.files() {
+                for (subpath, data) in extract_szs(data)?.into_iter() {
                     let mut full_path = f.path.clone();
                     full_path.extend(&subpath);
                     progress.set_message(full_path.to_string_lossy().to_string());
@@ -147,7 +141,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
                         if let Some(dest) = matcher.matches(&full_path) {
                             let mut full_dest = PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name]);
                             full_dest.push(dest);
-                            write_file(&full_dest, data)?;
+                            write_file(&full_dest, &data)?;
                             break;
                         }
                     }
@@ -201,12 +195,15 @@ fn apply_colossal_patches(home_dir: &str) -> std::io::Result<()> {
 }
 
 fn write_file(dest: &Path, data: &[u8]) -> Result<(), anyhow::Error> {
+    if data.len() == 0 {
+        return Ok(());
+    }
+
     create_dir_all(dest.parent().unwrap())?;
     if let Some("bti") = dest.extension().and_then(|e| e.to_str()) {
         let mut dest = dest.to_path_buf();
         dest.set_extension("png");
 
-        // TODO: fix file errors in 251?
         let res = catch_unwind(|| {
             let bti = BtiImage::decode(data);
             image::save_buffer_with_format(
@@ -227,6 +224,17 @@ fn write_file(dest: &Path, data: &[u8]) -> Result<(), anyhow::Error> {
     }
 
     Ok(())
+}
+
+pub fn extract_szs(data: Vec<u8>) -> Result<Vec<(PathBuf, Vec<u8>)>, Yaz0Error> {
+    let arc =
+        if &data[..4] == b"Yaz0" {
+            Yaz0Archive::new(Cursor::new(data))?.decompress()?
+        } else {
+            data
+        };
+    let rarc = Rarc::new(arc.as_slice()).expect("Rarc decompression error!");
+    Ok(rarc.files().map(|(p, d)| (p, d.to_vec())).collect())
 }
 
 struct DesiredFileMatcher {

@@ -143,3 +143,18 @@ bikmin,     The Annoying Hole,     false, yakushima_4.txt,                  TAH,
 bikmin,     J.N. Warehouse,        false, last_1.txt,                       JNW
 bikmin,     Atrocity Facility,     false, last_2.txt,                       AF
 bikmin,     Roche Limit,           false, last_3.txt,                       RL
+216,        Celestial City,        false, Celestial_city.txt,               CC, csc
+216,        Forgotten Factory,     false, Forgotten_factory.txt,            FF, fgf
+216,        Mechanical Toybox,     false, Mechanical_toybox.txt,            MTB, mb
+216,        Overgrown Grotto,      false, Overgrown_grotto.txt,             OGG, og
+216,        Aquatic Basin,         false, yakushima_2.txt,                  AB
+216,        Grassy Den,            false, forest_1.txt,                     GD
+216,        Avian Woods,           false, forest_4.txt,                     AW, avw
+216,        Elemental Castle,      false, last_2.txt,                       EmC, ec
+216,        Temporal Ruins,        false, last_3.txt,                       TR
+216,        Lost Forest,           false, last_special.txt,                 LF
+216,        Digital Laboratory,    false, tutorial_3.txt,                   DL
+216,        Iceburn Cavern,        false, yakushima_1.txt,                  IC, ibc
+216,        Frozen Subterrane,     false, yakushima_3.txt,                  FS, fst
+216,        Haunted Crypt,         false, yakushima_4.txt,                  HC
+216,        Royal Grove,           false, forest_3.txt,                     RG

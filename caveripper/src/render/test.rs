@@ -186,5 +186,20 @@ test_render!(
     "bikmin_tah",
     "bikmin_jnw",
     "bikmin_af",
-    "bikmin_rl"
+    "bikmin_rl",
+    "216_cc",
+    "216_ff",
+    "216_mtb",
+    "216_ogg",
+    "216_ab",
+    "216_gd",
+    "216_aw",
+    "216_emc",
+    "216_tr",
+    "216_lf",
+    "216_dl",
+    "216_ic",
+    "216_fs",
+    "216_hc",
+    "216_rg"
 );

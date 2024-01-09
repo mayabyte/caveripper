@@ -16,4 +16,6 @@ section_line = ${
     ~ ((" " | "\t")+ ~ line_item)*
     ~ COMMENT?
 }
-section_file = { SOI ~ section+ ~ EOI }
+
+// The ANY is for trailing garbage characters present in 216's caveinfo files
+section_file = { SOI ~ section+ ~ ANY* ~ EOI }

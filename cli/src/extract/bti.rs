@@ -3,33 +3,53 @@ use super::util::{read_u16, read_u32};
 type Color = [u8; 4];
 
 pub struct BtiImage {
-    pub width: u16,
-    pub height: u16,
+    pub width: u32,
+    pub height: u32,
     data: Vec<Color>,
 }
 
 impl BtiImage {
+
     pub fn decode(data: &[u8]) -> Self {
-        let format = data[0x0].clamp(0, 11);
-        let width = read_u16(data, 0x2);
-        let height = read_u16(data, 0x4);
+        let format = format_to_index(data[0x0]);
+        let _alpha_setting = data[0x1];
+        let width = read_u16(data, 0x2) as u32;
+        let height = read_u16(data, 0x4) as u32;
+
+        // 0: clamp to edge
+        // 1: repeat
+        // 2: mirror
+        let _wrap_s = data[0x5];
+        let _wrap_t = data[0x6];
+
+        let _palettes_enabled = data[0x8] > 0;
         let palette_format = data[0x9];
         let num_colors = read_u16(data, 0xA);
         let palette_data_offset = read_u32(data, 0xC);
-        let mipmap_count = data[0x18];
+        let _min_filter = data[0x14];
+        let _mag_filter = data[0x15];
+        let _min_lod = data[0x16];
+        let _max_lod = data[0x17];
+        let mut mipmap_count = data[0x18];
+        let _lod_bias = read_u16(data, 0x1A);
         let img_data_offset = read_u32(data, 0x1C);
-        let blocks_wide = (width + BLOCK_WIDTHS[format as usize] - 1) / BLOCK_WIDTHS[format as usize];
-        let blocks_tall = (height + BLOCK_HEIGHTS[format as usize] - 1) / BLOCK_HEIGHTS[format as usize];
-        let mut img_data_size = blocks_wide * blocks_tall * BLOCK_DATA_SIZE[format as usize];
 
-        let mut curr_mipmap_size = img_data_size;
-        for _ in 0..mipmap_count-1 {
-            curr_mipmap_size /= 4;
-            img_data_size += curr_mipmap_size;
+        let block_width = BLOCK_WIDTHS[format as usize] as u32;
+        let block_height = BLOCK_HEIGHTS[format as usize] as u32;
+        let block_data_size = BLOCK_DATA_SIZE[format as usize] as u32;
+
+        if mipmap_count == 0 {
+            mipmap_count = 1;
         }
 
-        let img_data = &data[img_data_offset as usize .. img_data_offset as usize + img_data_size as usize];
-        let palette_data = &data[palette_data_offset as usize .. palette_data_offset as usize + (num_colors*2) as usize];
+        // Size of all image data is equal to the size of the next mipmap starting index after the last one
+        let img_data_size = get_mipmap_offset(mipmap_count, width, height, block_width, block_height, block_data_size);
+
+        let img_data_end = img_data_offset as usize + img_data_size as usize;
+        let img_data = &data[img_data_offset as usize .. img_data_end];
+
+        let palette_data_end = palette_data_offset as usize + (num_colors*2) as usize;
+        let palette_data = &data[palette_data_offset as usize .. palette_data_end];
 
         let mut decoded_data = vec![[0,0,0,0]; (width * height) as usize];
         let colors = decode_palettes(palette_data, palette_format, num_colors, format);
@@ -47,10 +67,10 @@ impl BtiImage {
                 4  => decode_rgb565_block(img_data, offset, block_size),
                 5  => decode_rgb5a3_block(img_data, offset, block_size),
                 6  => decode_rgba32_block(img_data, offset),
-                8  => decode_c4_block(img_data, offset, block_size, &colors),
-                9  => decode_c8_block(img_data, offset, block_size, &colors),
-                10  => decode_c14x2_block(img_data, offset, block_size, &colors),
-                11 => decode_cmpr_block(img_data, offset),
+                7  => decode_c4_block(img_data, offset, block_size, &colors),
+                8  => decode_c8_block(img_data, offset, block_size, &colors),
+                9  => decode_c14x2_block(img_data, offset, block_size, &colors),
+                10 => decode_cmpr_block(img_data, offset),
                 _ => panic!("Unknown image format {format}"),
             };
 
@@ -85,9 +105,36 @@ const BLOCK_WIDTHS:  [u16; 11] = [8, 8, 8, 4, 4, 4, 4, 8, 8, 4, 8];
 const BLOCK_HEIGHTS: [u16; 11] = [8, 4, 4, 4, 4, 4, 4, 8, 4, 4, 8];
 const BLOCK_DATA_SIZE: [u16; 11] = [32, 32, 32, 32, 32, 32, 64, 32, 32, 32, 32];
 
-fn decode_palettes(palette_data: &[u8], palette_format: u8, num_colors: u16, img_format: u8) -> Vec<Color> {
+fn format_to_index(format: u8) -> usize {
+    match format {
+        0x8 => 7,
+        0x9 => 8,
+        0xA => 9,
+        0xE => 10,
+        _ => format as usize
+    }
+}
+
+fn get_mipmap_offset(mut mipmap_index: u8, mut width: u32, mut height: u32, block_width: u32, block_height: u32, block_data_size: u32) -> usize {
+    let mut offset = 0;
+    let mut blocks_wide = (width + block_width - 1) / block_width;
+    let mut blocks_tall = (height + block_height - 1) / block_height;
+    let mut curr_mipmap_size = blocks_wide * blocks_tall * block_data_size;
+    while mipmap_index > 0 {
+        offset += curr_mipmap_size;
+        width /= 2;
+        height /= 2;
+        blocks_wide = (width + block_width - 1) / block_width;
+        blocks_tall = (height + block_height - 1) / block_height;
+        curr_mipmap_size = blocks_wide * blocks_tall * block_data_size;
+        mipmap_index -= 1;
+    }
+    return offset as usize;
+}
+
+fn decode_palettes(palette_data: &[u8], palette_format: u8, num_colors: u16, img_format: usize) -> Vec<Color> {
     // Only these 3 formats use palettes
-    if ![8,9,10].contains(&img_format) {
+    if ![7,8,9].contains(&img_format) {
         return vec![];
     }
 
@@ -305,8 +352,18 @@ const fn get_interpolated_cmpr_colors(c1b: u16, c2b: u16) -> [Color; 4] {
         [
             c1,
             c2,
-            [(2*c1[0] + c2[0]) / 3, (c1[1] + c2[1]) / 3, (c1[2] + c2[2]) / 3, 255],
-            [(c1[0] + 2*c2[0]) / 3, (c1[1] + 2*c2[1]) / 3, (c1[2] + 2*c2[2]) / 3, 255]
+            [
+                (2u8.saturating_mul(c1[0]).saturating_add(c2[0])) / 3, 
+                (2u8.saturating_mul(c1[1]).saturating_add(c2[1])) / 3, 
+                (2u8.saturating_mul(c1[2]).saturating_add(c2[2])) / 3, 
+                255,
+            ],
+            [
+                (c1[0].saturating_add(2u8.saturating_mul(c2[0]))) / 3, 
+                (c1[1].saturating_add(2u8.saturating_mul(c2[1]))) / 3, 
+                (c1[2].saturating_add(2u8.saturating_mul(c2[2]))) / 3, 
+                255,
+            ],
         ]
     }
     else {

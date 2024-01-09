@@ -1,7 +1,7 @@
 mod pinmap;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs::{read, read_dir, read_to_string},
     path::{Path, PathBuf},
     pin::Pin,
@@ -34,6 +34,7 @@ pub struct AssetManager {
     caveinfo_cache: PinMap<Sublevel, CaveInfo>,
     img_cache: PinMap<String, RgbaImage>,
     pub cave_cfg: Vec<CaveConfig>,
+    pub games: Vec<String>,
 
     /// All known treasures. All lowercase so they can be easily compared.
     treasures: PinMap<String, PinMap<String, Treasure>>,
@@ -78,56 +79,63 @@ impl AssetManager {
             })
             .collect::<Vec<_>>();
 
+        let games_with_assets = std::fs::read_dir(asset_dir.join("assets"))
+            .change_context(CaveripperError::AssetLoadingError)?
+            .map(|dir_entry| dir_entry.unwrap().file_name().to_str().unwrap().to_string())
+            .collect::<Vec<String>>();
+
         Ok(Self {
             asset_dir,
             caveinfo_cache: PinMap::new(),
             img_cache: PinMap::new(),
             cave_cfg,
+            games: games_with_assets,
             treasures: PinMap::new(),
             teki: PinMap::new(),
             rooms: PinMap::new(),
         })
     }
 
-    fn all_games(&self) -> HashSet<&str> {
-        self.cave_cfg.iter().map(|cfg| cfg.game.as_str()).collect()
+    fn load_treasure_info(&self, game: &str) -> Result<(), CaveripperError> {
+        let treasure_path = self.asset_dir.join("assets").join(game).join("otakara_config.txt");
+        let ek_treasure_path = self.asset_dir.join("assets").join(game).join("item_config.txt");
+
+        let treasures = SHIFT_JIS
+            .decode(
+                read(&treasure_path)
+                    .change_context(CaveripperError::AssetLoadingError)
+                    .attach_printable_lazy(move || treasure_path.to_string_lossy().to_string())?
+                    .as_slice(),
+            )
+            .0
+            .into_owned();
+        let ek_treasures =
+            SHIFT_JIS
+                .decode(
+                    read(&ek_treasure_path)
+                        .change_context(CaveripperError::AssetLoadingError)
+                        .attach_printable_lazy(move || ek_treasure_path.to_string_lossy().to_string())?
+                        .as_slice(),
+                )
+                .0
+                .into_owned();
+
+        let mut treasures = parse_treasure_config(&treasures);
+        treasures.append(&mut parse_treasure_config(&ek_treasures));
+        let treasures_map = PinMap::new();
+        for t in treasures.into_iter() {
+            treasures_map.insert(t.internal_name.clone(), t).expect("PinMap failure");
+        }
+
+        let _ = self.treasures.insert(game.to_string(), treasures_map);
+        Ok(())
     }
 
     pub fn treasure_info(&self, game: &str, name: &str) -> Result<&Treasure, CaveripperError> {
         if let Some(game_map) = self.treasures.get(game) {
             game_map.get(name)
         } else {
-            let treasure_path = self.asset_dir.join("assets").join(game).join("otakara_config.txt");
-            let ek_treasure_path = self.asset_dir.join("assets").join(game).join("item_config.txt");
-
-            let treasures = SHIFT_JIS
-                .decode(
-                    read(&treasure_path)
-                        .change_context(CaveripperError::AssetLoadingError)
-                        .attach(treasure_path)?
-                        .as_slice(),
-                )
-                .0
-                .into_owned();
-            let ek_treasures =
-                SHIFT_JIS
-                    .decode(
-                        read(&ek_treasure_path)
-                            .change_context(CaveripperError::AssetLoadingError)
-                            .attach(ek_treasure_path)?
-                            .as_slice(),
-                    )
-                    .0
-                    .into_owned();
-
-            let mut treasures = parse_treasure_config(&treasures);
-            treasures.append(&mut parse_treasure_config(&ek_treasures));
-            let treasures_map = PinMap::new();
-            for t in treasures.into_iter() {
-                treasures_map.insert(t.internal_name.clone(), t).expect("PinMap failure");
-            }
-
-            let _ = self.treasures.insert(game.to_string(), treasures_map);
+            self.load_treasure_info(game)?;
             self.treasures.get(game).unwrap().get(name)
         }
         .ok_or(CaveripperError::AssetLoadingError)
@@ -136,8 +144,8 @@ impl AssetManager {
 
     // Combines the Teki List from all known games.
     pub fn combined_treasure_list(&self) -> Result<Vec<Treasure>, CaveripperError> {
-        self.all_games().into_iter().try_fold(Vec::new(), |mut acc, game| {
-            let _ = self.treasure_info(game, ""); // Make sure the game's treasure info is loaded
+        self.games.iter().try_fold(Vec::new(), |mut acc, game| {
+            self.load_treasure_info(game)?;
             acc.extend(
                 self.treasures
                     .get(game)
@@ -150,42 +158,47 @@ impl AssetManager {
         })
     }
 
+    fn load_teki(&self, game: &str) -> Result<(), CaveripperError> {
+        // Eggs and bombs are not listed in enemytex, so they have to be added manually
+        let mut all_teki = vec!["egg".to_string(), "bomb".to_string()];
+
+        let teki_path = self.asset_dir.join("assets").join(game).join("teki");
+
+        // Colossal Caverns doesn't have a teki folder so we need to check for this
+        if teki_path.exists() {
+            let teki = read_dir(&teki_path)
+                .change_context(CaveripperError::AssetLoadingError)
+                .attach_printable(teki_path.to_str().unwrap_or_default().to_owned())?
+                .filter_map(|r| r.ok())
+                .filter(|entry| entry.path().is_file())
+                .map(|file_entry| {
+                    file_entry
+                        .file_name()
+                        .into_string()
+                        .unwrap()
+                        .strip_suffix(".png")
+                        .unwrap()
+                        .to_ascii_lowercase()
+                });
+            all_teki.extend(teki);
+        }
+
+        let _ = self.teki.insert(game.to_string(), all_teki);
+        Ok(())
+    }
+
     pub fn teki_list(&self, game: &str) -> Result<&Vec<String>, CaveripperError> {
         if let Some(teki_list) = self.teki.get(game) {
             Ok(teki_list)
         } else {
-            // Eggs and bombs are not listed in enemytex, so they have to be added manually
-            let mut all_teki = vec!["egg".to_string(), "bomb".to_string()];
-
-            let teki_path = self.asset_dir.join("assets").join(game).join("teki");
-
-            // Colossal Caverns doesn't have a teki folder so we need to check for this
-            if teki_path.exists() {
-                let teki = read_dir(&teki_path)
-                    .change_context(CaveripperError::AssetLoadingError)
-                    .attach_printable(teki_path.to_str().unwrap_or_default().to_owned())?
-                    .filter_map(|r| r.ok())
-                    .filter(|entry| entry.path().is_file())
-                    .map(|file_entry| {
-                        file_entry
-                            .file_name()
-                            .into_string()
-                            .unwrap()
-                            .strip_suffix(".png")
-                            .unwrap()
-                            .to_ascii_lowercase()
-                    });
-                all_teki.extend(teki);
-            }
-
-            let _ = self.teki.insert(game.to_string(), all_teki);
+            self.load_teki(game)?;
             Ok(self.teki.get(game).unwrap())
         }
     }
 
     // Combines the Teki List from all known games.
     pub fn combined_teki_list(&self) -> Result<Vec<String>, CaveripperError> {
-        self.all_games().into_iter().try_fold(Vec::new(), |mut acc, game| {
+        self.games.iter().try_fold(Vec::new(), |mut acc, game| {
             acc.extend(self.teki_list(game)?.clone());
             Ok(acc)
         })
@@ -213,7 +226,7 @@ impl AssetManager {
 
     // Combines the Room List from all known games.
     pub fn combined_room_list(&self) -> Result<Vec<String>, CaveripperError> {
-        self.all_games().into_iter().try_fold(Vec::new(), |mut acc, game| {
+        self.games.iter().try_fold(Vec::new(), |mut acc, game| {
             acc.extend(self.room_list(game)?.clone());
             Ok(acc)
         })
@@ -259,9 +272,8 @@ impl AssetManager {
         let data = read(self.asset_dir.join(path))
             .change_context(CaveripperError::AssetLoadingError)
             .attach_printable_lazy(|| p_str.clone())?;
-        let text = if path.starts_with("assets")
-            && let (text, _, false) = SHIFT_JIS.decode(&data)
-        {
+        let text = if path.starts_with("assets") {
+            let (text, _, _) = SHIFT_JIS.decode(&data);
             text.into_owned()
         } else {
             String::from_utf8(data)
