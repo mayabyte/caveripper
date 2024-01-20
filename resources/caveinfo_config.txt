@@ -145,7 +145,7 @@ bikmin,     Atrocity Facility,     false, last_2.txt,                       AF
 bikmin,     Roche Limit,           false, last_3.txt,                       RL
 216,        Celestial City,        false, Celestial_city.txt,               CC, csc
 216,        Forgotten Factory,     false, Forgotten_factory.txt,            FF, fgf
-216,        Mechanical Toybox,     false, Mechanical_toybox.txt,            MTB, mb
+216,        Mechanical Toybox,     false, Mechanical_toybox.txt,            MTB, mt
 216,        Overgrown Grotto,      false, Overgrown_grotto.txt,             OGG, og
 216,        Aquatic Basin,         false, yakushima_2.txt,                  AB
 216,        Grassy Den,            false, forest_1.txt,                     GD
@@ -158,3 +158,33 @@ bikmin,     Roche Limit,           false, last_3.txt,                       RL
 216,        Frozen Subterrane,     false, yakushima_3.txt,                  FS, fst
 216,        Haunted Crypt,         false, yakushima_4.txt,                  HC
 216,        Royal Grove,           false, forest_3.txt,                     RG
+216,        Grassy Treehouse,      true,  ch1_tutorial.txt,                 CH1, gt
+216,        Cold Cavern,           true,  ch2_snow1.txt,                    CH2, cc, ccv
+216,        Familiar Toybox,       true,  ch3_toybox.txt,                   CH3, ft, ftb
+216,        Aquatic Meditation,    true,  ch4_aqua.txt,                     CH4, am
+216,        Breadbug Invasion,     true,  ch5_railroad.txt,                 CH5, bi, bbi
+216,        Dweevil Pit,           true,  ch6_dweevil.txt,                  CH6, dp
+216,        Growth Cavern,         true,  ch7_randpom.txt,                  CH7, gc, gcv
+216,        Infected Factory,      true,  ch8_metal1.txt,                   CH8, if
+216,        Lost Forest,           true,  ch9_snagret.txt,                  CH9, lf
+216,        Peace in Space,        true,  ch10_timegear.txt,                CH10, pis
+216,        Mystery Forest,        true,  ch11_NEWfog.txt,                  CH11, mf
+216,        Techno Zone,           true,  ch12_techno.txt,                  CH12, tz
+216,        Freezeflame Cavern,    true,  ch13_freezeflame.txt,             CH13, ffc
+216,        Forest of Fall,        true,  ch14_autumn.txt,                  CH14, fof
+216,        Dark Sewers,           true,  ch15_sewer.txt,                   CH15, ds
+216,        Bulbmin Grove,         true,  ch16_bulbmin.txt,                 CH16, bg
+216,        Rumbling Forest,       true,  ch17_snakewhole.txt,              CH17, rf
+216,        Frozen Crypt,          true,  ch18_yellowchappy.txt,            CH18, fc, fzc
+216,        Maze of Circutry,      true,  ch19_maze.txt,                    CH19, moc
+216,        The Abyss,             true,  ch20_abyss.txt,                   CH20, ta
+216,        Shiverburn Factory,    true,  ch21_metal2.txt,                  CH21, sf, sbf
+216,        Digital Nightmare,     true,  ch22_technohard.txt,              CH22, dn, dnm
+216,        Terrifying Dungeon,    true,  ch23_spooky.txt,                  CH23, td
+216,        Space Mission,         true,  ch24_space.txt,                   CH24, sm
+216,        Castle of Demons,      true,  ch25_castle.txt,                  CH25, cod
+216,        Secret Snowfield,      true,  ch26_overworld.txt,               CH26, ss, ses
+216,        Celestial World,       true,  ch27_celeste.txt,                 CH27, cw
+216,        Golden City,           true,  ch28_city.txt,                    CH28, gc, gci
+216,        Polar Castle,          true,  ch29_royal.txt,                   CH29, pc
+216,        Marble Temple,         true,  ch30_marble.txt,                  CH30, mt, mbt
