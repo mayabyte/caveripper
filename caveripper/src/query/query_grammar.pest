@@ -2,7 +2,7 @@ WHITESPACE = _{ " " | "\t" }
 number = @{ (ASCII_DIGIT)+ }
 comparator = { "<" | "=" | ">" }
 ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
-sublevel_ident = @{ ASCII_ALPHA+ ~ number }
+sublevel_ident = @{ (ASCII_ALPHANUMERIC+ ~ ":")? ~ ASCII_ALPHA+ ~ number }
 entity = { ident ~ ("/" ~ ident)? }
 room_path_component = { ident ~ ("+" ~ entity)* }
 
