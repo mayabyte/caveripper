@@ -120,8 +120,8 @@ impl AssetManager {
                 .0
                 .into_owned();
 
-        let mut treasures = parse_treasure_config(&treasures);
-        treasures.append(&mut parse_treasure_config(&ek_treasures));
+        let mut treasures = parse_treasure_config(&treasures, game);
+        treasures.append(&mut parse_treasure_config(&ek_treasures, game));
         let treasures_map = PinMap::new();
         for t in treasures.into_iter() {
             treasures_map.insert(t.internal_name.clone(), t).expect("PinMap failure");
@@ -132,13 +132,20 @@ impl AssetManager {
     }
 
     pub fn treasure_info(&self, game: &str, name: &str) -> Result<&Treasure, CaveripperError> {
-        if let Some(game_map) = self.treasures.get(game) {
+        let treasure = if let Some(game_map) = self.treasures.get(game) {
             game_map.get(name)
         } else {
             self.load_treasure_info(game)?;
             self.treasures.get(game).unwrap().get(name)
+        };
+
+        // Fall back to vanilla treasures if we can't find one in a romhack.
+        // Pikmin 216 does this sometimes in challenge mode.
+        if treasure.is_none() && game != "pikmin2" {
+            return self.treasure_info("pikmin2", name);
         }
-        .ok_or(CaveripperError::AssetLoadingError)
+
+        treasure.ok_or(CaveripperError::AssetLoadingError)
         .map_err(Report::from)
     }
 
@@ -399,15 +406,16 @@ pub fn get_special_texture_name(internal_name: &str) -> Option<&str> {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Default)]
 pub struct Treasure {
     pub internal_name: String,
+    pub game: String,
     pub min_carry: u32,
     pub max_carry: u32,
     pub value: u32,
 }
 
-fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
+fn parse_treasure_config(config_txt: &str, game: &str) -> Vec<Treasure> {
     config_txt
         .chars()
         .peekable()
@@ -440,6 +448,7 @@ fn parse_treasure_config(config_txt: &str) -> Vec<Treasure> {
             let value = section["money"].parse().unwrap();
             Treasure {
                 internal_name,
+                game: game.to_string(),
                 min_carry,
                 max_carry,
                 value,

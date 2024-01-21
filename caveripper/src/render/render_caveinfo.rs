@@ -443,7 +443,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     let mut spawn_object_rows = Rows::new(max_width, CAVEINFO_MARGIN / 2.0, CAVEINFO_MARGIN / 2.0);
     for so in spawn_objects {
         let mut so_and_value_layer = Layer::new();
-        so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone())), Point([0.0, 0.0]), Origin::TopLeft);
+        so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone()), helper.mgr), Point([0.0, 0.0]), Origin::TopLeft);
 
         // Carrying info
         if let SpawnObject::Item(ItemInfo { internal_name, .. })
@@ -458,7 +458,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
             let treasure_metadata = helper
                 .mgr
                 .treasure_info(game, &internal_name)
-                .expect("Invalid treasure encountered while rendering");
+                .expect(&format!("Invalid treasure encountered while rendering: {internal_name}"));
 
             let mut metadata_layer = Layer::new();
             metadata_layer

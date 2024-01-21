@@ -14,6 +14,7 @@ mod test;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
+    default::Default,
 };
 
 use error_stack::{Result, ResultExt};
@@ -32,7 +33,7 @@ use self::{
     util::{CropRelative, Resize},
 };
 use crate::{
-    assets::{get_special_texture_name, AssetManager},
+    assets::{get_special_texture_name, AssetManager, Treasure},
     caveinfo::{CapInfo, CaveUnit, TekiInfo},
     errors::CaveripperError,
     layout::SpawnObject,
@@ -177,8 +178,8 @@ impl Render for SpawnObject<'_> {
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
             SpawnObject::Item(info) => TreasureRenderer {
-                name: &info.internal_name,
-                game: &info.game,
+                treasure: helper.treasure_info(&info.game, &info.internal_name)
+                    .expect(&format!("Couldn't find treasure {}", &info.internal_name))
             }
             .render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
@@ -222,11 +223,7 @@ impl Render for SpawnObject<'_> {
             // image dimensions. Currently these are all scaled to 40x40 but
             // quality could be better if this can be avoided.
             SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => Point([40.0, 40.0]),
-            SpawnObject::Item(info) => TreasureRenderer {
-                name: &info.internal_name,
-                game: &info.game,
-            }
-            .dimensions(),
+            SpawnObject::Item(_) => TreasureRenderer{treasure: &Treasure::default()}.dimensions(),
             SpawnObject::Gate(_, _rotation) => Point([48.0, 48.0]),
             SpawnObject::Hole(_) => Point([32.0, 32.0]),
             SpawnObject::Geyser(_) => Point([40.0, 40.0]),
@@ -238,12 +235,11 @@ impl Render for SpawnObject<'_> {
 
 /// Helper to reduce asset manager lookups
 struct TreasureRenderer<'a> {
-    pub name: &'a str,
-    pub game: &'a str,
+    pub treasure: &'a Treasure,
 }
 impl Render for TreasureRenderer<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        let filename = PathBuf::from_iter(["assets", self.game, "treasures", &format!("{}.png", self.name.to_ascii_lowercase())]);
+        let filename = PathBuf::from_iter(["assets", &self.treasure.game, "treasures", &format!("{}.png", self.treasure.internal_name.to_ascii_lowercase())]);
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
 
@@ -289,7 +285,7 @@ impl Render for Icon {
     }
 }
 
-fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>) -> impl Render + 'a {
+fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>, mgr: &'a AssetManager) -> impl Render + 'a {
     let mut layer = Layer::new();
     let mut pos = Point([0.0, 0.0]);
 
@@ -322,8 +318,8 @@ fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>) -> im
         layer.place(
             Resize::new(
                 TreasureRenderer {
-                    name: treasure,
-                    game: &game,
+                    treasure: mgr.treasure_info(game, &treasure)
+                        .expect(&format!("Couldn't load treasure {treasure}")),
                 },
                 CARRIED_TREASURE_SIZE,
                 CARRIED_TREASURE_SIZE,

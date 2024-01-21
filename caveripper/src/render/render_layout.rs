@@ -108,7 +108,7 @@ pub fn render_layout(layout: &Layout, helper: &RenderHelper, options: LayoutRend
     quickglance_circle_layer.set_opacity(0.45);
 
     for (spawn_object, pos) in layout.get_spawn_objects() {
-        let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object));
+        let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
 
         // Quickglance Circles
