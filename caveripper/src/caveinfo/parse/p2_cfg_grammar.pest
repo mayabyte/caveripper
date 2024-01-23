@@ -3,7 +3,7 @@ WHITESPACE = _{ " " | "\t" | NEWLINE }
 // character before consuming that same character with ANY
 COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
 number = @{ "-"? ~ (ASCII_DIGIT)+ ~ ("." ~ ASCII_DIGIT+)? }
-char = @ { ASCII_ALPHANUMERIC | "." | "_" | "-" | "$" }
+char = @ { ASCII_ALPHANUMERIC | "." | "_" | "-" | "$" | "!" }
 word = @{ char+ | "{" ~ char+ ~ "}" }
 line_item = @{ word }
 
