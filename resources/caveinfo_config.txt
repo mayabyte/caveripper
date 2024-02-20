@@ -99,6 +99,10 @@ newyear,    Boss All Stars,        true,  ch_MUKI_king.txt,                 CH30
 251,        Subterranean Sands,    false, yakushima_2.txt,                  SS, sus
 251,        Cryptic Kitchen,       false, yakushima_3.txt,                  CK
 251,        Palace of the Wraith,  false, yakushima_4.txt,                  PotW, pow
+251,        Pit of Misfortune,     false, last_1.txt,                       PoM
+251,        Endless Abyss,         false, last_2.txt,                       EA
+251,        Doom Den,              false, last_3.txt,                       DD
+251,        Perilous Pipeline,     false, tutorial_4.txt,                   PP, ppl
 251,        Frigid Cavern,         true,  ch1_snow_tutorial.txt,            CH1, fgc
 251,        Purple Trials,         true,  ch2_purplepikmin.txt,             CH2, pt
 251,        Gambler's Den,         true,  ch3_casino_easy.txt,              CH3, gd
