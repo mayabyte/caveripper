@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use caveripper::{parse_seed, render::{LayoutRenderOptions, CaveinfoRenderOptions}};
+use caveripper::{
+    parse_seed,
+    render::{CaveinfoRenderOptions, LayoutRenderOptions},
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -21,9 +24,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Generate a sublevel layout and render an image of it.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Generate {
         #[clap(
             help = SUBLEVEL_HELP,
@@ -41,20 +42,14 @@ pub enum Commands {
     },
 
     /// Display a particular sublevel's CaveInfo.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Caveinfo {
         #[clap(
             help = SUBLEVEL_HELP,
         )]
         sublevel: String,
 
-        #[clap(
-            short = 't',
-            long = "text",
-            help = "Only show text instead of rendering an image"
-        )]
+        #[clap(short = 't', long = "text", help = "Only show text instead of rendering an image")]
         text: bool,
 
         #[clap(flatten)]
@@ -62,9 +57,7 @@ pub enum Commands {
     },
 
     /// Search for a seed matching a specified condition.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Search {
         #[clap(
             help = SEARCH_COND_HELP,
@@ -79,21 +72,14 @@ pub enum Commands {
         )]
         timeout_s: u64,
 
-        #[clap(
-            default_value_t = 1,
-            short = 'n',
-            long = "num",
-            help = "Number of seeds to attempt to find."
-        )]
+        #[clap(default_value_t = 1, short = 'n', long = "num", help = "Number of seeds to attempt to find.")]
         num: usize,
     },
 
     /// Search for matching seeds along sequential RNG calls. Useful for TAS RNG manipulation.
     ///
     /// This command is *single-threaded* so search large seed ranges with caution.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     SearchFrom {
         #[clap(
             help = "Start from this seed. Further seeds are obtained by calling Pikmin 2's RNG function.",
@@ -115,10 +101,18 @@ pub enum Commands {
         max: usize,
     },
 
+    /// Invoke a special, custom-made search condition
+    #[clap(arg_required_else_help = true)]
+    SearchSpecial {
+        #[clap(help = "Name of the special search condition")]
+        name: String,
+
+        #[clap(help = "Extra arguments for the special search condition. These vary for each condition.")]
+        args: String,
+    },
+
     /// Calculate statistics on what proportion of seeds match a given condition.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Stats {
         #[clap(
             help = SEARCH_COND_HELP
@@ -136,9 +130,7 @@ pub enum Commands {
 
     /// Accepts input seeds from a file or stdin, and only prints those that
     /// match the query condition.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Filter {
         #[clap(
             help = SEARCH_COND_HELP
@@ -152,54 +144,36 @@ pub enum Commands {
     },
 
     /// Extracts a game ISO into Caveripper's config folder.
-    #[clap(
-        arg_required_else_help = true,
-    )]
+    #[clap(arg_required_else_help = true)]
     Extract {
-        #[clap(
-            help = "The ISO file to extract."
-        )]
+        #[clap(help = "The ISO file to extract.")]
         iso_path: PathBuf,
 
-        #[clap(
-            help = "The name for this ISO. Will attempt to auto-detect if not provided.",
-        )]
+        #[clap(help = "The name for this ISO. Will attempt to auto-detect if not provided.")]
         game_name: Option<String>,
     },
 
     /// Extracts a single SZS compressed file
-    #[clap(
-        arg_required_else_help = true,
-        name = "extract-szs",
-    )]
+    #[clap(arg_required_else_help = true, name = "extract-szs")]
     ExtractSzs {
-        #[clap(
-            help = "The SZS file to extract"
-        )]
-        file_path: PathBuf
+        #[clap(help = "The SZS file to extract")]
+        file_path: PathBuf,
     },
 
-    #[clap(
-        arg_required_else_help = true,
-        name = "extract-bti",
-    )]
+    #[clap(arg_required_else_help = true, name = "extract-bti")]
     ExtractBti {
-        #[clap(
-            help = "The BTI file to extract"
-        )]
-        file_path: PathBuf
+        #[clap(help = "The BTI file to extract")]
+        file_path: PathBuf,
     },
 }
 
 const SUBLEVEL_HELP: &str = "The sublevel in question. Examples: \"SCx6\", \"SmC-3\", \"bk4\"";
 const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
-const SEED_HELP: &str =
-r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed
+const SEED_HELP: &str = r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed
 with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
 "##;
 const VERBOSE_HELP: &str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
-const SEED_FILE_HELP: &str =
-r##"The file to read seeds from. Should contain one seed on each line with no extra
+const SEED_FILE_HELP: &str = r##"The file to read seeds from. Should contain one seed on each line with no extra
 punctuation. If not specified, reads from STDIN.
 "##;

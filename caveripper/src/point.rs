@@ -265,3 +265,15 @@ impl<const N: usize, T: Serialize> Serialize for Point<N, T> {
         state.end()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::Point;
+
+    #[test]
+    fn test_eq() {
+        let a = Point([180.0, 0.0, 290.0]);
+        let b = Point([290.0, 0.0, 180.0]);
+        assert_ne!(a, b);
+    }
+}

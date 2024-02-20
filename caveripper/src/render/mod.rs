@@ -14,7 +14,6 @@ mod test;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
-    default::Default,
 };
 
 use error_stack::{Result, ResultExt};
@@ -139,13 +138,12 @@ impl Render for CaveUnit {
             img = rotate90(&img);
         }
 
-        img =
-            resize(
-                &img,
-                (self.width as f32 * GRID_FACTOR) as u32,
-                (self.height as f32 * GRID_FACTOR) as u32,
-                FilterType::Nearest,
-            );
+        img = resize(
+            &img,
+            (self.width as f32 * GRID_FACTOR) as u32,
+            (self.height as f32 * GRID_FACTOR) as u32,
+            FilterType::Nearest,
+        );
         canvas.overlay(&img, Point([0.0, 0.0]));
 
         // Waterboxes
@@ -178,8 +176,9 @@ impl Render for SpawnObject<'_> {
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
             SpawnObject::Item(info) => TreasureRenderer {
-                treasure: helper.treasure_info(&info.game, &info.internal_name)
-                    .expect(&format!("Couldn't find treasure {}", &info.internal_name))
+                treasure: helper
+                    .treasure_info(&info.game, &info.internal_name)
+                    .expect(&format!("Couldn't find treasure {}", &info.internal_name)),
             }
             .render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
@@ -192,12 +191,11 @@ impl Render for SpawnObject<'_> {
                 canvas.overlay(img.as_ref(), Point([0.0, 0.0]));
             }
             SpawnObject::Hole(plugged) | SpawnObject::Geyser(plugged) => {
-                let filename =
-                    match self {
-                        SpawnObject::Hole(_) => "resources/enemytex_special/Cave_icon.png",
-                        SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
-                        _ => unreachable!(),
-                    };
+                let filename = match self {
+                    SpawnObject::Hole(_) => "resources/enemytex_special/Cave_icon.png",
+                    SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
+                    _ => unreachable!(),
+                };
                 let img = helper.get_img(filename).unwrap();
                 canvas.overlay(img, Point([0.0, 0.0]));
                 if *plugged {
@@ -223,7 +221,10 @@ impl Render for SpawnObject<'_> {
             // image dimensions. Currently these are all scaled to 40x40 but
             // quality could be better if this can be avoided.
             SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => Point([40.0, 40.0]),
-            SpawnObject::Item(_) => TreasureRenderer{treasure: &Treasure::default()}.dimensions(),
+            SpawnObject::Item(_) => TreasureRenderer {
+                treasure: &Treasure::default(),
+            }
+            .dimensions(),
             SpawnObject::Gate(_, _rotation) => Point([48.0, 48.0]),
             SpawnObject::Hole(_) => Point([32.0, 32.0]),
             SpawnObject::Geyser(_) => Point([40.0, 40.0]),
@@ -239,7 +240,12 @@ struct TreasureRenderer<'a> {
 }
 impl Render for TreasureRenderer<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        let filename = PathBuf::from_iter(["assets", &self.treasure.game, "treasures", &format!("{}.png", self.treasure.internal_name.to_ascii_lowercase())]);
+        let filename = PathBuf::from_iter([
+            "assets",
+            &self.treasure.game,
+            "treasures",
+            &format!("{}.png", self.treasure.internal_name.to_ascii_lowercase()),
+        ]);
         canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
     }
 
@@ -318,7 +324,8 @@ fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>, mgr: 
         layer.place(
             Resize::new(
                 TreasureRenderer {
-                    treasure: mgr.treasure_info(game, &treasure)
+                    treasure: mgr
+                        .treasure_info(game, &treasure)
                         .expect(&format!("Couldn't load treasure {treasure}")),
                 },
                 CARRIED_TREASURE_SIZE,

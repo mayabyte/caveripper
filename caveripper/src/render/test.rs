@@ -2,7 +2,7 @@ use paste::paste;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{assets::AssetManager, layout::Layout, render::*};
+use crate::{layout::Layout, render::*};
 
 macro_rules! test_render {
     ($($name: literal),+) => {

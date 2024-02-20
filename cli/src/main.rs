@@ -4,7 +4,8 @@ mod extract;
 use std::{
     fs::read_to_string,
     io::stdin,
-    time::{Duration, Instant}, path::PathBuf,
+    path::PathBuf,
+    time::{Duration, Instant},
 };
 
 use atty::Stream;
@@ -14,20 +15,17 @@ use caveripper::{
     layout::Layout,
     parse_seed,
     pikmin_math::PikminRng,
-    query::{find_matching_layouts_parallel, Query},
+    query::{find_matching_layouts_parallel, special::ConsecutiveIdenticalSeedsQuery, Query, StructuralQuery},
     render::{render_caveinfo, render_layout, save_image, RenderHelper},
     sublevel::Sublevel,
 };
 use clap::Parser;
 use cli::*;
 use error_stack::Result;
-use extract::{extract_iso, extract_szs, bti::BtiImage};
+use extract::{bti::BtiImage, extract_iso, extract_szs};
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressIterator, ProgressStyle};
 use rand::prelude::*;
-use rayon::{
-    self,
-    iter::{IntoParallelIterator, ParallelIterator},
-};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use simple_logger::SimpleLogger;
 
 fn main() -> Result<(), CaveripperError> {
@@ -83,46 +81,34 @@ fn main() -> Result<(), CaveripperError> {
             }
         }
         Commands::Search { query, timeout_s, num } => {
-            let query = Query::try_parse(&query, &mgr)?;
-            let start_time = Instant::now();
-            let timeout =
-                if timeout_s > 0 {
-                    Some(Duration::from_secs(timeout_s))
-                } else {
-                    None
-                };
-            let deadline = timeout.map(|t| Instant::now() + t);
+            let query = StructuralQuery::try_parse(&query, &mgr)?;
+            let timeout = if timeout_s > 0 {
+                Some(Duration::from_secs(timeout_s))
+            } else {
+                None
+            };
+            search(query, &mgr, timeout, num);
+        }
+        Commands::SearchSpecial { name, args } => {
+            let query = match name.to_ascii_lowercase().as_str() {
+                "consecutive_identical_seeds" => {
+                    let (sublevel_arg, num_consecutive_arg) = args.split_once(' ').unwrap_or((&args, "2"));
 
-            let progress_bar = ProgressBar::new_spinner().with_style(
-                ProgressStyle::default_spinner()
-                    .template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]")
-                    .unwrap(),
-            );
+                    ConsecutiveIdenticalSeedsQuery {
+                        sublevel: Sublevel::try_from_str(&sublevel_arg, &mgr)?,
+                        num_consecutive: num_consecutive_arg.parse().expect("Second argument must be a number"),
+                    }
+                }
+                _ => {
+                    eprintln!("Unrecognized special query!");
+                    return Ok(());
+                }
+            };
 
-            if !atty::is(Stream::Stdout) {
-                progress_bar.finish_and_clear();
-            }
-
-            find_matching_layouts_parallel(
-                &query,
-                &mgr,
-                deadline,
-                (num > 0).then_some(num),
-                Some(|| {
-                    progress_bar.inc(1);
-                }),
-                |seed| {
-                    progress_bar.suspend(|| println!("{seed:#010X}"));
-                },
-            );
-
-            progress_bar.finish_and_clear();
-            if atty::is(Stream::Stdout) {
-                eprintln!("🍞 Finished in {:0.3}s.", start_time.elapsed().as_secs_f32());
-            }
+            search(query, &mgr, None, 1);
         }
         Commands::SearchFrom { start_from, query, max } => {
-            let query = Query::try_parse(&query, &mgr)?;
+            let query = StructuralQuery::try_parse(&query, &mgr)?;
             let rng = PikminRng::new(start_from);
             let progress_bar = ProgressBar::new(max as u64);
 
@@ -135,23 +121,22 @@ fn main() -> Result<(), CaveripperError> {
                 });
         }
         Commands::Stats { query, num_to_search } => {
-            let query = Query::try_parse(&query, &mgr)?;
-            let num_matched =
-                (0..num_to_search)
-                    .into_par_iter()
-                    .progress()
-                    .filter(|_| {
-                        let seed: u32 = random();
-                        query.matches(seed, &mgr)
-                    })
-                    .count();
+            let query = StructuralQuery::try_parse(&query, &mgr)?;
+            let num_matched = (0..num_to_search)
+                .into_par_iter()
+                .progress()
+                .filter(|_| {
+                    let seed: u32 = random();
+                    query.matches(seed, &mgr)
+                })
+                .count();
             println!(
                 "🍞 {num_matched} out of {num_to_search} ({:.03}%) match the condition '{query}'.",
                 (num_matched as f32 / num_to_search as f32) * 100.0
             );
         }
         Commands::Filter { query, file } => {
-            let query = Query::try_parse(&query, &mgr)?;
+            let query = StructuralQuery::try_parse(&query, &mgr)?;
             // Read from a file. In this case, we can check the seeds in parallel.
             if let Some(filename) = file {
                 read_to_string(filename)
@@ -191,19 +176,20 @@ fn main() -> Result<(), CaveripperError> {
                 let mut full_path = PathBuf::new();
                 full_path.push(folder_name);
                 full_path.push(path);
-                std::fs::create_dir_all(&full_path.parent().unwrap_or(&full_path))
-                    .expect(&format!("Couldn't create subdirectory {} for extracted files!", full_path.to_string_lossy()));
+                std::fs::create_dir_all(&full_path.parent().unwrap_or(&full_path)).expect(&format!(
+                    "Couldn't create subdirectory {} for extracted files!",
+                    full_path.to_string_lossy()
+                ));
                 std::fs::write(full_path, bytes).expect("Failed to write file data!");
             }
         }
         Commands::ExtractBti { file_path } => {
             let data = std::fs::read(&file_path).expect("Couldn't read provided file path!");
             let bti = BtiImage::decode(&data);
-            let dest_path = file_path.with_file_name(
-                format!(
-                    "{}png", 
-                    file_path.file_name().unwrap().to_string_lossy().strip_suffix("bti").unwrap(),
-                ));
+            let dest_path = file_path.with_file_name(format!(
+                "{}png",
+                file_path.file_name().unwrap().to_string_lossy().strip_suffix("bti").unwrap(),
+            ));
             image::save_buffer_with_format(
                 dest_path,
                 bti.pixels().flatten().cloned().collect::<Vec<_>>().as_slice(),
@@ -217,4 +203,37 @@ fn main() -> Result<(), CaveripperError> {
     }
 
     Ok(())
+}
+
+fn search(query: impl Query + Send + Sync, mgr: &AssetManager, timeout: Option<Duration>, num: usize) {
+    let start_time = Instant::now();
+    let deadline = timeout.map(|t| Instant::now() + t);
+
+    let progress_bar = ProgressBar::new_spinner().with_style(
+        ProgressStyle::default_spinner()
+            .template("{spinner} {elapsed_precise} [{per_sec}, {pos} searched]")
+            .unwrap(),
+    );
+
+    if !atty::is(Stream::Stdout) {
+        progress_bar.finish_and_clear();
+    }
+
+    find_matching_layouts_parallel(
+        &query,
+        &mgr,
+        deadline,
+        (num > 0).then_some(num),
+        Some(|| {
+            progress_bar.inc(1);
+        }),
+        |seed| {
+            progress_bar.suspend(|| println!("{seed:#010X}"));
+        },
+    );
+
+    progress_bar.finish_and_clear();
+    if atty::is(Stream::Stdout) {
+        eprintln!("🍞 Finished in {:0.3}s.", start_time.elapsed().as_secs_f32());
+    }
 }

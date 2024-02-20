@@ -1,9 +1,9 @@
-use super::Query;
-use crate::assets::AssetManager;
+use super::StructuralQuery;
+use crate::{assets::AssetManager, query::Query};
 
 fn test_query(query_str: &str, success_seeds: &[u32], failure_seeds: &[u32]) {
     let mgr = AssetManager::init().expect("Couldn't init asset manager");
-    let query = Query::try_parse(query_str, &mgr).unwrap_or_else(|e| panic!("Couldn't parse query string '{query_str}'\n{e}"));
+    let query = StructuralQuery::try_parse(query_str, &mgr).unwrap_or_else(|e| panic!("Couldn't parse query string '{query_str}'\n{e}"));
     for seed in success_seeds {
         assert!(query.matches(*seed, &mgr));
     }
@@ -88,7 +88,7 @@ fn test_parse_room_type_names() {
         "sr7 room < 2",
     ];
     for s in query_strings {
-        Query::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
+        StructuralQuery::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }
 
@@ -97,7 +97,7 @@ fn test_parse_count_queries() {
     let mgr = AssetManager::init().expect("Couldn't init asset manager");
     let query_strings = ["fc2 room_saka1_1_snow = 2", "scx7 room_ari1_3_metal < 2", "bd1 geyser = 0"];
     for s in query_strings {
-        Query::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
+        StructuralQuery::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }
 
@@ -110,7 +110,7 @@ fn test_room_path_whitespace() {
         "fc2 any    +    ship   ->    any +        toy_ring_c_blue",
     ];
     for s in query_strings {
-        Query::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
+        StructuralQuery::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
     }
 }
 
@@ -118,5 +118,5 @@ fn test_room_path_whitespace() {
 fn test_game_specifier_in_sublevel() {
     let mgr = AssetManager::init().expect("Couldn't init asset manager");
     let query_string = "216:tr12 randpom < 1";
-    Query::try_parse(query_string, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{query_string}\""));
+    StructuralQuery::try_parse(query_string, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{query_string}\""));
 }

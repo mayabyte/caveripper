@@ -1,8 +1,13 @@
-use std::{time::Instant, sync::atomic::{AtomicUsize, Ordering}};
+use std::{
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Instant,
+};
+
 use rand::{thread_rng, Rng};
 use rayon::scope;
-use crate::{query::Query, assets::AssetManager};
 
+use super::Query;
+use crate::assets::AssetManager;
 
 /// Finds seeds matching the given QueryClause in parallel and sends them to the returned
 /// Receiver.
@@ -14,7 +19,7 @@ use crate::{query::Query, assets::AssetManager};
 /// - `on_found`: a callback that's run for each found seed. This is where you need to extract the
 ///   matching seeds according to your needs.
 pub fn find_matching_layouts_parallel<T: Fn() + Send + Sync, F: Fn(u32) + Send + Sync>(
-    query: &Query,
+    query: &(impl Query + Send + Sync),
     mgr: &AssetManager,
     deadline: Option<Instant>,
     num_to_find: Option<usize>,
@@ -27,12 +32,16 @@ pub fn find_matching_layouts_parallel<T: Fn() + Send + Sync, F: Fn(u32) + Send +
         s.spawn_broadcast(|_scope, _broadcast_context| {
             let mut rng = thread_rng();
             loop {
-                if let Some(deadline_inner) = deadline && Instant::now() > deadline_inner {
+                if let Some(deadline_inner) = deadline
+                    && Instant::now() > deadline_inner
+                {
                     return;
                 }
 
                 // num = 0 means we search either until the timeout or until the receiver closes.
-                if let Some(n) = num_to_find && num_found.load(Ordering::Relaxed) >= n {
+                if let Some(n) = num_to_find
+                    && num_found.load(Ordering::Relaxed) >= n
+                {
                     return;
                 }
 
