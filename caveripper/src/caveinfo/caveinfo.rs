@@ -70,19 +70,20 @@ impl CaveInfo {
     /// Not part of the generation algorithm at all.
     pub fn name(&self) -> String {
         if self.cave_cfg.is_challenge_mode {
-            format!("{}-{}{}", 
-                self.cave_cfg.shortened_names.first().unwrap(), 
-                self.cave_cfg.shortened_names.iter()
+            format!(
+                "{}-{}{}",
+                self.cave_cfg.shortened_names.first().unwrap(),
+                self.cave_cfg
+                    .shortened_names
+                    .iter()
                     .find(|name| !name.starts_with("CH"))
                     .map(|name| name.to_owned())
-                    .unwrap_or("".to_string()), 
+                    .unwrap_or("".to_string()),
                 self.floor_num + 1,
             )
-        }
-        else {
+        } else {
             format!("{}{}", self.cave_cfg.shortened_names.first().unwrap(), self.floor_num + 1)
         }
-        
     }
 
     /// Constructs the long name of this sublevel, e.g. "Subterranean Complex 3" with the full cave name.
@@ -90,7 +91,7 @@ impl CaveInfo {
         format!("{} {}", self.cave_cfg.full_name, self.floor_num + 1)
     }
 
-    pub fn parse_from(cave: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveripperError> {
+    pub fn parse_from(cave: &CaveConfig, mgr: &impl AssetManager) -> Result<Vec<CaveInfo>, CaveripperError> {
         parse_caveinfo(cave, mgr)
             .change_context(CaveripperError::CaveinfoError)
             .attach_printable_lazy(|| format!("{} ({}/{})", cave.full_name, cave.game, cave.caveinfo_filename))

@@ -10,8 +10,8 @@ pub struct Circle {
     pub border_color: Rgba<u8>,
 }
 
-impl Render for Circle {
-    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for Circle {
+    fn render(&self, mut canvas: CanvasView, _helper: &M) {
         for x in 0..=(self.radius + 1.0) as u32 * 2 {
             for z in 0..=(self.radius + 1.0) as u32 * 2 {
                 let dist = ((self.radius - x as f32).powi(2) + (self.radius - z as f32).powi(2)).sqrt();
@@ -49,8 +49,8 @@ pub struct Rectangle {
     pub color: Rgba<u8>,
 }
 
-impl Render for Rectangle {
-    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for Rectangle {
+    fn render(&self, mut canvas: CanvasView, _helper: &M) {
         canvas.fill(Point([0.0, 0.0]), Point([self.width, self.height]), self.color);
     }
 
@@ -83,8 +83,8 @@ impl Default for Line {
     }
 }
 
-impl Render for Line {
-    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for Line {
+    fn render(&self, mut canvas: CanvasView, _helper: &M) {
         let mut start = self.start;
         let mut end = self.end;
         // canvas.reserve(

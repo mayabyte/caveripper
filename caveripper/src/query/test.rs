@@ -1,8 +1,8 @@
 use super::StructuralQuery;
-use crate::{assets::AssetManager, query::Query};
+use crate::{assets::fs_asset_manager::FsAssetManager, query::Query};
 
 fn test_query(query_str: &str, success_seeds: &[u32], failure_seeds: &[u32]) {
-    let mgr = AssetManager::init().expect("Couldn't init asset manager");
+    let mgr = FsAssetManager::init().expect("Couldn't init asset manager");
     let query = StructuralQuery::try_parse(query_str, &mgr).unwrap_or_else(|e| panic!("Couldn't parse query string '{query_str}'\n{e}"));
     for seed in success_seeds {
         assert!(query.matches(*seed, &mgr));
@@ -79,7 +79,7 @@ fn test_not_gated() {
 
 #[test]
 fn test_parse_room_type_names() {
-    let mgr = AssetManager::init().expect("Couldn't init asset manager");
+    let mgr = FsAssetManager::init().expect("Couldn't init asset manager");
     let query_strings = [
         "scx8 hallway > 50",
         "scx8 hall > 50",
@@ -94,7 +94,7 @@ fn test_parse_room_type_names() {
 
 #[test]
 fn test_parse_count_queries() {
-    let mgr = AssetManager::init().expect("Couldn't init asset manager");
+    let mgr = FsAssetManager::init().expect("Couldn't init asset manager");
     let query_strings = ["fc2 room_saka1_1_snow = 2", "scx7 room_ari1_3_metal < 2", "bd1 geyser = 0"];
     for s in query_strings {
         StructuralQuery::try_parse(s, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{s}\""));
@@ -103,7 +103,7 @@ fn test_parse_count_queries() {
 
 #[test]
 fn test_room_path_whitespace() {
-    let mgr = AssetManager::init().expect("Couldn't init asset manager");
+    let mgr = FsAssetManager::init().expect("Couldn't init asset manager");
     let query_strings = [
         "fc2 any+ship->any+toy_ring_c_blue",
         "fc2 any + ship -> any + toy_ring_c_blue",
@@ -116,7 +116,7 @@ fn test_room_path_whitespace() {
 
 #[test]
 fn test_game_specifier_in_sublevel() {
-    let mgr = AssetManager::init().expect("Couldn't init asset manager");
+    let mgr = FsAssetManager::init().expect("Couldn't init asset manager");
     let query_string = "216:tr12 randpom < 1";
     StructuralQuery::try_parse(query_string, &mgr).unwrap_or_else(|_| panic!("Failed to parse query string \"{query_string}\""));
 }

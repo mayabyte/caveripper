@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
+    assets::AssetManager,
     caveinfo::TekiInfo,
     layout::{Layout, SpawnObject},
     query::Query,
@@ -13,7 +14,7 @@ pub struct ConsecutiveIdenticalSeedsQuery {
 }
 
 impl Query for ConsecutiveIdenticalSeedsQuery {
-    fn matches(&self, seed: u32, mgr: &crate::assets::AssetManager) -> bool {
+    fn matches(&self, seed: u32, mgr: &impl AssetManager) -> bool {
         let caveinfo = mgr.get_caveinfo(&self.sublevel).unwrap();
         let layouts: Vec<Layout> = (seed..seed + self.num_consecutive)
             .into_iter()

@@ -1,5 +1,5 @@
 use caveripper::{
-    assets::AssetManager,
+    assets::fs_asset_manager::FsAssetManager,
     caveinfo::CaveInfo,
     layout::Layout,
     render::{render_layout, LayoutRenderOptions, RenderHelper},
@@ -7,7 +7,7 @@ use caveripper::{
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-fn preload_caveinfo(mgr: &AssetManager) -> Vec<CaveInfo> {
+fn preload_caveinfo(mgr: &FsAssetManager) -> Vec<CaveInfo> {
     let mut caveinfo = Vec::new();
     for cfg in mgr.cave_cfg.iter() {
         caveinfo.extend(
@@ -21,7 +21,7 @@ fn preload_caveinfo(mgr: &AssetManager) -> Vec<CaveInfo> {
 }
 
 pub fn benchmark_layout_generation(c: &mut Criterion) {
-    let mgr = AssetManager::init().unwrap();
+    let mgr = FsAssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
     let all_sublevels = preload_caveinfo(&mgr);
 
@@ -35,7 +35,7 @@ pub fn benchmark_layout_generation(c: &mut Criterion) {
 }
 
 pub fn benchmark_layout_rendering(c: &mut Criterion) {
-    let mgr = AssetManager::init().unwrap();
+    let mgr = FsAssetManager::init().unwrap();
     let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
     let all_sublevels = preload_caveinfo(&mgr);
     let helper = RenderHelper::new(&mgr);

@@ -20,7 +20,7 @@ use crate::assets::AssetManager;
 ///   matching seeds according to your needs.
 pub fn find_matching_layouts_parallel<T: Fn() + Send + Sync, F: Fn(u32) + Send + Sync>(
     query: &(impl Query + Send + Sync),
-    mgr: &AssetManager,
+    mgr: &(impl AssetManager + Send + Sync),
     deadline: Option<Instant>,
     num_to_find: Option<usize>,
     on_tick: Option<T>,

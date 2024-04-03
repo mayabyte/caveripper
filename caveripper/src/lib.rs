@@ -23,9 +23,7 @@ pub mod layout;
 #[path = "query/query.rs"]
 pub mod query;
 
-#[path = "assets/assets.rs"]
 pub mod assets;
-
 pub mod errors;
 pub mod pikmin_math;
 mod point;

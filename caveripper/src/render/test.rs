@@ -2,7 +2,7 @@ use paste::paste;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{layout::Layout, render::*};
+use crate::{assets::fs_asset_manager::FsAssetManager, layout::Layout, render::*};
 
 macro_rules! test_render {
     ($($name: literal),+) => {
@@ -10,7 +10,7 @@ macro_rules! test_render {
             $(
                 #[test]
                 fn [<test_render_layouts_ $name>] () {
-                    let mgr = AssetManager::init().unwrap();
+                    let mgr = FsAssetManager::init().unwrap();
                     let helper = RenderHelper::new(&mgr);
 
                     let num_layouts = 4;
@@ -30,7 +30,7 @@ macro_rules! test_render {
 
                 #[test]
                 fn [<test_render_caveinfo_ $name>] () {
-                    let mgr = AssetManager::init().unwrap();
+                    let mgr = FsAssetManager::init().unwrap();
                     let helper = RenderHelper::new(&mgr);
                     let caveinfos = mgr.caveinfos_from_cave($name.replace('_', ":").as_str()).unwrap();
                     caveinfos.into_par_iter().panic_fuse().for_each(|caveinfo| {

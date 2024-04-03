@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, marker::PhantomData};
 
 use clap::Args;
 use image::{imageops::FilterType, Rgba, RgbaImage};
@@ -15,6 +15,7 @@ use super::{
     CAVEINFO_WIDTH, COORD_FACTOR, GRID_FACTOR, HEADER_BACKGROUND, MAPTILES_BACKGROUND, OFF_BLACK, QUICKGLANCE_ONION_BLUE,
 };
 use crate::{
+    assets::AssetManager,
     caveinfo::{CapInfo, CaveInfo, CaveUnit, ItemInfo, RoomType, TekiInfo},
     errors::CaveripperError,
     layout::SpawnObject,
@@ -47,7 +48,11 @@ pub struct CaveinfoRenderOptions {
     pub hide_small_units: bool,
 }
 
-pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: CaveinfoRenderOptions) -> Result<RgbaImage, CaveripperError> {
+pub fn render_caveinfo<M: AssetManager>(
+    caveinfo: &CaveInfo,
+    helper: &RenderHelper<M>,
+    options: CaveinfoRenderOptions,
+) -> Result<RgbaImage, CaveripperError> {
     let mut renderer = StickerRenderer::new();
     renderer.set_global_background_color(HEADER_BACKGROUND);
 
@@ -103,6 +108,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
                     left: 0.0,
                     right: 0.0,
                     bottom: CAVEINFO_ICON_SIZE / 3.4,
+                    phantom: PhantomData,
                 },
                 Point([0.0, 0.0]),
                 Origin::TopLeft,
@@ -136,7 +142,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
     }
     let mut spawn_object_info_boxes = Rows::new(max_width, CAVEINFO_MARGIN, CAVEINFO_MARGIN);
 
-    let groups: [(&str, u32, Box<dyn Render>); 5] = [
+    let groups: [(&str, u32, Box<dyn Render<M>>); 5] = [
         ("Special", 8, Box::new(Icon::Star)),
         (
             "Hard",
@@ -317,6 +323,7 @@ pub fn render_caveinfo(caveinfo: &CaveInfo, helper: &RenderHelper, options: Cave
             left: 0.0,
             top: 0.0,
             bottom: 0.0,
+            phantom: PhantomData,
         });
     }
     unit_layer.set_background_color(MAPTILES_BACKGROUND);
@@ -384,32 +391,34 @@ const fn group_score(group: u32) -> u32 {
     }
 }
 
-fn caveinfo_entity_box<'r, 'h: 'r>(
+fn caveinfo_entity_box<'r, 'h: 'r, M: AssetManager>(
     title: impl Into<String>,
-    icon: impl Render + 'r,
+    icon: impl Render<M> + 'r,
     color: impl Into<Rgba<u8>>,
     spawn_objects: impl Iterator<Item = SpawnObject<'r>>,
     max_width: f32,
     score: u32,
     game: &str,
     is_challenge_mode: bool,
-    helper: &'h RenderHelper,
-) -> Layer<'r> {
+    helper: &'h RenderHelper<M>,
+) -> Layer<'r, M> {
     let color = color.into();
 
     let mut layer = Layer::new();
     layer.set_border(2.0, color);
     layer.set_margin(3.0);
 
-    let icon: Box<dyn Render> = if icon.dimensions().length() > 0.0 {
+    let icon: Box<dyn Render<M>> = if icon.dimensions().length() > 0.0 {
         Box::new(Colorize {
             renderable: Resize {
                 renderable: icon,
                 width: 34.0,
                 height: 34.0,
                 filter: FilterType::Lanczos3,
+                phantom: PhantomData,
             },
             color,
+            phantom: PhantomData,
         })
     } else {
         Box::new(())
@@ -443,7 +452,11 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     let mut spawn_object_rows = Rows::new(max_width, CAVEINFO_MARGIN / 2.0, CAVEINFO_MARGIN / 2.0);
     for so in spawn_objects {
         let mut so_and_value_layer = Layer::new();
-        so_and_value_layer.place(render_spawn_object(Cow::Owned(so.clone()), helper.mgr), Point([0.0, 0.0]), Origin::TopLeft);
+        so_and_value_layer.place(
+            render_spawn_object(Cow::Owned(so.clone()), helper.mgr),
+            Point([0.0, 0.0]),
+            Origin::TopLeft,
+        );
 
         // Carrying info
         if let SpawnObject::Item(ItemInfo { internal_name, .. })
@@ -468,6 +481,7 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
                         width: 24.0,
                         height: 24.0,
                         filter: FilterType::Lanczos3,
+                        phantom: PhantomData,
                     },
                     Point([0.0, 0.0]),
                     Origin::TopLeft,
@@ -569,7 +583,11 @@ fn caveinfo_entity_box<'r, 'h: 'r>(
     layer
 }
 
-fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper, options: &CaveinfoRenderOptions) -> impl Render + 'h {
+fn render_unit_caveinfo<'h, 'r: 'h, M: AssetManager>(
+    unit: &'r CaveUnit,
+    helper: &'h RenderHelper<M>,
+    options: &CaveinfoRenderOptions,
+) -> impl Render<M> + 'h {
     let mut unit_layer = Layer::new();
     unit_layer.place(
         Resize::new(
@@ -639,7 +657,7 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
 
     // Spawn points
     for sp in unit.spawnpoints.iter().sorted_by_key(|sp| sp.group) {
-        let icon: Box<dyn Render> = match sp.group {
+        let icon: Box<dyn Render<M>> = match sp.group {
             0 => Box::new(easy_teki_rings(sp.radius * CAVEINFO_COORD_FACTOR)),
             1 => Box::new(Circle {
                 radius: RENDER_SCALE * 0.5,
@@ -649,26 +667,31 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
             2 => Box::new(Colorize {
                 renderable: Icon::Treasure,
                 color: group_color(2).into(),
+                phantom: PhantomData,
             }),
             4 => Box::new(Icon::Exit),
             6 => Box::new(Resize {
                 renderable: Colorize {
                     renderable: Icon::Plant,
                     color: group_color(6).into(),
+                    phantom: PhantomData,
                 },
                 width: RENDER_SCALE,
                 height: RENDER_SCALE,
                 filter: FilterType::Lanczos3,
+                phantom: PhantomData,
             }),
             7 => Box::new(Icon::Ship),
             8 => Box::new(Resize {
                 renderable: Colorize {
                     renderable: Icon::Star,
                     color: group_color(8).into(),
+                    phantom: PhantomData,
                 },
                 width: RENDER_SCALE * 1.75,
                 height: RENDER_SCALE * 1.75,
                 filter: FilterType::Lanczos3,
+                phantom: PhantomData,
             }),
             _ => Box::new(()),
         };
@@ -733,6 +756,7 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
                 topleft: Point([0.0, 0.0]),
                 bottomright: Point([unit.width as f32 * CAVEINFO_GRID_FACTOR, unit.height as f32 * CAVEINFO_GRID_FACTOR]),
             },
+            phantom: PhantomData,
         },
         1.0,
         CAVEINFO_UNIT_BORDER_COLOR,
@@ -755,7 +779,7 @@ fn render_unit_caveinfo<'h, 'r: 'h>(unit: &'r CaveUnit, helper: &'h RenderHelper
     layer
 }
 
-fn easy_teki_rings(r: f32) -> impl Render {
+fn easy_teki_rings<M: AssetManager>(r: f32) -> impl Render<M> {
     let mut layer = Layer::new();
     let mut radius = r;
     for _ in 0..3 {
@@ -778,5 +802,6 @@ fn easy_teki_rings(r: f32) -> impl Render {
         left: -r,
         right: r,
         bottom: r,
+        phantom: PhantomData,
     }
 }

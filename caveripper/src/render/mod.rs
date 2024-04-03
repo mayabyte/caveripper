@@ -13,6 +13,7 @@ mod test;
 
 use std::{
     borrow::Cow,
+    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
@@ -81,13 +82,13 @@ const CAVEINFO_ICON_SIZE: f32 = 64.0;
 const OFF_BLACK: [u8; 4] = [0, 0, 0, 255];
 const CAVEINFO_BOXES_FONT_SIZE: f32 = 42.0;
 
-pub struct RenderHelper<'a> {
-    mgr: &'a AssetManager,
+pub struct RenderHelper<'a, M: AssetManager> {
+    mgr: &'a M,
     fonts: Vec<Font>,
 }
 
-impl<'a> RenderHelper<'a> {
-    pub fn new(mgr: &'a AssetManager) -> Self {
+impl<'a, M: AssetManager> RenderHelper<'a, M> {
+    pub fn new(mgr: &'a M) -> Self {
         let read_font = |path: &str| -> Font {
             let font_bytes = mgr.get_bytes(path).expect("Missing font file!");
             Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
@@ -101,7 +102,7 @@ impl<'a> RenderHelper<'a> {
         }
     }
 
-    fn cropped_text(&self, text: impl Into<String>, size: f32, outline: u32, color: impl Into<Rgba<u8>>) -> impl Render + '_ {
+    fn cropped_text(&self, text: impl Into<String>, size: f32, outline: u32, color: impl Into<Rgba<u8>>) -> impl Render<M> + '_ {
         CropRelative {
             inner: Text {
                 text: text.into(),
@@ -114,6 +115,7 @@ impl<'a> RenderHelper<'a> {
             left: 0.03125 * size,
             right: 0.0,
             bottom: 0.175 * size,
+            phantom: PhantomData,
         }
     }
 }
@@ -126,8 +128,8 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
     Ok(())
 }
 
-impl Render for CaveUnit {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for CaveUnit {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let filename = PathBuf::from_iter(["assets", &self.game, "mapunits", &self.unit_folder_name, "arc", "texture.png"]);
         let mut img = helper.get_img(&filename).unwrap().to_owned();
 
@@ -164,8 +166,8 @@ impl Render for CaveUnit {
     }
 }
 
-impl Render for SpawnObject<'_> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for SpawnObject<'_> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         match self {
             SpawnObject::Teki(TekiInfo { game, .. }, _) | SpawnObject::CapTeki(CapInfo { game, .. }, _) => {
                 let filename = match get_special_texture_name(self.name()) {
@@ -221,10 +223,12 @@ impl Render for SpawnObject<'_> {
             // image dimensions. Currently these are all scaled to 40x40 but
             // quality could be better if this can be avoided.
             SpawnObject::Teki(_, _) | SpawnObject::CapTeki(_, _) => Point([40.0, 40.0]),
-            SpawnObject::Item(_) => TreasureRenderer {
-                treasure: &Treasure::default(),
+            SpawnObject::Item(_) => {
+                let renderer = TreasureRenderer {
+                    treasure: &Treasure::default(),
+                };
+                <TreasureRenderer as Render<M>>::dimensions(&renderer)
             }
-            .dimensions(),
             SpawnObject::Gate(_, _rotation) => Point([48.0, 48.0]),
             SpawnObject::Hole(_) => Point([32.0, 32.0]),
             SpawnObject::Geyser(_) => Point([40.0, 40.0]),
@@ -238,8 +242,8 @@ impl Render for SpawnObject<'_> {
 struct TreasureRenderer<'a> {
     pub treasure: &'a Treasure,
 }
-impl Render for TreasureRenderer<'_> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for TreasureRenderer<'_> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let filename = PathBuf::from_iter([
             "assets",
             &self.treasure.game,
@@ -264,8 +268,8 @@ enum Icon {
     Exit,
 }
 
-impl Render for Icon {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for Icon {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let filename = match self {
             Icon::Falling => "resources/enemytex_special/falling_icon.png",
             Icon::Star => "resources/enemytex_special/star.png",
@@ -291,7 +295,7 @@ impl Render for Icon {
     }
 }
 
-fn render_spawn_object<'a, 'b: 'a>(spawn_object: Cow<'a, SpawnObject<'b>>, mgr: &'a AssetManager) -> impl Render + 'a {
+fn render_spawn_object<'a, 'b: 'a, M: AssetManager>(spawn_object: Cow<'a, SpawnObject<'b>>, mgr: &'a M) -> impl Render<M> + 'a {
     let mut layer = Layer::new();
     let mut pos = Point([0.0, 0.0]);
 

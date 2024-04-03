@@ -10,7 +10,7 @@ use std::{
 
 use atty::Stream;
 use caveripper::{
-    assets::AssetManager,
+    assets::{fs_asset_manager::FsAssetManager, AssetManager},
     errors::CaveripperError,
     layout::Layout,
     parse_seed,
@@ -32,7 +32,7 @@ fn main() -> Result<(), CaveripperError> {
     // The asset manager has to be initialized as the very first thing because
     // command parsing can involve sublevel string parsing, which requires
     // loading assets.
-    let mgr = AssetManager::init()?;
+    let mgr = FsAssetManager::init()?;
     let helper = RenderHelper::new(&mgr);
 
     let args = Cli::parse();
@@ -205,7 +205,7 @@ fn main() -> Result<(), CaveripperError> {
     Ok(())
 }
 
-fn search(query: impl Query + Send + Sync, mgr: &AssetManager, timeout: Option<Duration>, num: usize) {
+fn search(query: impl Query + Send + Sync, mgr: &FsAssetManager, timeout: Option<Duration>, num: usize) {
     let start_time = Instant::now();
     let deadline = timeout.map(|t| Instant::now() + t);
 
@@ -221,7 +221,7 @@ fn search(query: impl Query + Send + Sync, mgr: &AssetManager, timeout: Option<D
 
     find_matching_layouts_parallel(
         &query,
-        &mgr,
+        mgr,
         deadline,
         (num > 0).then_some(num),
         Some(|| {

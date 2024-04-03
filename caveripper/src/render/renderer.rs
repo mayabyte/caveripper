@@ -8,11 +8,11 @@ use super::{
 };
 use crate::{assets::AssetManager, point::Point, render::canvas::CanvasView};
 
-pub struct StickerRenderer<'r> {
-    root_layer: Layer<'r>,
+pub struct StickerRenderer<'r, M: AssetManager> {
+    root_layer: Layer<'r, M>,
 }
 
-impl<'r> StickerRenderer<'r> {
+impl<'r, M: AssetManager + 'r> StickerRenderer<'r, M> {
     pub fn new() -> Self {
         Self { root_layer: Layer::new() }
     }
@@ -22,21 +22,21 @@ impl<'r> StickerRenderer<'r> {
     }
 
     /// Adds a layer at (0,0)
-    pub fn add_layer(&mut self, layer: Layer<'r>) {
+    pub fn add_layer(&mut self, layer: Layer<'r, M>) {
         self.root_layer.place(layer, Point([0.0, 0.0]), Origin::TopLeft);
     }
 
-    pub fn place<'a>(&'a mut self, layer: Layer<'r>, pos: Point<2, f32>, origin: Origin) -> &'a mut Self {
+    pub fn place<'a>(&'a mut self, layer: Layer<'r, M>, pos: Point<2, f32>, origin: Origin) -> &'a mut Self {
         self.root_layer.place(layer, pos, origin);
         self
     }
 
-    pub fn place_relative(&mut self, layer: Layer<'r>, origin: Origin, offset: Offset) -> &mut Self {
+    pub fn place_relative(&mut self, layer: Layer<'r, M>, origin: Origin, offset: Offset) -> &mut Self {
         self.root_layer.place_relative(layer, origin, offset);
         self
     }
 
-    pub fn render(&self, helper: &AssetManager) -> RgbaImage {
+    pub fn render(&self, helper: &M) -> RgbaImage {
         let final_bounds = self.root_layer.bounds();
         let final_dims = final_bounds.dims();
 
@@ -54,8 +54,8 @@ impl<'r> StickerRenderer<'r> {
 ///
 /// [Layer] also implements [Render], so you can compose Layers inside of Layers to
 /// create nested groupings of related renderables.
-pub struct Layer<'r> {
-    renderables: Vec<(Box<dyn Render + 'r>, Bounds)>,
+pub struct Layer<'r, M: AssetManager> {
+    renderables: Vec<(Box<dyn Render<M> + 'r>, Bounds)>,
     background_color: Rgba<u8>,
     opacity: f32,
     margin: f32,
@@ -64,7 +64,7 @@ pub struct Layer<'r> {
     prev_bounds: Bounds, // Bounds of the previosly placed renderable for relative placement
 }
 
-impl<'r> Layer<'r> {
+impl<'r, M: AssetManager> Layer<'r, M> {
     pub fn new() -> Self {
         Self {
             renderables: vec![],
@@ -81,7 +81,7 @@ impl<'r> Layer<'r> {
     }
 
     /// Creates a layer with just the provided renderable placed at the origin.
-    pub fn of(renderable: impl Render + 'r) -> Self {
+    pub fn of(renderable: impl Render<M> + 'r) -> Self {
         let mut layer = Self::new();
         layer.place(renderable, Point([0.0, 0.0]), Origin::TopLeft);
         layer
@@ -106,7 +106,7 @@ impl<'r> Layer<'r> {
         self.border_color = color.into();
     }
 
-    pub fn place(&mut self, renderable: impl Render + 'r, pos: Point<2, f32>, origin: Origin) -> &mut Self {
+    pub fn place(&mut self, renderable: impl Render<M> + 'r, pos: Point<2, f32>, origin: Origin) -> &mut Self {
         let bounds = origin.to_bounds(&renderable, pos);
         self.renderables.push((Box::new(renderable), bounds));
         self.prev_bounds = bounds;
@@ -114,7 +114,7 @@ impl<'r> Layer<'r> {
     }
 
     /// Places the renderable relative to the position and bounds of the previously placed renderable.
-    pub fn place_relative(&mut self, renderable: impl Render + 'r, origin: Origin, offset: Offset) -> &mut Self {
+    pub fn place_relative(&mut self, renderable: impl Render<M> + 'r, origin: Origin, offset: Offset) -> &mut Self {
         let place_at = self.prev_bounds.topleft + offset.from.offset_from_top_left(self.prev_bounds.dims()) + offset.amount;
         self.place(renderable, place_at, origin)
     }
@@ -168,14 +168,13 @@ impl<'r> Layer<'r> {
     }
 }
 
-impl<'r> Render for Layer<'r> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
-        let mut canvas2 =
-            if self.opacity != 1.0 {
-                canvas.with_opacity(self.opacity)
-            } else {
-                canvas
-            };
+impl<'r, M: AssetManager> Render<M> for Layer<'r, M> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
+        let mut canvas2 = if self.opacity != 1.0 {
+            canvas.with_opacity(self.opacity)
+        } else {
+            canvas
+        };
 
         let b = self.bounds() + Point([self.margin + self.border, self.margin + self.border]);
 
@@ -220,15 +219,15 @@ impl<'r> Render for Layer<'r> {
 }
 
 #[auto_impl(&, &mut, Box)]
-pub trait Render {
-    fn render(&self, canvas: CanvasView, helper: &AssetManager);
+pub trait Render<M: AssetManager> {
+    fn render(&self, canvas: CanvasView, helper: &M);
 
     /// The dimensions of the image produced by [render].
     fn dimensions(&self) -> Point<2, f32>;
 }
 
-impl Render for () {
-    fn render(&self, _: CanvasView, _: &AssetManager) {}
+impl<M: AssetManager> Render<M> for () {
+    fn render(&self, _: CanvasView, _: &M) {}
 
     fn dimensions(&self) -> Point<2, f32> {
         Point([0.0, 0.0])

@@ -12,14 +12,14 @@ use std::{
 
 use anyhow::anyhow;
 use bti::BtiImage;
-use caveripper::assets::ASSET_VERSION;
+use caveripper::assets::fs_asset_manager::FsAssetManager;
 use gc_gcm::{DirEntry, GcmFile};
 use indicatif::{ParallelProgressIterator, ProgressBar};
 use log::warn;
 use rarc::Rarc;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
-use yaz0::{Yaz0Archive, Error as Yaz0Error};
+use yaz0::{Error as Yaz0Error, Yaz0Archive};
 
 pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progress: &ProgressBar) -> Result<(), anyhow::Error> {
     let iso_path = iso_path.as_ref();
@@ -30,19 +30,18 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
     let home_dir = dirs::home_dir().ok_or(anyhow!("Couldn't locate home directory!"))?;
     let home_dir = home_dir.to_string_lossy().into_owned();
 
-    let game_name =
-        if let Some(override_name) = game_name {
-            override_name
-        } else {
-            match game_id {
-                "GPVE01" | "GPVJ01" | "GPVP01" => "pikmin2",
-                "PIKE25" => "251",
-                "POKE42" => "216",
-                "WSAE64" => "newyear",
-                _ => return Err(anyhow!("Unrecognized game ISO {} and no game override provided", game_id)),
-            }
-            .to_string()
-        };
+    let game_name = if let Some(override_name) = game_name {
+        override_name
+    } else {
+        match game_id {
+            "GPVE01" | "GPVJ01" | "GPVP01" => "pikmin2",
+            "PIKE25" => "251",
+            "POKE42" => "216",
+            "WSAE64" => "newyear",
+            _ => return Err(anyhow!("Unrecognized game ISO {} and no game override provided", game_id)),
+        }
+        .to_string()
+    };
 
     if PathBuf::from_iter(["assets", &game_name]).exists() {
         warn!("Extracted filesystem for {game_name} already exists. It will be overwritten.");
@@ -162,7 +161,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
 
     write_file(
         &PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name, ".cr_extract_version"]),
-        format!("{ASSET_VERSION}").as_bytes(),
+        format!("{}", FsAssetManager::ASSET_VERSION).as_bytes(),
     )?;
 
     if game_name.eq_ignore_ascii_case("colossal") {
@@ -227,12 +226,11 @@ fn write_file(dest: &Path, data: &[u8]) -> Result<(), anyhow::Error> {
 }
 
 pub fn extract_szs(data: Vec<u8>) -> Result<Vec<(PathBuf, Vec<u8>)>, Yaz0Error> {
-    let arc =
-        if &data[..4] == b"Yaz0" {
-            Yaz0Archive::new(Cursor::new(data))?.decompress()?
-        } else {
-            data
-        };
+    let arc = if &data[..4] == b"Yaz0" {
+        Yaz0Archive::new(Cursor::new(data))?.decompress()?
+    } else {
+        data
+    };
     let rarc = Rarc::new(arc.as_slice()).expect("Rarc decompression error!");
     Ok(rarc.files().map(|(p, d)| (p, d.to_vec())).collect())
 }

@@ -1,5 +1,5 @@
 [workspace]
 resolver = "2"
-members = ["caveripper", "cli"]
+members = ["caveripper", "cli", "dweevil"]
 
 default-members = ["caveripper", "cli"]

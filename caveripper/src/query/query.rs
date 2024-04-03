@@ -33,7 +33,7 @@ use crate::{
 struct QueryParser;
 
 pub trait Query {
-    fn matches(&self, seed: u32, mgr: &AssetManager) -> bool;
+    fn matches(&self, seed: u32, mgr: &impl AssetManager) -> bool;
 }
 
 #[derive(Clone, Debug)]
@@ -42,7 +42,7 @@ pub struct StructuralQuery {
 }
 
 impl Query for StructuralQuery {
-    fn matches(&self, seed: u32, mgr: &AssetManager) -> bool {
+    fn matches(&self, seed: u32, mgr: &impl AssetManager) -> bool {
         let unique_sublevels: HashSet<&Sublevel> = self.clauses.iter().map(|clause| &clause.sublevel).collect();
         let layouts: HashMap<&Sublevel, Layout> = unique_sublevels
             .into_iter()
@@ -58,7 +58,7 @@ impl Query for StructuralQuery {
 impl StructuralQuery {
     /// Parse a series of SearchConditions from a query string, usually passed in by the CLI.
     /// This effectively defines a DSL for search terms.
-    pub fn try_parse(input: &str, mgr: &AssetManager) -> Result<Self, CaveripperError> {
+    pub fn try_parse(input: &str, mgr: &impl AssetManager) -> Result<Self, CaveripperError> {
         let pairs = QueryParser::parse(Rule::query, input).change_context(CaveripperError::QueryParseError)?;
         let mut sublevel: Option<Sublevel> = None;
         let mut clauses = Vec::new();
@@ -242,7 +242,7 @@ impl QueryKind {
         }
     }
 
-    pub fn try_parse(input: Pair<'_, Rule>, mgr: &AssetManager) -> Result<Self, CaveripperError> {
+    pub fn try_parse(input: Pair<'_, Rule>, mgr: &impl AssetManager) -> Result<Self, CaveripperError> {
         if input.as_rule() != Rule::expression {
             return Err(report!(CaveripperError::QueryParseError)).attach_printable_lazy(|| input.as_str().to_string());
         }

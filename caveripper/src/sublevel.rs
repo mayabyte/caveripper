@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::Serialize;
 
 use crate::{
-    assets::{AssetManager, CaveConfig},
+    assets::{CaveConfig, AssetManager},
     errors::CaveripperError,
 };
 
@@ -25,7 +25,7 @@ impl Sublevel {
         Sublevel { cfg: cfg.clone(), floor }
     }
 
-    pub fn try_from_str(input: &str, mgr: &AssetManager) -> Result<Self, CaveripperError> {
+    pub fn try_from_str(input: &str, mgr: &impl AssetManager) -> Result<Self, CaveripperError> {
         let component_re = SUBLEVEL_COMPONENT.get_or_init(|| Regex::new(r"([.[^-]]+)").unwrap());
 
         let (game, input) = input

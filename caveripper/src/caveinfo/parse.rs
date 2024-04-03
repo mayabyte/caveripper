@@ -35,7 +35,7 @@ fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section>, 
 
 /// Takes the entire raw text of a CaveInfo file and parses it into several
 /// CaveInfo structs - one for each floor - ready for passing to the generator.
-pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveInfo>, CaveInfoError> {
+pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &impl AssetManager) -> Result<Vec<CaveInfo>, CaveInfoError> {
     let caveinfo_txt = mgr
         .get_txt_file(cave_cfg.get_caveinfo_path())
         .change_context(CaveInfoError::FileRead)
@@ -63,7 +63,11 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Resul
                 cap_probability: header.get_tag::<f32>("{f014}")? / 100f32,
                 has_geyser: header.get_tag::<u32>("{f007}")? > 0,
                 exit_plugged: header.get_tag::<u32>("{f010}")? > 0,
-                cave_units: expand_rotations(sort_cave_units(parse_unitfile(&header.get_tag::<String>("{f008}")?, cave_cfg, mgr)?)),
+                cave_units: expand_rotations(sort_cave_units(parse_unitfile(
+                    &header.get_tag::<String>("{f008}")?,
+                    cave_cfg,
+                    mgr,
+                )?)),
                 teki_info: try_parse_tekiinfo(teki, &cave_cfg.game)?,
                 item_info: try_parse_iteminfo(item, &cave_cfg.game)?,
                 gate_info: gate.try_into()?,
@@ -78,7 +82,7 @@ pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &AssetManager) -> Resul
     Ok(caveinfos)
 }
 
-fn parse_unitfile(mut unitfile: &str, cave_cfg: &CaveConfig, mgr: &AssetManager) -> Result<Vec<CaveUnit>, CaveInfoError> {
+fn parse_unitfile(mut unitfile: &str, cave_cfg: &CaveConfig, mgr: &impl AssetManager) -> Result<Vec<CaveUnit>, CaveInfoError> {
     if cave_cfg.is_colossal_caverns() {
         unitfile = "all_units.txt";
     }
@@ -92,7 +96,7 @@ fn parse_unitfile(mut unitfile: &str, cave_cfg: &CaveConfig, mgr: &AssetManager)
     Ok(units)
 }
 
-fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) -> Result<CaveUnit, CaveInfoError> {
+fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &impl AssetManager) -> Result<CaveUnit, CaveInfoError> {
     let unit_folder_name: String = section.get_line(1)?.get_line_item(0)?;
     let width = section.get_line(2)?.get_line_item(0)?;
     let height = section.get_line(2)?.get_line_item(1)?;
@@ -100,16 +104,15 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) 
     let num_doors = section.get_line(5)?.get_line_item(0)?;
 
     // DoorUnits
-    let doors =
-        if num_doors > 0 {
-            let num_lines_per_door_unit = (section.lines.len() - 6) / num_doors;
-            section.lines[6..]
-                .chunks(num_lines_per_door_unit)
-                .map(|doorunit_lines: &[InfoLine]| -> Result<DoorUnit, CaveInfoError> { doorunit_lines.try_into() })
-                .collect::<Result<Vec<_>, _>>()?
-        } else {
-            vec![]
-        };
+    let doors = if num_doors > 0 {
+        let num_lines_per_door_unit = (section.lines.len() - 6) / num_doors;
+        section.lines[6..]
+            .chunks(num_lines_per_door_unit)
+            .map(|doorunit_lines: &[InfoLine]| -> Result<DoorUnit, CaveInfoError> { doorunit_lines.try_into() })
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        vec![]
+    };
 
     // Cave Unit Layout File (spawn points)
     let layoutfile_path = PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "layout.txt"]);
@@ -123,20 +126,33 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &AssetManager) 
     };
 
     // Waterboxes file
-    let waterboxes =
-        match mgr.get_txt_file(PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "waterbox.txt"])) {
-            Ok(waterboxes_file_txt) => {
-                let section = parse_sections(&waterboxes_file_txt)?.next().unwrap();
-                TryInto::<Vec<Waterbox>>::try_into(section)
-                    .change_context(CaveInfoError::WaterboxFile)
-                    .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?
-            }
-            Err(_) => Vec::new(),
-        };
+    let waterboxes = match mgr.get_txt_file(PathBuf::from_iter([
+        "assets",
+        &cave.game,
+        "mapunits",
+        &unit_folder_name,
+        "texts",
+        "waterbox.txt",
+    ])) {
+        Ok(waterboxes_file_txt) => {
+            let section = parse_sections(&waterboxes_file_txt)?.next().unwrap();
+            TryInto::<Vec<Waterbox>>::try_into(section)
+                .change_context(CaveInfoError::WaterboxFile)
+                .attach_printable_lazy(|| format!("{unit_folder_name}/texts/waterbox.txt"))?
+        }
+        Err(_) => Vec::new(),
+    };
 
     // route.txt file (Waypoints)
     let waypoints_file_txt = mgr
-        .get_txt_file(PathBuf::from_iter(["assets", &cave.game, "mapunits", &unit_folder_name, "texts", "route.txt"]))
+        .get_txt_file(PathBuf::from_iter([
+            "assets",
+            &cave.game,
+            "mapunits",
+            &unit_folder_name,
+            "texts",
+            "route.txt",
+        ]))
         .change_context(CaveInfoError::FileRead)?;
     let waypoints = parse_sections(&waypoints_file_txt)
         .change_context(CaveInfoError::RouteFile)

@@ -1,7 +1,7 @@
 use std::ops::Add;
 
 use super::renderer::Render;
-use crate::point::Point;
+use crate::{assets::AssetManager, point::Point};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Offset {
@@ -40,7 +40,7 @@ impl Origin {
 
     /// Calculates the bounding box occupied by the given renderable placed at `pos`.
     /// `pos` is the non-normalized position provided by the user.
-    pub fn to_bounds(&self, renderable: &impl Render, pos: Point<2, f32>) -> Bounds {
+    pub fn to_bounds<M: AssetManager>(&self, renderable: &impl Render<M>, pos: Point<2, f32>) -> Bounds {
         let offset = self.offset_from_top_left(renderable.dimensions());
         let topleft = pos - offset;
         Bounds {

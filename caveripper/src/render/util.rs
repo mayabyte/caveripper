@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::{cmp::max, marker::PhantomData};
 
 use image::{
     imageops::{resize, FilterType},
@@ -31,16 +31,18 @@ pub fn outline(img: &RgbaImage, thickness: u32) -> RgbaImage {
     border_img
 }
 
-pub struct Resize<R: Render> {
+pub struct Resize<M: AssetManager, R: Render<M>> {
+    pub phantom: PhantomData<M>,
     pub renderable: R,
     pub width: f32,
     pub height: f32,
     pub filter: FilterType,
 }
 
-impl<R: Render> Resize<R> {
-    pub fn new(renderable: R, width: f32, height: f32, filter: FilterType) -> Resize<R> {
+impl<M: AssetManager, R: Render<M>> Resize<M, R> {
+    pub fn new(renderable: R, width: f32, height: f32, filter: FilterType) -> Resize<M, R> {
         Resize {
+            phantom: PhantomData,
             renderable,
             width,
             height,
@@ -48,13 +50,13 @@ impl<R: Render> Resize<R> {
         }
     }
 
-    pub fn new_sq(renderable: R, side: f32, filter: FilterType) -> Resize<R> {
+    pub fn new_sq(renderable: R, side: f32, filter: FilterType) -> Resize<M, R> {
         Resize::new(renderable, side, side, filter)
     }
 }
 
-impl<R: Render> Render for Resize<R> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager, R: Render<M>> Render<M> for Resize<M, R> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let mut subcanvas = Canvas::new(self.renderable.dimensions());
         self.renderable.render(subcanvas.view(Point([0.0, 0.0])), helper);
         let buffer = resize(
@@ -72,7 +74,8 @@ impl<R: Render> Render for Resize<R> {
 }
 
 #[derive(Default)]
-pub struct CropRelative<R: Render> {
+pub struct CropRelative<M: AssetManager, R: Render<M>> {
+    pub phantom: PhantomData<M>,
     pub inner: R,
     pub top: f32,
     pub left: f32,
@@ -80,8 +83,8 @@ pub struct CropRelative<R: Render> {
     pub bottom: f32,
 }
 
-impl<R: Render> Render for CropRelative<R> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager, R: Render<M>> Render<M> for CropRelative<M, R> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let mut sub_canvas = Canvas::new(self.dimensions());
         self.inner.render(sub_canvas.view(Point([-self.left, -self.top])), helper);
         canvas.overlay(&sub_canvas.into_inner(), Point([0.0, 0.0]));
@@ -94,13 +97,14 @@ impl<R: Render> Render for CropRelative<R> {
 }
 
 #[derive(Default)]
-pub struct CropAbsolute<R: Render> {
+pub struct CropAbsolute<M: AssetManager, R: Render<M>> {
+    pub phantom: PhantomData<M>,
     pub inner: R,
     pub bounds: Bounds,
 }
 
-impl<R: Render> Render for CropAbsolute<R> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager, R: Render<M>> Render<M> for CropAbsolute<M, R> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let mut sub_canvas = Canvas::new(self.dimensions());
         self.inner.render(sub_canvas.view(-self.bounds.topleft), helper);
         canvas.overlay(&sub_canvas.into_inner(), Point([0.0, 0.0]));
@@ -111,13 +115,14 @@ impl<R: Render> Render for CropAbsolute<R> {
     }
 }
 
-pub struct Colorize<R: Render> {
+pub struct Colorize<M: AssetManager, R: Render<M>> {
+    pub phantom: PhantomData<M>,
     pub renderable: R,
     pub color: Rgba<u8>,
 }
 
-impl<R: Render> Render for Colorize<R> {
-    fn render(&self, mut canvas: CanvasView, helper: &AssetManager) {
+impl<M: AssetManager, R: Render<M>> Render<M> for Colorize<M, R> {
+    fn render(&self, mut canvas: CanvasView, helper: &M) {
         let mut subcanvas = Canvas::new(self.renderable.dimensions());
         self.renderable.render(subcanvas.view(Point([0.0, 0.0])), helper);
 
@@ -136,22 +141,26 @@ impl<R: Render> Render for Colorize<R> {
     }
 }
 
-pub fn with_border<'a>(renderable: impl Render + 'a, thickness: f32, color: impl Into<Rgba<u8>>) -> impl Render + 'a {
+pub fn with_border<'a, M: AssetManager + 'a>(
+    renderable: impl Render<M> + 'a,
+    thickness: f32,
+    color: impl Into<Rgba<u8>>,
+) -> impl Render<M> + 'a {
     let mut layer = Layer::new();
     layer.set_border(thickness, color);
     layer.place(renderable, Point([0.0, 0.0]), Origin::TopLeft);
     layer
 }
 
-pub struct Rows<'a> {
+pub struct Rows<'a, M: AssetManager> {
     max_width: f32,
     h_margin: f32,
     v_margin: f32,
-    renderables: Vec<Box<dyn Render + 'a>>,
+    renderables: Vec<Box<dyn Render<M> + 'a>>,
 }
 
-impl<'a> Rows<'a> {
-    pub fn new(max_width: f32, h_margin: f32, v_margin: f32) -> Rows<'a> {
+impl<'a, M: AssetManager> Rows<'a, M> {
+    pub fn new(max_width: f32, h_margin: f32, v_margin: f32) -> Rows<'a, M> {
         Rows {
             max_width,
             h_margin,
@@ -160,11 +169,11 @@ impl<'a> Rows<'a> {
         }
     }
 
-    pub fn add(&mut self, renderable: impl Render + 'a) {
+    pub fn add(&mut self, renderable: impl Render<M> + 'a) {
         self.renderables.push(Box::new(renderable));
     }
 
-    fn split_rows(&self) -> Vec<Vec<&(dyn Render + 'a)>> {
+    fn split_rows(&self) -> Vec<Vec<&(dyn Render<M> + 'a)>> {
         // Inefficient, but I couldn't figure out the right lifetimes for returning a nested iterator
         // using Itertools::batching or similar
         let mut rows = vec![vec![]];
@@ -182,8 +191,8 @@ impl<'a> Rows<'a> {
     }
 }
 
-impl<'a> Render for Rows<'a> {
-    fn render(&self, canvas: CanvasView, helper: &AssetManager) {
+impl<'a, M: AssetManager> Render<M> for Rows<'a, M> {
+    fn render(&self, canvas: CanvasView, helper: &M) {
         let mut parent_layer = Layer::new();
         let mut first_row = true;
         for row in self.split_rows().into_iter() {

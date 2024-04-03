@@ -49,13 +49,15 @@ fn width_from_layout(layout: &FontLayout) -> f32 {
         .0
 }
 
-impl Render for Text<'_> {
-    fn render(&self, mut canvas: CanvasView, _helper: &AssetManager) {
+impl<M: AssetManager> Render<M> for Text<'_> {
+    fn render(&self, mut canvas: CanvasView, _helper: &M) {
         let layout = self.layout();
 
         for glyph in layout.glyphs().iter() {
-            let mut base_glyph_canvas =
-                Canvas::new(Point([glyph.width as f32 + self.outline as f32, glyph.height as f32 + self.outline as f32]));
+            let mut base_glyph_canvas = Canvas::new(Point([
+                glyph.width as f32 + self.outline as f32,
+                glyph.height as f32 + self.outline as f32,
+            ]));
 
             let (metrics, bitmap) = self.font.rasterize_config(glyph.key);
             for (i, v) in bitmap.into_iter().enumerate() {
