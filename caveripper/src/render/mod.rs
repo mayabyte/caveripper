@@ -168,15 +168,11 @@ impl<M: AssetManager> Render<M> for SpawnObject<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &M) {
         match self {
             SpawnObject::Teki(TekiInfo { game, .. }, _) | SpawnObject::CapTeki(CapInfo { game, .. }, _) => {
-                let name = get_special_texture_name(self.name())
+                let (name, kind) = get_special_texture_name(self.name())
                     .map(ToOwned::to_owned)
-                    .unwrap_or_else(|| self.name().to_ascii_lowercase());
-                let teki_img = resize(
-                    helper.load_image(ImageKind::Teki, game, &name).unwrap(),
-                    40,
-                    40,
-                    FilterType::Lanczos3,
-                );
+                    .map(|special_name| (special_name, ImageKind::Special))
+                    .unwrap_or_else(|| (self.name().to_ascii_lowercase(), ImageKind::Teki));
+                let teki_img = resize(helper.load_image(kind, game, &name).unwrap(), 40, 40, FilterType::Lanczos3);
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
             SpawnObject::Item(info) => TreasureRenderer {

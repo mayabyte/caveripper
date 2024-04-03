@@ -160,7 +160,7 @@ impl AssetManager for FsAssetManager {
             ImageKind::CaveUnit => format!("assets/{game}/{kind}/{name}/arc/texture.png"),
             _ => format!("assets/{game}/{kind}/{name}.png"),
         };
-        let path = PathBuf::from(&p_str);
+        let path = self.asset_dir.join(&p_str);
 
         if let Some(value) = self.img_cache.get(&p_str) {
             Ok(value)
