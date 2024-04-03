@@ -50,7 +50,7 @@ fn main() -> Result<(), CaveripperError> {
             render_options,
         } => {
             let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
-            let caveinfo = mgr.get_caveinfo(&sublevel)?;
+            let caveinfo = mgr.load_caveinfo(&sublevel)?;
             let layout = Layout::generate(seed, caveinfo);
             let _ = std::fs::create_dir("output");
             save_image(
@@ -68,7 +68,7 @@ fn main() -> Result<(), CaveripperError> {
             render_options,
         } => {
             let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
-            let caveinfo = mgr.get_caveinfo(&sublevel)?;
+            let caveinfo = mgr.load_caveinfo(&sublevel)?;
             if text {
                 println!("{caveinfo}");
             } else {

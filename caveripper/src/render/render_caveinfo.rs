@@ -470,7 +470,7 @@ fn caveinfo_entity_box<'r, 'h: 'r, M: AssetManager>(
         {
             let treasure_metadata = helper
                 .mgr
-                .treasure_info(game, &internal_name)
+                .get_treasure_info(game, &internal_name)
                 .expect(&format!("Invalid treasure encountered while rendering: {internal_name}"));
 
             let mut metadata_layer = Layer::new();

@@ -15,7 +15,7 @@ pub struct ConsecutiveIdenticalSeedsQuery {
 
 impl Query for ConsecutiveIdenticalSeedsQuery {
     fn matches(&self, seed: u32, mgr: &impl AssetManager) -> bool {
-        let caveinfo = mgr.get_caveinfo(&self.sublevel).unwrap();
+        let caveinfo = mgr.load_caveinfo(&self.sublevel).unwrap();
         let layouts: Vec<Layout> = (seed..seed + self.num_consecutive)
             .into_iter()
             .map(|actual_seed| Layout::generate(actual_seed, caveinfo))

@@ -11,11 +11,7 @@ mod util;
 #[cfg(test)]
 mod test;
 
-use std::{
-    borrow::Cow,
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::{borrow::Cow, marker::PhantomData, path::Path};
 
 use error_stack::{Result, ResultExt};
 use fontdue::{Font, FontSettings};
@@ -33,7 +29,7 @@ use self::{
     util::{CropRelative, Resize},
 };
 use crate::{
-    assets::{get_special_texture_name, AssetManager, Treasure},
+    assets::{get_special_texture_name, AssetManager, ImageKind, Treasure},
     caveinfo::{CapInfo, CaveUnit, TekiInfo},
     errors::CaveripperError,
     layout::SpawnObject,
@@ -90,7 +86,7 @@ pub struct RenderHelper<'a, M: AssetManager> {
 impl<'a, M: AssetManager> RenderHelper<'a, M> {
     pub fn new(mgr: &'a M) -> Self {
         let read_font = |path: &str| -> Font {
-            let font_bytes = mgr.get_bytes(path).expect("Missing font file!");
+            let font_bytes = mgr.load_raw(path).expect("Missing font file!");
             Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
         };
         Self {
@@ -130,8 +126,10 @@ pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, filename: P) -> Result<(), Ca
 
 impl<M: AssetManager> Render<M> for CaveUnit {
     fn render(&self, mut canvas: CanvasView, helper: &M) {
-        let filename = PathBuf::from_iter(["assets", &self.game, "mapunits", &self.unit_folder_name, "arc", "texture.png"]);
-        let mut img = helper.get_img(&filename).unwrap().to_owned();
+        let mut img = helper
+            .load_image(ImageKind::CaveUnit, &self.game, &self.unit_folder_name)
+            .unwrap()
+            .to_owned();
 
         // Radar images are somewhat dark by default; this improves visibility.
         brighten_in_place(&mut img, 75);
@@ -170,22 +168,25 @@ impl<M: AssetManager> Render<M> for SpawnObject<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &M) {
         match self {
             SpawnObject::Teki(TekiInfo { game, .. }, _) | SpawnObject::CapTeki(CapInfo { game, .. }, _) => {
-                let filename = match get_special_texture_name(self.name()) {
-                    Some(special_name) => PathBuf::from_iter(["resources", "enemytex_special", special_name]),
-                    None => PathBuf::from_iter(["assets", &game, "teki", &format!("{}.png", self.name().to_ascii_lowercase())]),
-                };
-                let teki_img = resize(helper.get_img(filename).unwrap(), 40, 40, FilterType::Lanczos3);
+                let name = get_special_texture_name(self.name())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| self.name().to_ascii_lowercase());
+                let teki_img = resize(
+                    helper.load_image(ImageKind::Teki, game, &name).unwrap(),
+                    40,
+                    40,
+                    FilterType::Lanczos3,
+                );
                 canvas.overlay(&teki_img, Point([0.0, 0.0]));
             }
             SpawnObject::Item(info) => TreasureRenderer {
                 treasure: helper
-                    .treasure_info(&info.game, &info.internal_name)
+                    .get_treasure_info(&info.game, &info.internal_name)
                     .expect(&format!("Couldn't find treasure {}", &info.internal_name)),
             }
             .render(canvas, helper),
             SpawnObject::Gate(_, rotation) => {
-                let filename = "resources/enemytex_special/Gray_bramble_gate_icon.png";
-                let mut img = Cow::Borrowed(helper.get_img(filename).unwrap());
+                let mut img = Cow::Borrowed(helper.load_image(ImageKind::Special, "pikmin2", "Gray_bramble_gate_icon").unwrap());
                 if rotation % 2 == 1 {
                     img = Cow::Owned(rotate90(img.as_ref()));
                 }
@@ -193,26 +194,29 @@ impl<M: AssetManager> Render<M> for SpawnObject<'_> {
                 canvas.overlay(img.as_ref(), Point([0.0, 0.0]));
             }
             SpawnObject::Hole(plugged) | SpawnObject::Geyser(plugged) => {
-                let filename = match self {
-                    SpawnObject::Hole(_) => "resources/enemytex_special/Cave_icon.png",
-                    SpawnObject::Geyser(_) => "resources/enemytex_special/Geyser_icon.png",
+                let name = match self {
+                    SpawnObject::Hole(_) => "Cave_icon",
+                    SpawnObject::Geyser(_) => "Geyser_icon",
                     _ => unreachable!(),
                 };
-                let img = helper.get_img(filename).unwrap();
+                let img = helper.load_image(ImageKind::Special, "pikmin2", name).unwrap();
                 canvas.overlay(img, Point([0.0, 0.0]));
                 if *plugged {
-                    let plug_filename = "resources/enemytex_special/36px-Clog_icon.png";
-                    let plug_icon = helper.get_img(plug_filename).unwrap();
+                    let plug_icon = helper.load_image(ImageKind::Special, "pikmin2", "36px-Clog_icon").unwrap();
                     canvas.overlay(&plug_icon, Point([0.0, 0.0]));
                 }
             }
             SpawnObject::Ship => {
-                let filename = "resources/enemytex_special/pod_icon.png";
-                canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
+                canvas.overlay(
+                    helper.load_image(ImageKind::Special, "pikmin2", "pod_icon").unwrap(),
+                    Point([0.0, 0.0]),
+                );
             }
             SpawnObject::Onion(color) => {
-                let filename = format!("resources/enemytex_special/onion{color}.png");
-                canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
+                canvas.overlay(
+                    helper.load_image(ImageKind::Special, "pikmin2", &format!("onion{color}")).unwrap(),
+                    Point([0.0, 0.0]),
+                );
             }
         }
     }
@@ -244,13 +248,16 @@ struct TreasureRenderer<'a> {
 }
 impl<M: AssetManager> Render<M> for TreasureRenderer<'_> {
     fn render(&self, mut canvas: CanvasView, helper: &M) {
-        let filename = PathBuf::from_iter([
-            "assets",
-            &self.treasure.game,
-            "treasures",
-            &format!("{}.png", self.treasure.internal_name.to_ascii_lowercase()),
-        ]);
-        canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
+        canvas.overlay(
+            helper
+                .load_image(
+                    ImageKind::Treasure,
+                    &self.treasure.game,
+                    &self.treasure.internal_name.to_ascii_lowercase(),
+                )
+                .unwrap(),
+            Point([0.0, 0.0]),
+        );
     }
 
     fn dimensions(&self) -> Point<2, f32> {
@@ -270,16 +277,16 @@ enum Icon {
 
 impl<M: AssetManager> Render<M> for Icon {
     fn render(&self, mut canvas: CanvasView, helper: &M) {
-        let filename = match self {
-            Icon::Falling => "resources/enemytex_special/falling_icon.png",
-            Icon::Star => "resources/enemytex_special/star.png",
-            Icon::Plant => "resources/enemytex_special/leaf_icon.png",
-            Icon::Treasure => "resources/enemytex_special/duck.png",
-            Icon::Poko => "resources/enemytex_special/Poko_icon.png",
-            Icon::Ship => "resources/enemytex_special/ship.png",
-            Icon::Exit => "resources/enemytex_special/cave_white.png",
+        let name = match self {
+            Icon::Falling => "falling_icon",
+            Icon::Star => "star",
+            Icon::Plant => "leaf_icon",
+            Icon::Treasure => "duck",
+            Icon::Poko => "Poko_icon",
+            Icon::Ship => "ship",
+            Icon::Exit => "cave_white",
         };
-        canvas.overlay(helper.get_img(filename).unwrap(), Point([0.0, 0.0]));
+        canvas.overlay(helper.load_image(ImageKind::Special, "pikmin2", name).unwrap(), Point([0.0, 0.0]));
     }
 
     fn dimensions(&self) -> Point<2, f32> {
@@ -329,7 +336,7 @@ fn render_spawn_object<'a, 'b: 'a, M: AssetManager>(spawn_object: Cow<'a, SpawnO
             Resize::new(
                 TreasureRenderer {
                     treasure: mgr
-                        .treasure_info(game, &treasure)
+                        .get_treasure_info(game, &treasure)
                         .expect(&format!("Couldn't load treasure {treasure}")),
                 },
                 CARRIED_TREASURE_SIZE,

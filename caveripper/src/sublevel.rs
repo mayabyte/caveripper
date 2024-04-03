@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::Serialize;
 
 use crate::{
-    assets::{CaveConfig, AssetManager},
+    assets::{AssetManager, CaveConfig},
     errors::CaveripperError,
 };
 
@@ -41,7 +41,7 @@ impl Sublevel {
                 if c1.eq_ignore_ascii_case("colossal") {
                     Ok(Sublevel {
                         cfg: mgr
-                            .find_cave_cfg("colossal", game.as_deref(), false)
+                            .get_cave_cfg("colossal", game.as_deref(), false)
                             .change_context(CaveripperError::UnrecognizedSublevel)?
                             .clone(),
                         floor: 1,
@@ -50,7 +50,7 @@ impl Sublevel {
                     let (name, floor) = from_short_specifier(c1)?;
                     Ok(Sublevel {
                         cfg: mgr
-                            .find_cave_cfg(name, game.as_deref(), false)
+                            .get_cave_cfg(name, game.as_deref(), false)
                             .change_context(CaveripperError::UnrecognizedSublevel)?
                             .clone(),
                         floor,
@@ -63,7 +63,7 @@ impl Sublevel {
                 let (name, floor) = from_short_specifier(c2)?;
                 Ok(Sublevel {
                     cfg: mgr
-                        .find_cave_cfg(name, game.as_deref(), true)
+                        .get_cave_cfg(name, game.as_deref(), true)
                         .change_context(CaveripperError::UnrecognizedSublevel)?
                         .clone(),
                     floor,
@@ -76,7 +76,7 @@ impl Sublevel {
 
                 Ok(Sublevel {
                     cfg: mgr
-                        .find_cave_cfg(c1.trim(), game.as_deref(), false)
+                        .get_cave_cfg(c1.trim(), game.as_deref(), false)
                         .change_context(CaveripperError::UnrecognizedSublevel)?
                         .clone(),
                     floor,

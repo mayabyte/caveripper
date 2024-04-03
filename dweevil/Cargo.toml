@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2.84"
-caveripper = {path="../caveripper"}
+caveripper = {path="../caveripper", features=[]}
 error-stack = "0.4"
 image = "0.24"
 getrandom = {version="*", features=["js"]}  # Should fall back to whatever version is specified in Caveripper's cargo.toml

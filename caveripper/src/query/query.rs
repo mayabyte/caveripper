@@ -47,7 +47,7 @@ impl Query for StructuralQuery {
         let layouts: HashMap<&Sublevel, Layout> = unique_sublevels
             .into_iter()
             .map(|sublevel| {
-                let caveinfo = mgr.get_caveinfo(sublevel).unwrap();
+                let caveinfo = mgr.load_caveinfo(sublevel).unwrap();
                 (sublevel, Layout::generate(seed, caveinfo))
             })
             .collect();
@@ -255,9 +255,9 @@ impl QueryKind {
                 let bare_name = values[0].find('/').map_or(values[0], |idx| &values[0][..idx]);
                 let bare_name_lowercase = bare_name.to_ascii_lowercase();
 
-                let teki_list = mgr.combined_teki_list().change_context(CaveripperError::QueryParseError)?;
-                let treasure_list = mgr.combined_treasure_list().change_context(CaveripperError::QueryParseError)?;
-                let room_list = mgr.combined_room_list().change_context(CaveripperError::QueryParseError)?;
+                let teki_list = mgr.all_teki(None).change_context(CaveripperError::QueryParseError)?;
+                let treasure_list = mgr.all_treasures(None).change_context(CaveripperError::QueryParseError)?;
+                let room_list = mgr.all_units(None).change_context(CaveripperError::QueryParseError)?;
 
                 if teki_list.contains(&bare_name_lowercase)
                     || treasure_list.iter().any(|t| t.internal_name.eq_ignore_ascii_case(bare_name))
