@@ -7,6 +7,8 @@ Caveripper is an implementation of the Pikmin 2 cave generation algorithm intend
 - Finding "rare" seeds - some floors have possible but extremely rare phenomena that are simply fun to know about, e.g. Bloysterless SR7, Clackerless GK3, longest possible 'meme hallways', etc.
 - Finding "interesting" seeds (high number of available bonus treasures, rare layout configurations, difficult score reads, etc.) for community races and practice.
 
+You can try out the basic features in your browser at https://mayabyte.github.io/caveripper/! (The WASM bundle might take a few seconds to load)
+
 ## How to Use
 Make sure you extract Pikmin 2 game assets first!
 

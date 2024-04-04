@@ -8,12 +8,15 @@
   },
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "start": "webpack-dev-server"
+    "start": "webpack-dev-server",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mayabyte/caveripper.git"
   },
+  "homepage": "http://mayabyte.github.io/caveripper",
   "keywords": [
     "webassembly",
     "wasm",
