@@ -43,10 +43,13 @@ pub fn cavegen(sublevel: &str, seed: u32) -> Result<Image, JsValue> {
 pub fn draw_to_canvas(image: Image, canvas_id: String) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().expect("Could not get document");
+
     let canvas = document
         .get_element_by_id(&canvas_id)
         .unwrap()
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
+    canvas.set_height(image.height);
+    canvas.set_width(image.width);
     let context = canvas.get_context("2d")?.unwrap().dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
     context.clear_rect(0.0, 0.0, 2048.0, 2048.0);
