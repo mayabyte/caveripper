@@ -202,20 +202,9 @@ impl FsAssetManager {
             .attach_printable("Couldn't initialize resources folder in home directory!")?;
         }
 
-        let cave_cfg: Vec<CaveConfig> = read_to_string(asset_dir.join("resources/caveinfo_config.txt"))
-            .change_context(CaveripperError::AssetLoadingError)?
-            .lines()
-            .map(|line| {
-                let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
-                CaveConfig {
-                    game: data.remove(0),
-                    full_name: data.remove(0),
-                    is_challenge_mode: data.remove(0).parse().expect("is_challenge_mode parse error"),
-                    caveinfo_filename: data.remove(0),
-                    shortened_names: data,
-                }
-            })
-            .collect::<Vec<_>>();
+        let cave_cfg: Vec<CaveConfig> = CaveConfig::parse_from_file(
+            &read_to_string(asset_dir.join("resources/caveinfo_config.txt")).change_context(CaveripperError::AssetLoadingError)?,
+        );
 
         let games_with_assets = std::fs::read_dir(asset_dir.join("assets"))
             .change_context(CaveripperError::AssetLoadingError)?

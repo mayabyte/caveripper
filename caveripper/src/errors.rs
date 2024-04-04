@@ -1,5 +1,6 @@
-use thiserror::Error;
 use std::fmt::Debug;
+
+use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub enum CaveripperError {
@@ -8,6 +9,9 @@ pub enum CaveripperError {
 
     #[error("Unrecognized sublevel")]
     UnrecognizedSublevel,
+
+    #[error("Unrecognized game")]
+    UnrecognizedGame,
 
     #[error("Layout generation failed")]
     LayoutGenerationError,

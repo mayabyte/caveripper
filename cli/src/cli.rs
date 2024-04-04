@@ -151,6 +151,13 @@ pub enum Commands {
 
         #[clap(help = "The name for this ISO. Will attempt to auto-detect if not provided.")]
         game_name: Option<String>,
+
+        #[clap(
+            help = "Where to place the extracted files. Defaults to ~/.config/caveripper/assets",
+            short = 'o',
+            long = "out-dir"
+        )]
+        out_dir: Option<String>,
     },
 
     /// Extracts a single SZS compressed file

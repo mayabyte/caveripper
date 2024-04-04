@@ -16,8 +16,8 @@ pub static DIRECT_MODE_TAG: &str = "caveinfo";
 /// for sublevel specifiers.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Sublevel {
-    pub(crate) cfg: CaveConfig,
-    pub(crate) floor: usize,
+    pub cfg: CaveConfig,
+    pub floor: usize,
 }
 
 impl Sublevel {

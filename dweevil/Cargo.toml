@@ -12,10 +12,15 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2.84"
+wasm-bindgen-test = "0.3.42"
 caveripper = {path="../caveripper", features=[]}
 error-stack = "0.4"
 image = "0.24"
 getrandom = {version="*", features=["js"]}  # Should fall back to whatever version is specified in Caveripper's cargo.toml
+include_dir = {version="0.7.3", features=["nightly"]}
+encoding_rs = "0.8"
+js-sys = "0.3.68"
+web-sys = {version="0.3.68", features=["Window", "Document", "Element", "HtmlCanvasElement", "CanvasRenderingContext2d", "ImageData"]}
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

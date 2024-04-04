@@ -21,14 +21,17 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use yaz0::{Error as Yaz0Error, Yaz0Archive};
 
-pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progress: &ProgressBar) -> Result<(), anyhow::Error> {
+pub fn extract_iso<P: AsRef<Path>>(
+    game_name: Option<String>,
+    iso_path: P,
+    progress: &ProgressBar,
+    out_dir: &str,
+) -> Result<(), anyhow::Error> {
     let iso_path = iso_path.as_ref();
     let iso = GcmFile::open(iso_path).map_err(|_| anyhow!("Couldn't parse ISO!"))?;
     let all_files = traverse_filesystem(&iso);
     let game_id_raw = format!("{:?}", iso.game_id);
     let game_id = game_id_raw.trim_matches('"');
-    let home_dir = dirs::home_dir().ok_or(anyhow!("Couldn't locate home directory!"))?;
-    let home_dir = home_dir.to_string_lossy().into_owned();
 
     let game_name = if let Some(override_name) = game_name {
         override_name
@@ -138,7 +141,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
 
                     for matcher in matchers.iter() {
                         if let Some(dest) = matcher.matches(&full_path) {
-                            let mut full_dest = PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name]);
+                            let mut full_dest = PathBuf::from_iter([&out_dir, game_name.as_str()]);
                             full_dest.push(dest);
                             write_file(&full_dest, &data)?;
                             break;
@@ -149,7 +152,7 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
                 for matcher in matchers.iter() {
                     if let Some(dest) = matcher.matches(&f.path) {
                         let data = f.read(&mut iso_reader)?;
-                        let mut full_dest = PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name]);
+                        let mut full_dest = PathBuf::from_iter([&out_dir, game_name.as_str()]);
                         full_dest.push(dest);
                         write_file(&full_dest, &data)?;
                         break;
@@ -160,22 +163,22 @@ pub fn extract_iso<P: AsRef<Path>>(game_name: Option<String>, iso_path: P, progr
         })?;
 
     write_file(
-        &PathBuf::from_iter([&home_dir, ".config/caveripper/assets", &game_name, ".cr_extract_version"]),
+        &PathBuf::from_iter([&out_dir, game_name.as_str(), ".cr_extract_version"]),
         format!("{}", FsAssetManager::ASSET_VERSION).as_bytes(),
     )?;
 
     if game_name.eq_ignore_ascii_case("colossal") {
-        apply_colossal_patches(&home_dir).expect("Failed to apply Colossal Caverns unitfile patches. Cave generation may not work.");
+        apply_colossal_patches(&out_dir).expect("Failed to apply Colossal Caverns unitfile patches. Cave generation may not work.");
     }
 
     Ok(())
 }
 
-fn apply_colossal_patches(home_dir: &str) -> std::io::Result<()> {
+fn apply_colossal_patches(out_dir: &str) -> std::io::Result<()> {
     // CC's unitfiles are missing closing brackets in a couple places as of Dec 4 2023. We need to fix
     // these otherwise we won't be able to parse them.
     for (filename, patch_spots) in [("all_units.txt", [1135, 1152].as_slice()), ("all_units251.txt", [1151].as_slice())] {
-        let path = PathBuf::from_iter([home_dir, ".config/caveripper/assets/colossal/unitfiles", filename]);
+        let path = PathBuf::from_iter([out_dir, "colossal/unitfiles", filename]);
         for line in patch_spots {
             let mut contents = read_to_string(&path)?;
             let byte_pos = contents

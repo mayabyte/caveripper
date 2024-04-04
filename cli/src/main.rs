@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::anyhow;
 use atty::Stream;
 use caveripper::{
     assets::{fs_asset_manager::FsAssetManager, AssetManager},
@@ -161,9 +162,21 @@ fn main() -> Result<(), CaveripperError> {
                     });
             }
         }
-        Commands::Extract { iso_path, game_name } => {
+        Commands::Extract {
+            iso_path,
+            game_name,
+            out_dir,
+        } => {
             let progress_bar = ProgressBar::new_spinner().with_style(ProgressStyle::default_spinner().template("{spinner} {msg}").unwrap());
-            extract_iso(game_name, iso_path, &progress_bar).expect("Failed to extract ISO");
+            let output_directory = out_dir.unwrap_or_else(|| {
+                let home_dir = dirs::home_dir()
+                    .ok_or(anyhow!("Couldn't locate home directory!"))
+                    .expect("Couldn't locate home directory!");
+                let out_path = home_dir.join(".config/caveripper/assets");
+                out_path.to_string_lossy().into_owned()
+            });
+
+            extract_iso(game_name, iso_path, &progress_bar, &output_directory).expect("Failed to extract ISO");
             progress_bar.finish_and_clear();
             println!("🍞 Done extracting ISO.");
         }

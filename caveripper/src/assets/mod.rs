@@ -1,6 +1,6 @@
 #[cfg(not(feature = "wasm"))]
 pub mod fs_asset_manager;
-mod pinmap;
+pub mod pinmap;
 
 use std::{
     collections::HashMap,
@@ -63,6 +63,22 @@ pub struct CaveConfig {
 }
 
 impl CaveConfig {
+    pub fn parse_from_file(file_txt: &str) -> Vec<CaveConfig> {
+        file_txt
+            .lines()
+            .map(|line| {
+                let mut data: Vec<String> = line.split(',').map(|e| e.trim().to_string()).collect();
+                CaveConfig {
+                    game: data.remove(0),
+                    full_name: data.remove(0),
+                    is_challenge_mode: data.remove(0).parse().expect("is_challenge_mode parse error"),
+                    caveinfo_filename: data.remove(0),
+                    shortened_names: data,
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
     pub fn is_colossal_caverns(&self) -> bool {
         self.full_name.eq_ignore_ascii_case("Colossal Caverns")
     }
@@ -85,7 +101,7 @@ pub struct Treasure {
     pub value: u32,
 }
 
-fn parse_treasure_config(config_txt: &str, game: &str) -> Vec<Treasure> {
+pub fn parse_treasure_config(config_txt: &str, game: &str) -> Vec<Treasure> {
     config_txt
         .chars()
         .peekable()
