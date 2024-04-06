@@ -112,16 +112,60 @@ impl AssetManager for WebAssetManager {
         }
     }
 
-    fn all_teki(&self, game: Option<&str>) -> Result<Vec<String>, CaveripperError> {
-        todo!()
+    fn all_teki(&self, _game: Option<&str>) -> Result<Vec<String>, CaveripperError> {
+        Ok(PIKMIN2
+            .get_dir("teki")
+            .expect("No teki dir in Pikmin 2 game file extract")
+            .files()
+            .map(|file| {
+                file.path()
+                    .to_str()
+                    .unwrap()
+                    .split('/')
+                    .last()
+                    .unwrap()
+                    .strip_suffix(".png")
+                    .unwrap()
+                    .to_owned()
+            })
+            .chain([String::from("egg"), String::from("bomb")].into_iter())
+            .collect())
     }
 
-    fn all_units(&self, game: Option<&str>) -> Result<Vec<String>, CaveripperError> {
-        todo!()
+    fn all_units(&self, _game: Option<&str>) -> Result<Vec<String>, CaveripperError> {
+        Ok(PIKMIN2
+            .get_dir("mapunits")
+            .expect("No mapunits dir in Pikmin 2 game file extract")
+            .entries()
+            .into_iter()
+            .filter_map(|entry| entry.as_dir())
+            .map(|dir| dir.path().to_str().unwrap().split('/').last().unwrap().to_owned())
+            .collect())
     }
 
-    fn all_treasures(&self, game: Option<&str>) -> Result<Vec<Treasure>, CaveripperError> {
-        todo!()
+    fn all_treasures(&self, _game: Option<&str>) -> Result<Vec<Treasure>, CaveripperError> {
+        Ok(PIKMIN2
+            .get_dir("treasures")
+            .expect("No treasures dir in Pikmin 2 game file extract")
+            .files()
+            .map(|file| {
+                file.path()
+                    .to_str()
+                    .unwrap()
+                    .split('/')
+                    .last()
+                    .unwrap()
+                    .strip_suffix(".png")
+                    .unwrap()
+                    .to_owned()
+            })
+            .filter_map(|treasure_name| {
+                self.treasure_info
+                    .iter()
+                    .find(|treasure| treasure.internal_name.eq_ignore_ascii_case(&treasure_name))
+                    .cloned()
+            })
+            .collect())
     }
 
     fn get_treasure_info(&self, _game: &str, name: &str) -> Result<&Treasure, CaveripperError> {

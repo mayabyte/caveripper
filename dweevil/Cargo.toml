@@ -29,7 +29,7 @@ web-sys = {version="0.3.68", features=["Window", "Document", "Element", "HtmlCan
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.34"
+wasm-bindgen-test = "0.3.42"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
