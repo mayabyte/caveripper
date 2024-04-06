@@ -7,12 +7,128 @@
 </head>
 
 <body>
-  <script src="./bootstrap.js"></script>
-  <button id="new-layout-button">New Layout</button>
-  <input id="sublevel-input" type="text" placeholder="sublevel..." />
-  <input id="seed-input" type="text" placeholder="seed... (leave empty for random)" />
+  <h1>Dweevil - <a href="https://github.com/mayabyte/caveripper">Caveripper</a> on WASM</h1>
+  <script src=" ./bootstrap.js"></script>
+  <button id="cr-generate">Generate</button>
   <br />
-  <canvas id="canvas" style="border:1px solid #d3d3d3;width:70%;height:70%;">
+  <label for="cr-sublevel">Choose a Sublevel:</label>
+  <select name="cr-sublevel" id="cr-sublevel">
+    <option value="ec1">Emergence Cave 1</option>
+    <option value="ec2">Emergence Cave 2</option>
+    <option value="hob1">Hole of Beasts 1</option>
+    <option value="hob2">Hole of Beasts 2</option>
+    <option value="hob3">Hole of Beasts 3</option>
+    <option value="hob4">Hole of Beasts 4</option>
+    <option value="hob5">Hole of Beasts 5</option>
+    <option value="scx1">Subterranean Complex 1</option>
+    <option value="scx2">Subterranean Complex 2</option>
+    <option value="scx3">Subterranean Complex 3</option>
+    <option value="scx4">Subterranean Complex 4</option>
+    <option value="scx5">Subterranean Complex 5</option>
+    <option value="scx6">Subterranean Complex 6</option>
+    <option value="scx7">Subterranean Complex 7</option>
+    <option value="scx8">Subterranean Complex 8</option>
+    <option value="scx9">Subterranean Complex 9</option>
+    <option value="fc1">Frontier Cavern 1</option>
+    <option value="fc2">Frontier Cavern 2</option>
+    <option value="fc3">Frontier Cavern 3</option>
+    <option value="fc4">Frontier Cavern 4</option>
+    <option value="fc5">Frontier Cavern 5</option>
+    <option value="fc6">Frontier Cavern 6</option>
+    <option value="fc7">Frontier Cavern 7</option>
+    <option value="fc8">Frontier Cavern 8</option>
+    <option value="wfg1">White Flower Garden 1</option>
+    <option value="wfg2">White Flower Garden 2</option>
+    <option value="wfg3">White Flower Garden 3</option>
+    <option value="wfg4">White Flower Garden 4</option>
+    <option value="wfg5">White Flower Garden 5</option>
+    <option value="sh1">Snagret Hole 1</option>
+    <option value="sh2">Snagret Hole 2</option>
+    <option value="sh3">Snagret Hole 3</option>
+    <option value="sh4">Snagret Hole 4</option>
+    <option value="sh5">Snagret Hole 5</option>
+    <option value="sh6">Snagret Hole 6</option>
+    <option value="sh7">Snagret Hole 7</option>
+    <option value="bk1">Bulblax Kingdom 1</option>
+    <option value="bk2">Bulblax Kingdom 2</option>
+    <option value="bk3">Bulblax Kingdom 3</option>
+    <option value="bk4">Bulblax Kingdom 4</option>
+    <option value="bk5">Bulblax Kingdom 5</option>
+    <option value="bk6">Bulblax Kingdom 6</option>
+    <option value="bk7">Bulblax Kingdom 7</option>
+    <option value="bk1">Bulblax Kingdom 1</option>
+    <option value="cos1">Citadel of Spiders 1</option>
+    <option value="cos2">Citadel of Spiders 2</option>
+    <option value="cos3">Citadel of Spiders 3</option>
+    <option value="cos4">Citadel of Spiders 4</option>
+    <option value="cos5">Citadel of Spiders 5</option>
+    <option value="gk1">Glutton's Kitchen 1</option>
+    <option value="gk2">Glutton's Kitchen 2</option>
+    <option value="gk3">Glutton's Kitchen 3</option>
+    <option value="gk4">Glutton's Kitchen 4</option>
+    <option value="gk5">Glutton's Kitchen 5</option>
+    <option value="gk6">Glutton's Kitchen 6</option>
+    <option value="smc1">Submerged Castle 1</option>
+    <option value="smc2">Submerged Castle 2</option>
+    <option value="smc3">Submerged Castle 3</option>
+    <option value="smc4">Submerged Castle 4</option>
+    <option value="smc5">Submerged Castle 5</option>
+    <option value="sr1">Shower Room 1</option>
+    <option value="sr2">Shower Room 2</option>
+    <option value="sr3">Shower Room 3</option>
+    <option value="sr4">Shower Room 4</option>
+    <option value="sr5">Shower Room 5</option>
+    <option value="sr6">Shower Room 6</option>
+    <option value="sr7">Shower Room 7</option>
+    <option value="coc1">Cavern of Chaos 1</option>
+    <option value="coc2">Cavern of Chaos 2</option>
+    <option value="coc3">Cavern of Chaos 3</option>
+    <option value="coc4">Cavern of Chaos 4</option>
+    <option value="coc5">Cavern of Chaos 5</option>
+    <option value="coc6">Cavern of Chaos 6</option>
+    <option value="coc7">Cavern of Chaos 7</option>
+    <option value="coc8">Cavern of Chaos 8</option>
+    <option value="coc9">Cavern of Chaos 9</option>
+    <option value="coc10">Cavern of Chaos 10</option>
+    <option value="hoh1">Hole of Heroes 1</option>
+    <option value="hoh2">Hole of Heroes 2</option>
+    <option value="hoh3">Hole of Heroes 3</option>
+    <option value="hoh4">Hole of Heroes 4</option>
+    <option value="hoh5">Hole of Heroes 5</option>
+    <option value="hoh6">Hole of Heroes 6</option>
+    <option value="hoh7">Hole of Heroes 7</option>
+    <option value="hoh8">Hole of Heroes 8</option>
+    <option value="hoh9">Hole of Heroes 9</option>
+    <option value="hoh10">Hole of Heroes 10</option>
+    <option value="hoh11">Hole of Heroes 11</option>
+    <option value="hoh12">Hole of Heroes 12</option>
+    <option value="hoh13">Hole of Heroes 13</option>
+    <option value="hoh14">Hole of Heroes 14</option>
+    <option value="hoh15">Hole of Heroes 15</option>
+    <option value="dd1">Dream Den 1</option>
+    <option value="dd2">Dream Den 2</option>
+    <option value="dd3">Dream Den 3</option>
+    <option value="dd4">Dream Den 4</option>
+    <option value="dd5">Dream Den 5</option>
+    <option value="dd6">Dream Den 6</option>
+    <option value="dd7">Dream Den 7</option>
+    <option value="dd8">Dream Den 8</option>
+    <option value="dd9">Dream Den 9</option>
+    <option value="dd10">Dream Den 10</option>
+    <option value="dd11">Dream Den 11</option>
+    <option value="dd12">Dream Den 12</option>
+    <option value="dd13">Dream Den 13</option>
+    <option value="dd14">Dream Den 14</option>
+  </select>
+  <input id="cr-seed" type="text" placeholder="Seed (empty for random)" />
+  <span id="cr-current-seed"></span>
+  <br />
+  <label for="cr-query">Sublevel Query (<a
+      href="https://github.com/mayabyte/caveripper/blob/main/QUERY.md">guide</a>):</label>
+  <input id="cr-query" name="cr-query" type="text" placeholder="Query string" style="width: 400px;" />
+  <span id="cr-query-error" hidden="true">Error in query string or query took too long to run :(</span>
+  <br />
+  <canvas id="cr-canvas" style="height: 650px;margin-top: 5px;">
 </body>
 
 </html>
