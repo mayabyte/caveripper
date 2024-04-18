@@ -128,7 +128,7 @@ impl AssetManager for WebAssetManager {
                     .unwrap()
                     .to_owned()
             })
-            .chain([String::from("egg"), String::from("bomb")].into_iter())
+            .chain([String::from("egg"), String::from("bomb"), String::from("hiba")].into_iter())
             .collect())
     }
 
