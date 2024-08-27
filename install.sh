@@ -5,6 +5,7 @@ set -e
 echo "Copying resources folder into $HOME/.config/caveripper/"
 mkdir -p ~/.config/caveripper
 cp -r resources ~/.config/caveripper
+mkdir ~/.config/caveripper/assets
 
 echo "Installing Caveripper"
 cargo install --path ./cli
