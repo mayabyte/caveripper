@@ -1,4 +1,4 @@
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, collections::HashSet, marker::PhantomData};
 
 use clap::Args;
 use image::{imageops::FilterType, Rgba, RgbaImage};
@@ -701,8 +701,23 @@ fn render_unit_caveinfo<'h, 'r: 'h, M: AssetManager>(
     // Distance score lines
     let mut distance_score_line_layer = Layer::new();
     let mut distance_score_text_layer = Layer::new();
-    for door in unit.doors.iter() {
+
+    let mut already_drawn_link_lines = HashSet::new();
+    let mut already_drawn_text_positions = Vec::new();
+
+    for (door_num, door) in unit.doors.iter().enumerate() {
         for link in door.door_links.iter() {
+            // Prevent double drawing
+            let key = if door_num <= link.door_id {
+                (door_num, link.door_id)
+            } else {
+                (link.door_id, door_num)
+            };
+            if already_drawn_link_lines.contains(&key) {
+                continue;
+            }
+            already_drawn_link_lines.insert(key);
+
             let this_door_pos = unit.center_of_door(door);
             let other_door_pos = unit.center_of_door(&unit.doors[link.door_id]);
             distance_score_line_layer.place(
@@ -719,7 +734,19 @@ fn render_unit_caveinfo<'h, 'r: 'h, M: AssetManager>(
             );
 
             let mut midpoint = ((this_door_pos + other_door_pos) / 2.0) * CAVEINFO_GRID_FACTOR;
-            let distance_score = (link.distance / 10.0).round() as u32;
+
+            // If the text would be too close to another already-drawn piece of text, move it
+            // a little so both are readable.
+            while already_drawn_text_positions
+                .iter()
+                .any(|pos: &Point<2, f32>| pos.dist(&midpoint) < 35.0)
+            {
+                let line_vector = (this_door_pos - other_door_pos).normalized();
+                midpoint += line_vector * 45.0;
+            }
+            already_drawn_text_positions.push(midpoint);
+
+            let distance_score = (link.distance / 10.0) as u32;
             let text = helper.cropped_text(distance_score.to_string(), 15.0, 1, DISTANCE_SCORE_TEXT_COLOR);
 
             // If the text would be clipped by the edge of the image, we need to move it inwards a bit
