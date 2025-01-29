@@ -151,7 +151,7 @@ impl AssetManager for FsAssetManager {
     fn load_image(&self, kind: ImageKind, mut game: &str, name: &str) -> Result<&RgbaImage, CaveripperError> {
         // CC doesn't come with most image assets, so we fall back to vanilla
         if game.eq_ignore_ascii_case("colossal") {
-            game = "pikmin2;"
+            game = "pikmin2";
         }
 
         // Construct path from parts
