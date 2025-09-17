@@ -19,7 +19,7 @@ macro_rules! test_render {
                     caveinfos.into_par_iter().panic_fuse().for_each(|caveinfo| {
                         let mut rng: SmallRng = SeedableRng::seed_from_u64(0x12345678);
                         for _ in 0..num_layouts {
-                            let seed: u32 = rng.gen();
+                            let seed: u32 = rng.r#gen();
                             let layout = Layout::generate(seed, &caveinfo);
                             if let Err(cause) = render_layout(&layout, &helper, LayoutRenderOptions::default()) {
                                 panic!("({}, {:#010X}) {}", $name, seed, cause);

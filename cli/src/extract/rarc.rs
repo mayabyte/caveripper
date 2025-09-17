@@ -76,7 +76,7 @@ impl<'a> Rarc<'a> {
             })
     }
 
-    fn files_for_node(&self, node: &RarcNode, parent_path: PathBuf) -> Vec<(PathBuf, &RarcFile)> {
+    fn files_for_node(&self, node: &RarcNode, parent_path: PathBuf) -> Vec<(PathBuf, &RarcFile<'_>)> {
         let file_entries = &self.files[node.first_file_index as usize..(node.first_file_index + node.num_files as u32) as usize];
         let (dirs, files): (Vec<_>, Vec<_>) = file_entries.iter().partition(|e| e.is_dir());
         let mut files_with_paths: Vec<_> = files.into_iter().map(|f| (parent_path.clone(), f)).collect();

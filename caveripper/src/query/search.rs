@@ -49,7 +49,7 @@ pub fn find_matching_layouts_parallel<T: Fn() + Send + Sync, F: Fn(u32) + Send +
                     f();
                 }
 
-                let seed = rng.gen();
+                let seed = rng.r#gen();
 
                 if query.matches(seed, mgr) {
                     on_found(seed);

@@ -27,7 +27,7 @@ pub fn benchmark_layout_generation(c: &mut Criterion) {
 
     c.bench_function("layout generation (reference)", |b| {
         b.iter(|| {
-            let seed = rng.gen();
+            let seed = rng.r#gen();
             let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())];
             black_box(Layout::generate(seed, caveinfo));
         })
@@ -42,7 +42,7 @@ pub fn benchmark_layout_rendering(c: &mut Criterion) {
 
     c.bench_function("layout generation + rendering", |b| {
         b.iter(|| {
-            let seed = rng.gen();
+            let seed = rng.r#gen();
             let caveinfo = &all_sublevels[rng.gen_range(0..all_sublevels.len())];
             let layout = Layout::generate(seed, caveinfo);
             black_box(render_layout(&layout, &helper, LayoutRenderOptions::default()))

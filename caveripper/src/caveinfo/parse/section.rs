@@ -52,14 +52,14 @@ impl<'a> Section<'a> {
         self.get_tagged_line(tag)?.get_line_item::<T>(idx)
     }
 
-    fn get_tagged_line(&self, tag: &str) -> Result<&InfoLine, CaveInfoError> {
+    fn get_tagged_line(&self, tag: &str) -> Result<&InfoLine<'_>, CaveInfoError> {
         self.lines.iter()
             .find(|line| line.tag.is_some_and(|t| t.eq_ignore_ascii_case(tag)))
             .ok_or(report!(CaveInfoError::MissingItem))
             .attach_printable_lazy(|| format!("tag {tag}"))
     }
 
-    pub fn get_line(&self, index: usize) -> Result<&InfoLine, CaveInfoError> {
+    pub fn get_line(&self, index: usize) -> Result<&InfoLine<'_>, CaveInfoError> {
         self.lines.get(index)
             .ok_or(report!(CaveInfoError::MissingItem))
             .attach_printable_lazy(|| format!("line {index}"))

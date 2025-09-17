@@ -32,7 +32,7 @@ pub struct Layout<'a> {
 }
 
 impl<'a> Layout<'a> {
-    pub fn generate(seed: u32, caveinfo: &CaveInfo) -> Layout {
+    pub fn generate(seed: u32, caveinfo: &CaveInfo) -> Layout<'_> {
         LayoutBuilder::generate(seed, caveinfo)
     }
 
@@ -236,7 +236,7 @@ impl<'a> PlacedMapUnit<'a> {
         )
     }
 
-    pub fn spawn_objects(&self) -> impl Iterator<Item = &SpawnObject> {
+    pub fn spawn_objects(&self) -> impl Iterator<Item = &SpawnObject<'_>> {
         self.spawnpoints.iter().flat_map(|sp| sp.contains.iter())
     }
 

@@ -26,7 +26,7 @@ impl Canvas {
     }
 
     /// Create a [CanvasView] into this Canvas that treats `offset` as (0,0).
-    pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView {
+    pub fn view(&mut self, offset: Point<2, f32>) -> CanvasView<'_> {
         CanvasView {
             canvas: self,
             offset,

@@ -24,7 +24,7 @@ use crate::{
 #[grammar = "caveinfo/parse/p2_cfg_grammar.pest"]
 struct CaveinfoParser;
 
-fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section>, CaveInfoError> {
+fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section<'_>>, CaveInfoError> {
     let pairs = CaveinfoParser::parse(Rule::section_file, file_contents)
         .change_context(CaveInfoError::MalformedFile)
         .attach_printable("Couldn't parse file into sections")?
