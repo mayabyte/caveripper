@@ -121,6 +121,10 @@ pub fn render_layout<M: AssetManager>(
     let mut ship_obj: &SpawnObject<'_>;
     let mut ship_pos = Point::<3, f32>([0.0, 0.0, 0.0]);
 
+    // Also need to keep track of the treasures for later as well
+    let mut treausre_list: Vec<&SpawnObject<'_>> = Vec::new();
+    let mut treausre_list_pos: Vec<Point::<3, f32>> = Vec::new();
+
     for (spawn_object, pos) in layout.get_spawn_objects() {
         let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
@@ -153,6 +157,14 @@ pub fn render_layout<M: AssetManager>(
                 // Do nothing!
             },
         };
+
+        // If this is a treasure, save it for later
+        if let SpawnObject::Item(_) = spawn_object {
+            treausre_list.push(spawn_object);
+            // Create a temporary variable so we can push the current position to the coordinate list
+            let item_pos: Point::<3, f32> = pos.clone();
+            treausre_list_pos.push(item_pos);
+        }
         
 
         // Quickglance Circles
@@ -328,10 +340,31 @@ pub fn render_layout<M: AssetManager>(
             //     );
             // }
 
+            // // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
+            // waypoint_arrow_layer.place(
+            //         Line {
+            //             start: (wp.pos * COORD_FACTOR).two_d(),
+            //             end: (ship_pos * COORD_FACTOR).two_d(),
+            //             shorten_start: 6.0,
+            //             shorten_end: 6.0,
+            //             forward_arrow: true,
+            //             color: [219, 31, 7, 255].into(),
+            //             //CARRY_PATH_COLOR.into(),
+            //             ..Default::default()
+            //         },
+            //         Point([0.0, 0.0]),
+            //         Origin::TopLeft,
+            //     );
+        }
+        renderer.add_layer(waypoint_arrow_layer);
+
+        let mut treasure_path_layer = Layer::new();
+        // Iterate through all treasures and draw lines from them to the ship pos
+        for t in treausre_list_pos.iter() {
             // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
-            waypoint_arrow_layer.place(
+            treasure_path_layer.place(
                     Line {
-                        start: (wp.pos * COORD_FACTOR).two_d(),
+                        start: (*t * COORD_FACTOR).two_d(),
                         end: (ship_pos * COORD_FACTOR).two_d(),
                         shorten_start: 6.0,
                         shorten_end: 6.0,
@@ -344,7 +377,7 @@ pub fn render_layout<M: AssetManager>(
                     Origin::TopLeft,
                 );
         }
-        renderer.add_layer(waypoint_arrow_layer);
+        renderer.add_layer(treasure_path_layer);
     }
 
     Ok(renderer.render(helper.mgr))
