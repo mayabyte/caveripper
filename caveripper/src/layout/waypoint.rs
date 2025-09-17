@@ -1,4 +1,4 @@
-use std::iter;
+use std::{iter, ptr::null};
 
 use crate::point::Point;
 use float_ord::FloatOrd;
@@ -209,5 +209,21 @@ pub struct WaypointGraphNode {
 impl WaypointGraphNode {
     pub fn p2_dist(&self, other: &Self) -> f32 {
         self.pos.p2_dist(&other.pos)
+    }
+}
+
+
+/** Basic JHawk-copied function; returns a list of points that represent a linear path from the provided start to endpoint
+ *  Wasn't sure where to place this function, so leaving it with the other waypoint stuff seemed reasonable enough
+ */
+fn make_path_to_goal(
+    start: Point::<3, f32>,
+    end: Point::<3, f32>,
+    waypoints: WaypointGraph,
+) {
+    let mut best_dist: f32 = 12800.0;
+    let mut best_waypoint: WaypointGraphNode;
+    for wp in waypoints.iter() {
+
     }
 }

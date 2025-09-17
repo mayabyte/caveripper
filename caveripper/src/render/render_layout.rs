@@ -12,14 +12,7 @@ use crate::{
     layout::{Layout, PlacedMapUnit, SpawnObject},
     point::Point,
     render::{
-        coords::Origin,
-        render_spawn_object,
-        renderer::{Layer, StickerRenderer},
-        shapes::{Circle, Line},
-        CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
-        QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED,
-        QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR,
-        QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR,
+        coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR
     },
 };
 
@@ -378,6 +371,56 @@ pub fn render_layout<M: AssetManager>(
                 );
         }
         renderer.add_layer(treasure_path_layer);
+
+        // Test; see what carry_path_wps() does?
+        let mut waypoint_pathing_back_layer = Layer::new();
+        let test_point = &treausre_list_pos[0];
+        let idk = layout.waypoint_graph().carry_path_wps(*test_point);
+        for test in idk {
+
+            waypoint_pathing_back_layer.place(
+                Circle {
+                    radius: 10.0,
+                    color: [219, 31, 7, 255].into(),
+                    ..Default::default()
+                },
+                (test * COORD_FACTOR).two_d(),
+                Origin::Center,
+            );
+
+            // waypoint_pathing_back_layer.place(
+            //         Line {
+            //             start: (test * COORD_FACTOR).two_d(),
+            //             end: (ship_pos * COORD_FACTOR).two_d(),
+            //             shorten_start: 6.0,
+            //             shorten_end: 6.0,
+            //             forward_arrow: true,
+            //             color: [219, 31, 7, 255].into(),
+            //             //CARRY_PATH_COLOR.into(),
+            //             ..Default::default()
+            //         },
+            //         Point([0.0, 0.0]),
+            //         Origin::TopLeft,
+            //     );
+        }
+        // for wp in layout.waypoint_graph().iter() {
+        //     // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
+        //     treasure_path_layer.place(
+        //             Line {
+        //                 start: (*t * COORD_FACTOR).two_d(),
+        //                 end: (ship_pos * COORD_FACTOR).two_d(),
+        //                 shorten_start: 6.0,
+        //                 shorten_end: 6.0,
+        //                 forward_arrow: true,
+        //                 color: [219, 31, 7, 255].into(),
+        //                 //CARRY_PATH_COLOR.into(),
+        //                 ..Default::default()
+        //             },
+        //             Point([0.0, 0.0]),
+        //             Origin::TopLeft,
+        //         );
+        // }
+        renderer.add_layer(waypoint_pathing_back_layer);
     }
 
     Ok(renderer.render(helper.mgr))
