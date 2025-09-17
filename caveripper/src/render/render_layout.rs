@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, cmp::max};
+use std::{borrow::Cow, cell::RefCell, cmp::max, ptr::null};
 
 use clap::Args;
 use image::{imageops::FilterType, RgbaImage};
@@ -48,6 +48,10 @@ pub struct LayoutRenderOptions {
     /// Draws waypoints and their connections in the layout
     #[clap(long, short = 'w')]
     pub draw_waypoints: bool,
+
+    /// Draws waypoints and their connections in the layout
+    #[clap(long, short = 't')]
+    pub draw_treasure_paths: bool,
 
     #[clap(long, short = 'c')]
     pub draw_comedown_square: bool,
@@ -113,9 +117,43 @@ pub fn render_layout<M: AssetManager>(
     let mut quickglance_circle_layer = Layer::new();
     quickglance_circle_layer.set_opacity(0.45);
 
+    // We need to save the ship for later
+    let mut ship_obj: &SpawnObject<'_>;
+    let mut ship_pos = Point::<3, f32>([0.0, 0.0, 0.0]);
+
     for (spawn_object, pos) in layout.get_spawn_objects() {
         let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
+
+        // If this is the ship, save it to our object var for later
+        match spawn_object  {
+            SpawnObject::Ship => {
+                ship_obj = spawn_object;
+                ship_pos.clone_from(&pos);
+            },
+            SpawnObject::Teki(teki_info, point) => {
+                // Do nothing!
+            },
+            SpawnObject::CapTeki(cap_info, _) => {
+                // Do nothing!
+            },
+            SpawnObject::Item(item_info) => {
+                // Do nothing!
+            },
+            SpawnObject::Gate(gate_info, _) => {
+                // Do nothing!
+            },
+            SpawnObject::Hole(_) => {
+                // Do nothing!
+            },
+            SpawnObject::Geyser(_) => {
+                // Do nothing!
+            },
+            SpawnObject::Onion(_) => {
+                // Do nothing!
+            },
+        };
+        
 
         // Quickglance Circles
         if options.quickglance {
@@ -249,6 +287,64 @@ pub fn render_layout<M: AssetManager>(
         renderer.add_layer(distance_score_line_layer);
         renderer.add_layer(distance_score_text_layer);
         renderer.add_layer(score_text_layer);
+    }
+
+    /* Treasure Paths */
+    // For now, just copy waypoint functionality
+    if options.draw_treasure_paths {
+        let mut waypoint_circle_layer = Layer::new();
+        waypoint_circle_layer.set_opacity(0.6);
+        for wp in layout.waypoint_graph().iter() {
+            waypoint_circle_layer.place(
+                Circle {
+                    radius: wp.r * COORD_FACTOR / 1.7,
+                    color: WAYPOINT_COLOR.into(),
+                    ..Default::default()
+                },
+                wp.pos.two_d() * COORD_FACTOR,
+                Origin::Center,
+            );
+        }
+        renderer.add_layer(waypoint_circle_layer);
+
+        let mut waypoint_arrow_layer = Layer::new();
+        for wp in layout.waypoint_graph().iter() {
+            // if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
+            //     if backlink.pos.dist(&wp.pos) < 0.01 {
+            //         continue;
+            //     }
+            //     waypoint_arrow_layer.place(
+            //         Line {
+            //             start: (wp.pos * COORD_FACTOR).two_d(),
+            //             end: (backlink.pos * COORD_FACTOR).two_d(),
+            //             shorten_start: 6.0,
+            //             shorten_end: 6.0,
+            //             forward_arrow: true,
+            //             color: CARRY_PATH_COLOR.into(),
+            //             ..Default::default()
+            //         },
+            //         Point([0.0, 0.0]),
+            //         Origin::TopLeft,
+            //     );
+            // }
+
+            // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
+            waypoint_arrow_layer.place(
+                    Line {
+                        start: (wp.pos * COORD_FACTOR).two_d(),
+                        end: (ship_pos * COORD_FACTOR).two_d(),
+                        shorten_start: 6.0,
+                        shorten_end: 6.0,
+                        forward_arrow: true,
+                        color: [219, 31, 7, 255].into(),
+                        //CARRY_PATH_COLOR.into(),
+                        ..Default::default()
+                    },
+                    Point([0.0, 0.0]),
+                    Origin::TopLeft,
+                );
+        }
+        renderer.add_layer(waypoint_arrow_layer);
     }
 
     Ok(renderer.render(helper.mgr))
