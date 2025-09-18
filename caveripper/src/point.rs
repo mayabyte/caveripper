@@ -45,6 +45,10 @@ impl<const N: usize, T> Point<N, T> {
         T: Real + Zero<Output = T> + AddAssign<T>,
     {
         let factor = Point([<T as Zero>::zero(); N]).dist(&self);
+        // 0 check; prevent 0 vectors from returning nan vectors as the math would divide by 0 without this
+        if factor.is_zero() {
+            return  self
+        }
         for v in self.0.iter_mut() {
             *v = *v / factor;
         }
@@ -75,6 +79,20 @@ impl Point<3, f32> {
 
     pub fn two_d(&self) -> Point<2, f32> {
         Point([self[0], self[2]])
+    }
+
+    // Return a NEW point, with each value in the ORIGINAL point scaled by the provided scalar
+    pub fn scale(&mut self, scale: f32) -> Point<3, f32> {        
+        Point([self[0] * scale, self[1] * scale, self[2] * scale])
+    }
+
+    // Calculates the horizontal distance only between 2 3D points (x+z dimensions)
+    pub fn dist2(&self, other: &Self) -> f32 {
+        // Create two new points, which are the 3d points converted into 2d points (remove their Y components)
+        let two_d_point_self: Point<2, f32> = Point([self[0], self[2]]);
+        let two_d_point_other: Point<2, f32> = Point([other[0], other[2]]);
+        // Just run the standard distance function with our new 2D points
+        two_d_point_self.dist(&two_d_point_other)
     }
 }
 

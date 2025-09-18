@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, cmp::max, ptr::null};
+use std::{borrow::Cow, cell::RefCell, cmp::max, path, ptr::null};
 
 use clap::Args;
 use image::{imageops::FilterType, RgbaImage};
@@ -9,7 +9,7 @@ use crate::{
     assets::AssetManager,
     caveinfo::{CapInfo, TekiInfo},
     errors::CaveripperError,
-    layout::{Layout, PlacedMapUnit, SpawnObject},
+    layout::{waypoint::draw_path_to_goal, Layout, PlacedMapUnit, SpawnObject},
     point::Point,
     render::{
         coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR
@@ -376,33 +376,47 @@ pub fn render_layout<M: AssetManager>(
         let mut waypoint_pathing_back_layer = Layer::new();
         let test_point = &treausre_list_pos[0];
         let idk = layout.waypoint_graph().carry_path_wps(*test_point);
-        for test in idk {
-
-            waypoint_pathing_back_layer.place(
-                Circle {
-                    radius: 10.0,
-                    color: [219, 31, 7, 255].into(),
-                    ..Default::default()
-                },
-                (test * COORD_FACTOR).two_d(),
-                Origin::Center,
-            );
+        let collect_path: Vec<Point::<3, f32>> = layout.waypoint_graph().carry_path_wps(*test_point).collect();
+        let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*test_point);
+        let path_nodes_test: Vec<&crate::layout::waypoint::WaypointGraphNode> = path_nodes.clone();
+        for test in path_nodes {
+            let x_print = test.pos[0];
+            let y_print = test.pos[1];
+            let z_print = test.pos[2];
+            println!("{x_print} {y_print} {z_print}");
 
             // waypoint_pathing_back_layer.place(
-            //         Line {
-            //             start: (test * COORD_FACTOR).two_d(),
-            //             end: (ship_pos * COORD_FACTOR).two_d(),
-            //             shorten_start: 6.0,
-            //             shorten_end: 6.0,
-            //             forward_arrow: true,
-            //             color: [219, 31, 7, 255].into(),
-            //             //CARRY_PATH_COLOR.into(),
-            //             ..Default::default()
-            //         },
-            //         Point([0.0, 0.0]),
-            //         Origin::TopLeft,
-            //     );
+            //     Circle {
+            //         radius: test.r * COORD_FACTOR / 1.7,
+            //         color: [219, 31, 7, 255].into(),
+            //         ..Default::default()
+            //     },
+            //     test.pos.two_d() * COORD_FACTOR,
+            //     Origin::Center,
+            // );
         }
+
+        // Test call; just check if we crash or not
+        let the_big_test = draw_path_to_goal(*test_point, 1.0, 10001, path_nodes_test);
+        for iter in 0..the_big_test.len()-2 {
+            if the_big_test[iter].dist(&the_big_test[iter+1]) < 0.01 {
+                    continue;
+            }
+            waypoint_pathing_back_layer.place(
+                Line {
+                    start: (the_big_test[iter] * COORD_FACTOR).two_d(),
+                    end: (the_big_test[iter+1] * COORD_FACTOR).two_d(),
+                    shorten_start: 0.0,
+                    shorten_end: 0.0,
+                    forward_arrow: false,
+                    color: [170,100,255,255].into(),
+                    ..Default::default()
+                },
+                Point([0.0, 0.0]),
+                Origin::TopLeft,
+            );
+        }
+
         // for wp in layout.waypoint_graph().iter() {
         //     // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
         //     treasure_path_layer.place(

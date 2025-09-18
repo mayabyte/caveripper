@@ -1,4 +1,4 @@
-use std::{iter, ptr::null};
+use std::{clone, f64::MAX, iter, ops::{Add, Sub}, ptr::null};
 
 use crate::point::Point;
 use float_ord::FloatOrd;
@@ -195,6 +195,59 @@ impl WaypointGraph {
         }
         iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
     }
+
+    /// Same as above, but returns the waypoint nodes themselves instead of just their coordinates
+    pub fn carry_path_wps_nodes(&self, pos: Point<3, f32>) -> Vec<&WaypointGraphNode> {
+        let start_wp = self
+            .iter()
+            .flat_map(|wp| {
+                // Get segments between each combination of two adjacent waypoints
+                self.graph
+                    .neighbors_directed(wp.idx, Direction::Incoming)
+                    .map(move |wp2| (wp, &self.graph[wp2]))
+            })
+            .map(|(wp1, wp2)| {
+                // Find the point's distance to each line segment
+                let len = wp1.pos.p2_dist(&wp2.pos);
+                if len <= 0.0 {
+                    return (wp1, f32::MAX);
+                }
+
+                let norm = (wp1.pos - wp2.pos).normalized();
+                let t = norm.dot(pos - wp1.pos) / len;
+
+                if t <= 0.0 {
+                    (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
+                } else if t >= 1.0 {
+                    (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
+                } else {
+                    let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r {
+                        wp1
+                    } else {
+                        wp2
+                    };
+                    (
+                        wp,
+                        ((norm * len * t) + wp1.pos - pos).p2_length()
+                            - ((1.0 - t) * wp1.r)
+                            - (t * wp2.r),
+                    )
+                }
+            })
+            .min_by_key(|(_wp, dist)| FloatOrd(*dist))
+            .unwrap()
+            .0;
+
+        let mut ret: Vec<&WaypointGraphNode> = vec![start_wp];
+        while let Some(backlink) = self.backlink(ret.last().unwrap()) {
+            ret.push(backlink);
+            if ret[ret.len() - 1].pos == ret[ret.len() - 2].pos {
+                ret.remove(ret.len() - 2);
+            }
+        }
+        ret.clone()
+    }
+
 }
 
 #[derive(Debug, Clone)]
@@ -227,3 +280,391 @@ fn make_path_to_goal(
 
     }
 }
+
+/** THE FUNCTION™ - makes a smooth line representing the path pikmin take from a given treasure to the ship
+ * 
+ */
+pub fn draw_path_to_goal (
+    start: Point::<3, f32>,
+    speed: f32,
+    max_num_iter: i32,
+    path: Vec<&WaypointGraphNode>,
+    // path: Vec<Point::<3, f32>>,
+) ->  Vec<Point::<3, f32>> {
+    // This is the final path of points! Lets start with our starting point (duh)
+    let mut ret_path: Vec<Point::<3, f32>> = Vec::new();
+    ret_path.push(start);
+
+    // Safety check; don't make a path if there's no path to make
+    if path.len() == 0 {
+        return ret_path;
+    }   
+
+    // Setup some vars for the spline stuff - copied from jhawk's logic
+    let mut cur_path_node: i32 = -1;
+    let mut goal_mode: bool = false;
+    let mut cur_pos: Point<3, f32> = start.clone();
+    let mut cur_vel = Point::<3, f32>([0.0, 0.0, 0.0]);
+
+    let mut goal_pos: Point<3, f32> = path[path.len() - 1].pos;
+    let mut t0: Point<3, f32>;
+    let mut t1: Point<3, f32>;
+    let mut t2: Point<3, f32>;
+    let mut t3: Point<3, f32>;
+
+    // Initial Logic
+    {
+        // Jhawk calls this CRMakeRefs - I'm guessing this is an edge case of path size of 1 waypoint?
+        if path.len() <= 1 {
+            t0 = if cur_path_node - 1 <= -1 {
+                cur_pos.clone()
+            } else {
+                if cur_path_node - 1 >= path.len().try_into().unwrap(){
+                    goal_pos
+                } else {
+                    path[(cur_path_node - 1) as usize].pos
+                }
+            };
+
+            t1 = if cur_path_node <= -1 {
+                cur_pos.clone()
+            } else {
+                if cur_path_node >= path.len().try_into().unwrap(){
+                    goal_pos
+                } else {
+                    path[cur_path_node as usize].pos
+                }
+            };
+
+            t2 = if cur_path_node + 1 <= -1 {
+                cur_pos.clone()
+            } else {
+                if cur_path_node + 1 >= path.len().try_into().unwrap(){
+                    goal_pos
+                } else {
+                    path[(cur_path_node + 1) as usize].pos
+                }
+            };
+
+            t3 = if cur_path_node + 2 <= -1 {
+                cur_pos.clone()
+            } else {
+                if cur_path_node + 2 >= path.len().try_into().unwrap(){
+                    goal_pos
+                } else {
+                    path[(cur_path_node + 2) as usize].pos
+                }
+            };
+        } else {
+            // More jhawk variables
+            let mut cur_vec: Point<3, f32> = path[0].pos;
+            let mut next_vec: Point<3, f32> = path[1].pos;
+            let mut d: Point<3, f32> = (next_vec - cur_vec).normalized();
+            let mut len_next_cur: f32 = cur_vec.dist(&next_vec);
+
+            let mut t: f32 = cur_pos.sub(cur_vec).dot(d) / len_next_cur;
+
+            let mut cur_radius = path[0].r;
+            let mut next_radius = path[1].r;
+            let mut adj_radius = ((1 as f32)-t) * cur_radius + t * next_radius; // this cast is so dumb maya why is rust like this?!
+
+            let mut n_full = d.scale(t * len_next_cur).add(cur_vec).sub(cur_pos);
+            let mut len_n = n_full.length();
+            // Don't let n be zero for math reasons, so just set it to a tiny number
+            if len_n == 0.0 {
+                len_n = 0.0001;
+            }
+
+            // "tube collides" - jhawk
+            if t >= 0.0 && t <= 1.0 && len_n <= adj_radius {
+
+                // CRMakeRefs with -1 -1 1 2
+                cur_path_node = 0;
+                t0 = cur_pos.clone();
+                t1 = cur_pos.clone();
+                t2 = if 1 >= path.len() {
+                    goal_pos
+                } else {
+                    path[1].pos
+                };
+
+                t3 = if 2 >= path.len() {
+                    goal_pos
+                } else {
+                    path[2].pos
+                };
+            } else {
+                // CRMakeRefs with t2 overwritten
+                t0 = if cur_path_node - 1 <= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node - 1 >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node - 1) as usize].pos
+                    }
+                };
+
+                t1 = if cur_path_node<= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node) as usize].pos
+                    }
+                };
+
+                t3 = if cur_path_node + 2 <= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node + 2 >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node + 2) as usize].pos
+                    }
+                };
+
+                if t >= 0.0 && t <= 1.0 {
+                    t2 = d.scale(t * len_next_cur).add(cur_vec);
+                } else if t < 0.0 {
+                    t2 = path[0].pos;
+                } else {
+                    t2 = path[1].pos;
+                }
+            }
+        }
+    }
+
+    // "Normal Logic" - Jhawk
+    for iter in 0..max_num_iter {
+        let mut cur_vec = if cur_path_node == -1 {
+            cur_pos
+        } else {
+            if cur_path_node >= path.len() as i32 {
+                goal_pos
+            } else {
+                path[cur_path_node as usize].pos
+            }
+        };
+
+        let mut next_vec = t2;
+        let mut _use: Point<3, f32> = Point::<3, f32>([0.0, 0.0, 0.0]);
+
+        if goal_mode == true {
+            let mut diff = goal_pos.sub(cur_pos);
+            // I'm pressuming this means if the distance between points is really small, stop iterating cause we're basically done with the path?
+            if diff.length() < 20.0 {
+                break;
+            }
+        } else if next_vec.dist2(&cur_pos) < 6.0 {
+            // Check if we're almost at the end of the path (second to last node?)
+            if cur_path_node < (path.len() - 2) as i32 {
+                cur_path_node += 1;
+
+                // CRMakeRefs
+                t0 = if cur_path_node - 1 <= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node - 1 >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node - 1) as usize].pos
+                    }
+                };
+                t1 = if cur_path_node <= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node) as usize].pos
+                    }
+                };
+                t2 = if cur_path_node + 1<= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node + 1 >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node + 1) as usize].pos
+                    }
+                };
+                t3 = if cur_path_node + 2 <= -1 {
+                    cur_pos.clone()
+                } else {
+                    if cur_path_node + 2 >= path.len() as i32 {
+                        goal_pos
+                    } else {
+                        path[(cur_path_node + 2) as usize].pos
+                    }
+                };
+                // SPLINEEEEEEEEEEEE
+                let vel = CR_Spline_tangent(0.0, t0, t1, t2, t3).normalized();
+                _use = vel;
+            } else {
+                // If we're here, that means we're close to the end of the path
+                goal_mode = true;
+                let vel = CR_Spline_tangent(1.0, t0, t1, t2, t3).normalized();
+                _use = vel;
+            }
+        } else {
+            // In jhawk code this is a separate function normVector(); hopefully this achieves the same thing
+            let mut d = (next_vec - cur_vec).normalized();
+            let len_next_cur = cur_vec.dist(&next_vec);
+
+            let mut t = cur_pos.sub(cur_vec).dot(d) / len_next_cur;
+
+            if t < 0.0 { 
+                t = 0.0;
+            }
+            if t > 1.0 {
+                t = 1.0;
+            }
+
+            let cur_radius = if cur_path_node == -1 {
+                10.0
+            } else {
+                if cur_path_node >= path.len() as i32 {
+                    50.0
+                } else {
+                    path[cur_path_node as usize].r
+                }
+            };
+            let next_radius = if cur_path_node + 1 >= path.len() as i32 {
+                50.0
+            } else {
+                path[(cur_path_node+1) as usize].r
+            };
+            let mut adj_radius = (1.0-t)*cur_radius + t*next_radius;
+            // Don't let adjRadius be 0 for math reasons?
+            if adj_radius == 0.0 {
+                adj_radius = 1.0;
+            }
+
+            let n_full = d.scale(t * len_next_cur).add(cur_vec).sub(cur_pos);
+            let len_n = n_full.length();
+            let mut n = n_full.normalized();
+
+            let mut away_ratio = len_n / adj_radius;
+            // Not sure what this check is for or why this value specifically, but ig we can trust jhawk
+            if away_ratio < 0.3 {
+                away_ratio = 0.0;
+            }
+
+            if away_ratio <= 2.0 || len_n <= 130.0 {
+                let mut use_n = 1.0;
+                if away_ratio <= 1.0 {
+                    use_n = f32::max(0.0, away_ratio);
+                }
+
+                if t < 1.0 {
+                    let mut test_vel = CR_Spline_tangent(t, t0, t1, t2, t3);
+                    if test_vel.length() > 0.0 {
+                        let x_test = test_vel[0] * (1.0/test_vel.length());
+                        // println!("{x_test}");
+                        test_vel = test_vel.scale(1.0/test_vel.length());
+                    }
+                    let mut vel = CR_Spline_tangent(t, t0, t1, t2, t3).normalized();
+                    _use = vel.scale(1.0 - use_n).add(n.scale(use_n));
+                    // Check horizontal distance for if it's negative?
+                    if (_use[0] * d[0]) + (_use[2] * d[2]) <= 0.0 {
+                        _use = d;
+                    }
+                } else {
+                    if cur_path_node < (path.len() - 2) as i32 {
+                        cur_path_node += 1;
+                        // CRMakeRefs
+                        t0 = if cur_path_node -1 <= -1 {
+                            cur_pos.clone()
+                        } else {
+                            if cur_path_node -1 >= path.len() as i32 {
+                                goal_pos
+                            } else {
+                                path[(cur_path_node-1) as usize].pos
+                            }
+                        };
+                        t1 = if cur_path_node <= -1 {
+                            cur_pos.clone()
+                        } else {
+                            if cur_path_node >= path.len() as i32 {
+                                goal_pos
+                            } else {
+                                path[(cur_path_node) as usize].pos
+                            }
+                        };
+                        t2 = if cur_path_node + 1 <= -1 {
+                            cur_pos.clone()
+                        } else {
+                            if cur_path_node + 1 >= path.len() as i32 {
+                                goal_pos
+                            } else {
+                                path[(cur_path_node+ 1) as usize].pos
+                            }
+                        };
+                        t3 = if cur_path_node + 2 <= -1 {
+                            cur_pos.clone()
+                        } else {
+                            if cur_path_node + 2 >= path.len() as i32 {
+                                goal_pos
+                            } else {
+                                path[(cur_path_node + 2) as usize].pos
+                            }
+                        };
+
+                        let vel = CR_Spline_tangent(0.0, t0, t1, t2, t3).normalized();
+                        _use = vel;
+                    } else {
+                        goal_mode = true;
+                        let vel = CR_Spline_tangent(t, t0, t1, t2, t3).normalized();
+                        _use = vel;
+                    }
+                }
+            } else {
+                // "use pure normal ?? Idk." - jhawk (if he doesn't know then I sure as hell don't)
+                _use = n;
+            }
+        }
+        // ALMOST DONE!
+        cur_vel = cur_vel.add(_use.normalized().scale(0.05));
+        if cur_vel.length() > 1.0 {
+            cur_vel = cur_vel.normalized();
+        }
+        cur_pos = cur_pos.add(cur_vel.scale(speed));
+        // Finally, add our calculated position of the path to the return chain of paths
+        ret_path.push(cur_pos.clone());
+    }
+    return ret_path
+}
+
+// Create spline tangent stuff (copied from jhawk)
+fn CR_Spline_tangent(
+    d: f32,
+    t0 : Point<3, f32>, 
+    t1 : Point<3, f32>, 
+    t2 : Point<3, f32>, 
+    t3 : Point<3, f32>,
+) -> Point<3, f32> {
+    let r0 = -1.5 * d * d + 2.0 * d - 0.5;
+    let r1 = 4.5 * d * d - 5.0 * d;
+    let r2 = 0.5 - 4.5 * d * d + 4.0 * d;
+    let r3 = 1.5 * d * d - d;
+    let x1: f32 = r0 * t0[0] + r1 * t1[0] + r2 * t2[0] + r3 * t3[0];
+    let x2: f32 = r0 * t0[1] + r1 * t1[1] + r2 * t2[1] + r3 * t3[1];
+    let x3: f32 = r0 * t0[2] + r1 * t1[2] + r2 * t2[2] + r3 * t3[2];
+    Point([r0 * t0[0] + r1 * t1[0] + r2 * t2[0] + r3 * t3[0],
+        r0 * t0[1] + r1 * t1[1] + r2 * t2[1] + r3 * t3[1],
+        r0 * t0[2] + r1 * t1[2] + r2 * t2[2] + r3 * t3[2]])
+
+}
+
+
+// Vec3 CRSplineTangent(float d, Vec3 t0, Vec3 t1, Vec3 t2, Vec3 t3) {
+//         float r0 = -1.5f * d * d + 2 * d - 0.5f;
+//         float r1 = 4.5f * d * d - 5 * d;
+//         float r2 = 0.5f - 4.5f * d * d + 4 * d;
+//         float r3 = 1.5f * d * d - d;
+//         return new Vec3(r0 * t0.x + r1 * t1.x + r2 * t2.x + r3 * t3.x,
+//                         r0 * t0.y + r1 * t1.y + r2 * t2.y + r3 * t3.y,
+//                         r0 * t0.z + r1 * t1.z + r2 * t2.z + r3 * t3.z);
+//     }
