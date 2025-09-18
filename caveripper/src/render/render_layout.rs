@@ -43,7 +43,7 @@ pub struct LayoutRenderOptions {
     pub draw_waypoints: bool,
 
     /// Draws waypoints and their connections in the layout
-    #[clap(long, short = 't')]
+    #[clap(long, short = 'p')]
     pub draw_treasure_paths: bool,
 
     #[clap(long, short = 'c')]
@@ -154,6 +154,10 @@ pub fn render_layout<M: AssetManager>(
         // If this is a treasure, save it for later
         if let SpawnObject::Item(_) = spawn_object {
             treausre_list.push(spawn_object);
+            // Create a temporary variable so we can push the current position to the coordinate list
+            let item_pos: Point::<3, f32> = pos.clone();
+            treausre_list_pos.push(item_pos);
+        } else if let SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
             // Create a temporary variable so we can push the current position to the coordinate list
             let item_pos: Point::<3, f32> = pos.clone();
             treausre_list_pos.push(item_pos);
@@ -295,146 +299,47 @@ pub fn render_layout<M: AssetManager>(
     }
 
     /* Treasure Paths */
-    // For now, just copy waypoint functionality
     if options.draw_treasure_paths {
-        let mut waypoint_circle_layer = Layer::new();
-        waypoint_circle_layer.set_opacity(0.6);
-        for wp in layout.waypoint_graph().iter() {
-            waypoint_circle_layer.place(
-                Circle {
-                    radius: wp.r * COORD_FACTOR / 1.7,
-                    color: WAYPOINT_COLOR.into(),
-                    ..Default::default()
-                },
-                wp.pos.two_d() * COORD_FACTOR,
-                Origin::Center,
-            );
-        }
-        renderer.add_layer(waypoint_circle_layer);
-
-        let mut waypoint_arrow_layer = Layer::new();
-        for wp in layout.waypoint_graph().iter() {
-            // if let Some(backlink) = layout.waypoint_graph().backlink(wp) {
-            //     if backlink.pos.dist(&wp.pos) < 0.01 {
-            //         continue;
-            //     }
-            //     waypoint_arrow_layer.place(
-            //         Line {
-            //             start: (wp.pos * COORD_FACTOR).two_d(),
-            //             end: (backlink.pos * COORD_FACTOR).two_d(),
-            //             shorten_start: 6.0,
-            //             shorten_end: 6.0,
-            //             forward_arrow: true,
-            //             color: CARRY_PATH_COLOR.into(),
-            //             ..Default::default()
-            //         },
-            //         Point([0.0, 0.0]),
-            //         Origin::TopLeft,
-            //     );
-            // }
-
-            // // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
-            // waypoint_arrow_layer.place(
-            //         Line {
-            //             start: (wp.pos * COORD_FACTOR).two_d(),
-            //             end: (ship_pos * COORD_FACTOR).two_d(),
-            //             shorten_start: 6.0,
-            //             shorten_end: 6.0,
-            //             forward_arrow: true,
-            //             color: [219, 31, 7, 255].into(),
-            //             //CARRY_PATH_COLOR.into(),
-            //             ..Default::default()
-            //         },
-            //         Point([0.0, 0.0]),
-            //         Origin::TopLeft,
-            //     );
-        }
-        renderer.add_layer(waypoint_arrow_layer);
-
+        // Go through every treasure position that we saved earlier, and show their paths back
         let mut treasure_path_layer = Layer::new();
-        // Iterate through all treasures and draw lines from them to the ship pos
-        for t in treausre_list_pos.iter() {
-            // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
-            treasure_path_layer.place(
+        for tr in treausre_list_pos.iter() {
+            // First, get the path of waypoints from the treasure position to the ship (the pathfinding algorithm!)
+            let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*tr);
+            // THE SPLINE™ - gets the smooth path pikmin will take from the treasure start position to the ship, using the above waypoints as anchors
+            let treasure_path = draw_path_to_goal(*tr, 1.0, 10001, path_nodes);
+            // Now just draw lines from each little point in our smooth line to make, well, a smooth line!
+            for iter in 0..treasure_path.len()-2 {
+                // If a super duper short distance, don't bother rendering it
+                if treasure_path[iter].dist(&treasure_path[iter+1]) < 0.01 {
+                        continue;
+                }
+                treasure_path_layer.place(
                     Line {
-                        start: (*t * COORD_FACTOR).two_d(),
-                        end: (ship_pos * COORD_FACTOR).two_d(),
-                        shorten_start: 6.0,
-                        shorten_end: 6.0,
-                        forward_arrow: true,
-                        color: [219, 31, 7, 255].into(),
-                        //CARRY_PATH_COLOR.into(),
+                        start: (treasure_path[iter] * COORD_FACTOR).two_d(),
+                        end: (treasure_path[iter+1] * COORD_FACTOR).two_d(),
+                        shorten_start: 0.0,
+                        shorten_end: 0.0,
+                        forward_arrow: false,
+                        color: [170,100,255,255].into(),
                         ..Default::default()
                     },
                     Point([0.0, 0.0]),
                     Origin::TopLeft,
                 );
-        }
-        renderer.add_layer(treasure_path_layer);
-
-        // Test; see what carry_path_wps() does?
-        let mut waypoint_pathing_back_layer = Layer::new();
-        let test_point = &treausre_list_pos[0];
-        let idk = layout.waypoint_graph().carry_path_wps(*test_point);
-        let collect_path: Vec<Point::<3, f32>> = layout.waypoint_graph().carry_path_wps(*test_point).collect();
-        let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*test_point);
-        let path_nodes_test: Vec<&crate::layout::waypoint::WaypointGraphNode> = path_nodes.clone();
-        for test in path_nodes {
-            let x_print = test.pos[0];
-            let y_print = test.pos[1];
-            let z_print = test.pos[2];
-            // println!("{x_print} {y_print} {z_print}");
-
-            // waypoint_pathing_back_layer.place(
-            //     Circle {
-            //         radius: test.r * COORD_FACTOR / 1.7,
-            //         color: [219, 31, 7, 255].into(),
-            //         ..Default::default()
-            //     },
-            //     test.pos.two_d() * COORD_FACTOR,
-            //     Origin::Center,
-            // );
-        }
-
-        // Test call; just check if we crash or not
-        let the_big_test = draw_path_to_goal(*test_point, 1.0, 10001, path_nodes_test);
-        for iter in 0..the_big_test.len()-2 {
-            if the_big_test[iter].dist(&the_big_test[iter+1]) < 0.01 {
-                    continue;
             }
-            waypoint_pathing_back_layer.place(
-                Line {
-                    start: (the_big_test[iter] * COORD_FACTOR).two_d(),
-                    end: (the_big_test[iter+1] * COORD_FACTOR).two_d(),
-                    shorten_start: 0.0,
-                    shorten_end: 0.0,
-                    forward_arrow: false,
+            // Last bit; just draw a small dot at the start of the treasure position for easier reading
+            treasure_path_layer.place(
+                Circle {
+                    radius: 5.0,
                     color: [170,100,255,255].into(),
                     ..Default::default()
                 },
-                Point([0.0, 0.0]),
-                Origin::TopLeft,
+                (*tr * COORD_FACTOR).two_d(),
+                Origin::Center,
             );
         }
-
-        // for wp in layout.waypoint_graph().iter() {
-        //     // Now this is where the ship variable comes in handy! We can use it draw lines from the waypoints to the ship
-        //     treasure_path_layer.place(
-        //             Line {
-        //                 start: (*t * COORD_FACTOR).two_d(),
-        //                 end: (ship_pos * COORD_FACTOR).two_d(),
-        //                 shorten_start: 6.0,
-        //                 shorten_end: 6.0,
-        //                 forward_arrow: true,
-        //                 color: [219, 31, 7, 255].into(),
-        //                 //CARRY_PATH_COLOR.into(),
-        //                 ..Default::default()
-        //             },
-        //             Point([0.0, 0.0]),
-        //             Origin::TopLeft,
-        //         );
-        // }
-        renderer.add_layer(waypoint_pathing_back_layer);
+        // Draw our path!
+        renderer.add_layer(treasure_path_layer);
     }
 
     Ok(renderer.render(helper.mgr))
