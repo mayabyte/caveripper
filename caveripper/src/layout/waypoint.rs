@@ -202,9 +202,7 @@ impl WaypointGraph {
             .iter()
             .flat_map(|wp| {
                 // Get segments between each combination of two adjacent waypoints
-                self.graph
-                    .neighbors_directed(wp.idx, Direction::Incoming)
-                    .map(move |wp2| (wp, &self.graph[wp2]))
+                self.graph.neighbors(wp.idx).map(move |wp2| (wp, &self.graph[wp2]))
             })
             .map(|(wp1, wp2)| {
                 // Find the point's distance to each line segment
@@ -214,13 +212,19 @@ impl WaypointGraph {
                 }
 
                 let norm = (wp1.pos - wp2.pos).normalized();
-                let t = norm.dot(pos - wp1.pos) / len;
+                let t = norm.dot((pos - wp1.pos) / len);
+                // norm.dot(pos - wp2.pos) / len;
+
+                println!("{pr1} wp1 {pr2} wp2", pr1 = wp1.pos, pr2 = wp2.pos);
 
                 if t <= 0.0 {
+                    // println!("{p1} wp1 closer", p1 = wp1.pos);
                     (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
                 } else if t >= 1.0 {
+                    // println!("{p2} wp2 closer", p2 = wp2.pos);
                     (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
                 } else {
+                    // println!("between");
                     let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r {
                         wp1
                     } else {

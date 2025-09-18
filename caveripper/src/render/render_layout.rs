@@ -383,7 +383,7 @@ pub fn render_layout<M: AssetManager>(
             let x_print = test.pos[0];
             let y_print = test.pos[1];
             let z_print = test.pos[2];
-            println!("{x_print} {y_print} {z_print}");
+            // println!("{x_print} {y_print} {z_print}");
 
             // waypoint_pathing_back_layer.place(
             //     Circle {
