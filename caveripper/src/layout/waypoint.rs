@@ -264,7 +264,7 @@ impl WaypointGraphNode {
 }
 
 /** THE FUNCTION™ - makes a smooth line representing the path pikmin take from a given treasure to the ship
- * 
+ *  Takes in the starting position, a "speed" value, max number of iterations for searching, and the collection of waypoints to path through
  */
 pub fn draw_path_to_goal (
     start: Point::<3, f32>,
