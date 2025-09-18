@@ -12,7 +12,7 @@ use crate::{
     layout::{waypoint::draw_path_to_goal, Layout, PlacedMapUnit, SpawnObject},
     point::Point,
     render::{
-        coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR
+        coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, TREASURE_PATH_COLOR, WAYPOINT_COLOR
     },
 };
 
@@ -110,55 +110,20 @@ pub fn render_layout<M: AssetManager>(
     let mut quickglance_circle_layer = Layer::new();
     quickglance_circle_layer.set_opacity(0.45);
 
-    // We need to save the ship for later
-    let mut ship_obj: &SpawnObject<'_>;
-    let mut ship_pos = Point::<3, f32>([0.0, 0.0, 0.0]);
-
     // Also need to keep track of the treasures for later as well
-    let mut treausre_list: Vec<&SpawnObject<'_>> = Vec::new();
     let mut treausre_list_pos: Vec<Point::<3, f32>> = Vec::new();
 
     for (spawn_object, pos) in layout.get_spawn_objects() {
         let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
 
-        // If this is the ship, save it to our object var for later
-        match spawn_object  {
-            SpawnObject::Ship => {
-                ship_obj = spawn_object;
-                ship_pos.clone_from(&pos);
-            },
-            SpawnObject::Teki(teki_info, point) => {
-                // Do nothing!
-            },
-            SpawnObject::CapTeki(cap_info, _) => {
-                // Do nothing!
-            },
-            SpawnObject::Item(item_info) => {
-                // Do nothing!
-            },
-            SpawnObject::Gate(gate_info, _) => {
-                // Do nothing!
-            },
-            SpawnObject::Hole(_) => {
-                // Do nothing!
-            },
-            SpawnObject::Geyser(_) => {
-                // Do nothing!
-            },
-            SpawnObject::Onion(_) => {
-                // Do nothing!
-            },
-        };
-
         // If this is a treasure, save it for later
         if let SpawnObject::Item(_) = spawn_object {
-            treausre_list.push(spawn_object);
             // Create a temporary variable so we can push the current position to the coordinate list
             let item_pos: Point::<3, f32> = pos.clone();
             treausre_list_pos.push(item_pos);
         } else if let SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
-            // Create a temporary variable so we can push the current position to the coordinate list
+            // Also save the position of enemies with treasures in them
             let item_pos: Point::<3, f32> = pos.clone();
             treausre_list_pos.push(item_pos);
         }
@@ -320,7 +285,7 @@ pub fn render_layout<M: AssetManager>(
                         shorten_start: 0.0,
                         shorten_end: 0.0,
                         forward_arrow: false,
-                        color: [170,100,255,255].into(),
+                        color: TREASURE_PATH_COLOR.into(),
                         ..Default::default()
                     },
                     Point([0.0, 0.0]),
@@ -331,7 +296,7 @@ pub fn render_layout<M: AssetManager>(
             treasure_path_layer.place(
                 Circle {
                     radius: 5.0,
-                    color: [170,100,255,255].into(),
+                    color: TREASURE_PATH_COLOR.into(),
                     ..Default::default()
                 },
                 (*tr * COORD_FACTOR).two_d(),
