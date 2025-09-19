@@ -439,7 +439,7 @@ pub fn draw_path_to_goal (
             if diff.length() < 20.0 {
                 break;
             }
-        } else if next_vec.dist2(&cur_pos) < 6.0 {
+        } else if next_vec.two_d().dist(&cur_pos.two_d()) < 6.0 {
             // Check if we're almost at the end of the path (second to last node?)
             if cur_path_node < (path.len() - 2) as i32 {
                 cur_path_node += 1;
