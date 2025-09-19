@@ -117,15 +117,9 @@ pub fn render_layout<M: AssetManager>(
         let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
 
-        // If this is a treasure, save it for later
-        if let SpawnObject::Item(_) = spawn_object {
-            // Create a temporary variable so we can push the current position to the coordinate list
-            let item_pos: Point::<3, f32> = pos.clone();
-            treausre_list_pos.push(item_pos);
-        } else if let SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
-            // Also save the position of enemies with treasures in them
-            let item_pos: Point::<3, f32> = pos.clone();
-            treausre_list_pos.push(item_pos);
+        // If this is a treasure (or enemy with treasure), save it for later (needed for treasure draw paths)
+        if let SpawnObject::Item(_) | SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
+            treausre_list_pos.push(pos);
         }
         
 
