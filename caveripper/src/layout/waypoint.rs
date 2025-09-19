@@ -1,4 +1,4 @@
-use std::{clone, f64::MAX, iter, ops::{Add, Sub}, ptr::null};
+use std::{iter, ops::{Add, Sub}};
 
 use crate::point::Point;
 use float_ord::FloatOrd;
@@ -271,7 +271,6 @@ pub fn draw_path_to_goal (
     speed: f32,
     max_num_iter: i32,
     path: Vec<&WaypointGraphNode>,
-    // path: Vec<Point::<3, f32>>,
 ) ->  Vec<Point::<3, f32>> {
     // This is the final path of points! Lets start with our starting point (duh)
     let mut ret_path: Vec<Point::<3, f32>> = Vec::new();

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, cmp::max, path, ptr::null};
+use std::{borrow::Cow, cell::RefCell, cmp::max};
 
 use clap::Args;
 use image::{imageops::FilterType, RgbaImage};
