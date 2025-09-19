@@ -284,7 +284,7 @@ pub fn draw_path_to_goal (
     // Setup some vars for the spline stuff - copied from jhawk's logic
     let mut cur_path_node: i32 = -1;
     let mut goal_mode: bool = false;
-    let mut cur_pos: Point<3, f32> = start.clone();
+    let mut cur_pos: Point<3, f32> = start;
     let mut cur_vel = Point::<3, f32>([0.0, 0.0, 0.0]);
 
     let goal_pos: Point<3, f32> = path[path.len() - 1].pos;
@@ -298,7 +298,7 @@ pub fn draw_path_to_goal (
         // Jhawk calls this CRMakeRefs - I'm guessing this is an edge case of path size of 1 waypoint?
         if path.len() <= 1 {
             t0 = if cur_path_node - 1 <= -1 {
-                cur_pos.clone()
+                cur_pos
             } else {
                 if cur_path_node - 1 >= path.len().try_into().unwrap(){
                     goal_pos
@@ -308,7 +308,7 @@ pub fn draw_path_to_goal (
             };
 
             t1 = if cur_path_node <= -1 {
-                cur_pos.clone()
+                cur_pos
             } else {
                 if cur_path_node >= path.len().try_into().unwrap(){
                     goal_pos
@@ -318,7 +318,7 @@ pub fn draw_path_to_goal (
             };
 
             t2 = if cur_path_node + 1 <= -1 {
-                cur_pos.clone()
+                cur_pos
             } else {
                 if cur_path_node + 1 >= path.len().try_into().unwrap(){
                     goal_pos
@@ -328,7 +328,7 @@ pub fn draw_path_to_goal (
             };
 
             t3 = if cur_path_node + 2 <= -1 {
-                cur_pos.clone()
+                cur_pos
             } else {
                 if cur_path_node + 2 >= path.len().try_into().unwrap(){
                     goal_pos
@@ -361,8 +361,8 @@ pub fn draw_path_to_goal (
 
                 // CRMakeRefs with -1 -1 1 2
                 cur_path_node = 0;
-                t0 = cur_pos.clone();
-                t1 = cur_pos.clone();
+                t0 = cur_pos;
+                t1 = cur_pos;
                 t2 = if 1 >= path.len() {
                     goal_pos
                 } else {
@@ -377,7 +377,7 @@ pub fn draw_path_to_goal (
             } else {
                 // CRMakeRefs with t2 overwritten
                 t0 = if cur_path_node - 1 <= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node - 1 >= path.len() as i32 {
                         goal_pos
@@ -387,7 +387,7 @@ pub fn draw_path_to_goal (
                 };
 
                 t1 = if cur_path_node<= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node >= path.len() as i32 {
                         goal_pos
@@ -397,7 +397,7 @@ pub fn draw_path_to_goal (
                 };
 
                 t3 = if cur_path_node + 2 <= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node + 2 >= path.len() as i32 {
                         goal_pos
@@ -445,7 +445,7 @@ pub fn draw_path_to_goal (
 
                 // CRMakeRefs
                 t0 = if cur_path_node - 1 <= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node - 1 >= path.len() as i32 {
                         goal_pos
@@ -454,7 +454,7 @@ pub fn draw_path_to_goal (
                     }
                 };
                 t1 = if cur_path_node <= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node >= path.len() as i32 {
                         goal_pos
@@ -463,7 +463,7 @@ pub fn draw_path_to_goal (
                     }
                 };
                 t2 = if cur_path_node + 1<= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node + 1 >= path.len() as i32 {
                         goal_pos
@@ -472,7 +472,7 @@ pub fn draw_path_to_goal (
                     }
                 };
                 t3 = if cur_path_node + 2 <= -1 {
-                    cur_pos.clone()
+                    cur_pos
                 } else {
                     if cur_path_node + 2 >= path.len() as i32 {
                         goal_pos
@@ -551,7 +551,7 @@ pub fn draw_path_to_goal (
                         cur_path_node += 1;
                         // CRMakeRefs
                         t0 = if cur_path_node -1 <= -1 {
-                            cur_pos.clone()
+                            cur_pos
                         } else {
                             if cur_path_node -1 >= path.len() as i32 {
                                 goal_pos
@@ -560,7 +560,7 @@ pub fn draw_path_to_goal (
                             }
                         };
                         t1 = if cur_path_node <= -1 {
-                            cur_pos.clone()
+                            cur_pos
                         } else {
                             if cur_path_node >= path.len() as i32 {
                                 goal_pos
@@ -569,7 +569,7 @@ pub fn draw_path_to_goal (
                             }
                         };
                         t2 = if cur_path_node + 1 <= -1 {
-                            cur_pos.clone()
+                            cur_pos
                         } else {
                             if cur_path_node + 1 >= path.len() as i32 {
                                 goal_pos
@@ -578,7 +578,7 @@ pub fn draw_path_to_goal (
                             }
                         };
                         t3 = if cur_path_node + 2 <= -1 {
-                            cur_pos.clone()
+                            cur_pos
                         } else {
                             if cur_path_node + 2 >= path.len() as i32 {
                                 goal_pos
@@ -607,7 +607,7 @@ pub fn draw_path_to_goal (
         }
         cur_pos = cur_pos.add(cur_vel * speed);
         // Finally, add our calculated position of the path to the return chain of paths
-        ret_path.push(cur_pos.clone());
+        ret_path.push(cur_pos);
     }
     return ret_path
 }
