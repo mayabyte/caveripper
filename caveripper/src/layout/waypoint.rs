@@ -145,59 +145,7 @@ impl WaypointGraph {
     }
 
     /// The full chain of waypoints that should be taken from the provided point to get back to the ship
-    pub fn carry_path_wps(&self, pos: Point<3, f32>) -> impl Iterator<Item = Point<3, f32>> + '_ {
-        let start_wp = self
-            .iter()
-            .flat_map(|wp| {
-                // Get segments between each combination of two adjacent waypoints
-                self.graph
-                    .neighbors_directed(wp.idx, Direction::Incoming)
-                    .map(move |wp2| (wp, &self.graph[wp2]))
-            })
-            .map(|(wp1, wp2)| {
-                // Find the point's distance to each line segment
-                let len = wp1.pos.p2_dist(&wp2.pos);
-                if len <= 0.0 {
-                    return (wp1, f32::MAX);
-                }
-
-                let norm = (wp1.pos - wp2.pos).normalized();
-                let t = norm.dot(pos - wp1.pos) / len;
-
-                if t <= 0.0 {
-                    (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
-                } else if t >= 1.0 {
-                    (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
-                } else {
-                    let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r {
-                        wp1
-                    } else {
-                        wp2
-                    };
-                    (
-                        wp,
-                        ((norm * len * t) + wp1.pos - pos).p2_length()
-                            - ((1.0 - t) * wp1.r)
-                            - (t * wp2.r),
-                    )
-                }
-            })
-            .min_by_key(|(_wp, dist)| FloatOrd(*dist))
-            .unwrap()
-            .0;
-
-        let mut ret = vec![start_wp];
-        while let Some(backlink) = self.backlink(ret.last().unwrap()) {
-            ret.push(backlink);
-            if ret[ret.len() - 1].pos == ret[ret.len() - 2].pos {
-                ret.remove(ret.len() - 2);
-            }
-        }
-        iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
-    }
-
-    /// Same as above, but returns the waypoint nodes themselves instead of just their coordinates
-    pub fn carry_path_wps_nodes(&self, pos: Point<3, f32>) -> Vec<&WaypointGraphNode> {
+    pub fn carry_path_wps_nodes(&self, pos: Point<3, f32>) -> impl Iterator<Item = &WaypointGraphNode> + '_ {
         let start_wp = self
             .iter()
             .flat_map(|wp| {
@@ -243,7 +191,13 @@ impl WaypointGraph {
                 ret.remove(ret.len() - 2);
             }
         }
-        ret
+        // iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
+        ret.into_iter()
+    }
+
+    /// Same as above, but returns just the waypoint coordinates instead of the entire waypoint node
+    pub fn carry_path_wps_pos(&self, pos: Point<3, f32>) -> impl Iterator<Item = Point<3, f32>> + '_ {
+        iter::once(pos).chain(self.carry_path_wps_nodes(pos).map(|wp| wp.pos))
     }
 
 }

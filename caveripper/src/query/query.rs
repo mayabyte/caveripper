@@ -184,7 +184,7 @@ impl QueryKind {
                 .map(|(_so, pos)| {
                     layout
                         .waypoint_graph()
-                        .carry_path_wps(pos)
+                        .carry_path_wps_pos(pos)
                         .tuple_windows()
                         .map(|(p1, p2)| p1.dist(&p2))
                         .sum::<f32>()
@@ -215,7 +215,7 @@ impl QueryKind {
                     .any(|(_so, pos)| {
                         layout
                             .waypoint_graph()
-                            .carry_path_wps(pos)
+                            .carry_path_wps_pos(pos)
                             .tuple_windows()
                             .any(|(p1, p2)| gates.iter().any(|gate_pos| point_to_line_dist(*gate_pos, p1, p2) < 80.0))
                     })
@@ -233,7 +233,7 @@ impl QueryKind {
                     .all(|(_so, pos)| {
                         layout
                             .waypoint_graph()
-                            .carry_path_wps(pos)
+                            .carry_path_wps_pos(pos)
                             .tuple_windows()
                             .all(|(p1, p2)| gates.iter().all(|gate_pos| point_to_line_dist(*gate_pos, p1, p2) > 80.0))
                     })

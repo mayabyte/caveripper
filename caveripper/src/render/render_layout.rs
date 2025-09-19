@@ -263,7 +263,7 @@ pub fn render_layout<M: AssetManager>(
         let mut treasure_path_layer = Layer::new();
         for tr in treausre_list_pos.iter() {
             // First, get the path of waypoints from the treasure position to the ship (the pathfinding algorithm!)
-            let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*tr);
+            let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*tr).collect();
             // THE SPLINE™ - gets the smooth path pikmin will take from the treasure start position to the ship, using the above waypoints as anchors
             let treasure_path = get_path_to_goal(*tr, 1.0, 10001, path_nodes);
             // Now just draw lines from each little point in our smooth line to make, well, a smooth line!
