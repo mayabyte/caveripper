@@ -81,11 +81,6 @@ impl Point<3, f32> {
         Point([self[0], self[2]])
     }
 
-    // Return a NEW point, with each value in the ORIGINAL point scaled by the provided scalar
-    pub fn scale(&mut self, scale: f32) -> Point<3, f32> {        
-        Point([self[0] * scale, self[1] * scale, self[2] * scale])
-    }
-
     // Calculates the horizontal distance only between 2 3D points (x+z dimensions)
     pub fn dist2(&self, other: &Self) -> f32 {
         // Create two new points, which are the 3d points converted into 2d points (remove their Y components)

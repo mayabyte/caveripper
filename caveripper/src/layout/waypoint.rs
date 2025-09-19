@@ -350,7 +350,7 @@ pub fn draw_path_to_goal (
             let next_radius = path[1].r;
             let adj_radius = ((1 as f32)-t) * cur_radius + t * next_radius; // this cast is so dumb maya why is rust like this?!
 
-            let n_full = d.scale(t * len_next_cur).add(cur_vec).sub(cur_pos);
+            let n_full = (d * (t * len_next_cur)).add(cur_vec).sub(cur_pos);
             let mut len_n = n_full.length();
             // Don't let n be zero for math reasons, so just set it to a tiny number
             if len_n == 0.0 {
@@ -408,7 +408,7 @@ pub fn draw_path_to_goal (
                 };
 
                 if t >= 0.0 && t <= 1.0 {
-                    t2 = d.scale(t * len_next_cur).add(cur_vec);
+                    t2 = (d * (t * len_next_cur)).add(cur_vec);
                 } else if t < 0.0 {
                     t2 = path[0].pos;
                 } else {
@@ -524,7 +524,7 @@ pub fn draw_path_to_goal (
                 adj_radius = 1.0;
             }
 
-            let n_full = d.scale(t * len_next_cur).add(cur_vec).sub(cur_pos);
+            let n_full = (d * (t * len_next_cur)).add(cur_vec).sub(cur_pos);
             let len_n = n_full.length();
             let mut n = n_full.normalized();
 
@@ -542,7 +542,7 @@ pub fn draw_path_to_goal (
 
                 if t < 1.0 {
                     let mut vel = cr_spline_tangent(t, t0, t1, t2, t3).normalized();
-                    _use = vel.scale(1.0 - use_n).add(n.scale(use_n));
+                    _use = (vel * (1.0 - use_n)).add(n * use_n);
                     // Check horizontal distance for if it's negative?
                     if (_use[0] * d[0]) + (_use[2] * d[2]) <= 0.0 {
                         _use = d;
@@ -602,11 +602,11 @@ pub fn draw_path_to_goal (
             }
         }
         // ALMOST DONE!
-        cur_vel = cur_vel.add(_use.normalized().scale(0.05));
+        cur_vel = cur_vel.add(_use.normalized() * 0.05);
         if cur_vel.length() > 1.0 {
             cur_vel = cur_vel.normalized();
         }
-        cur_pos = cur_pos.add(cur_vel.scale(speed));
+        cur_pos = cur_pos.add(cur_vel * speed);
         // Finally, add our calculated position of the path to the return chain of paths
         ret_path.push(cur_pos.clone());
     }
