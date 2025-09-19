@@ -66,7 +66,7 @@ impl<const N: usize, T> Point<N, T> {
     where
         T: Mul + Sum<<T as Mul>::Output>,
     {
-        self.0.into_iter().zip(other.0.into_iter()).map(|(s, o)| s * o).sum()
+        self.0.into_iter().zip(other.0).map(|(s, o)| s * o).sum()
     }
 }
 

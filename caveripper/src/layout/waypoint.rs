@@ -233,7 +233,7 @@ pub fn get_path_to_goal (
     // Safety check; don't make a path if there's no path to make
     if path.len() == 0 {
         return ret_path;
-    }   
+    }
 
     // Setup some vars for the spline stuff - copied from jhawk's logic
     let mut cur_path_node: i32 = -1;
@@ -294,7 +294,7 @@ pub fn get_path_to_goal (
             // More jhawk variables
             let cur_vec: Point<3, f32> = path[0].pos;
             let next_vec: Point<3, f32> = path[1].pos;
-            let mut d: Point<3, f32> = (next_vec - cur_vec).normalized();
+            let d: Point<3, f32> = (next_vec - cur_vec).normalized();
             let len_next_cur: f32 = cur_vec.dist(&next_vec);
 
             let t: f32 = cur_pos.sub(cur_vec).dot(d) / len_next_cur;
@@ -445,12 +445,12 @@ pub fn get_path_to_goal (
             }
         } else {
             // In jhawk code this is a separate function normVector(); hopefully this achieves the same thing
-            let mut d = (next_vec - cur_vec).normalized();
+            let d = (next_vec - cur_vec).normalized();
             let len_next_cur = cur_vec.dist(&next_vec);
 
             let mut t = cur_pos.sub(cur_vec).dot(d) / len_next_cur;
 
-            if t < 0.0 { 
+            if t < 0.0 {
                 t = 0.0;
             }
             if t > 1.0 {
@@ -479,7 +479,7 @@ pub fn get_path_to_goal (
 
             let n_full = (d * (t * len_next_cur)).add(cur_vec).sub(cur_pos);
             let len_n = n_full.length();
-            let mut n = n_full.normalized();
+            let n = n_full.normalized();
 
             let mut away_ratio = len_n / adj_radius;
             // Not sure what this check is for or why this value specifically, but ig we can trust jhawk
@@ -494,7 +494,7 @@ pub fn get_path_to_goal (
                 }
 
                 if t < 1.0 {
-                    let mut vel = cr_spline_tangent(t, t0, t1, t2, t3).normalized();
+                    let vel = cr_spline_tangent(t, t0, t1, t2, t3).normalized();
                     _use = (vel * (1.0 - use_n)).add(n * use_n);
                     // Check horizontal distance for if it's negative?
                     if (_use[0] * d[0]) + (_use[2] * d[2]) <= 0.0 {
@@ -569,9 +569,9 @@ pub fn get_path_to_goal (
 // Create spline tangent stuff (copied from jhawk)
 fn cr_spline_tangent(
     d: f32,
-    t0 : Point<3, f32>, 
-    t1 : Point<3, f32>, 
-    t2 : Point<3, f32>, 
+    t0 : Point<3, f32>,
+    t1 : Point<3, f32>,
+    t2 : Point<3, f32>,
     t3 : Point<3, f32>,
 ) -> Point<3, f32> {
     let r0 = -1.5 * d * d + 2.0 * d - 0.5;

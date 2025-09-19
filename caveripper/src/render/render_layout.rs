@@ -95,7 +95,6 @@ pub fn render_layout<M: AssetManager>(
                         shorten_end: 6.0,
                         forward_arrow: true,
                         color: CARRY_PATH_COLOR.into(),
-                        ..Default::default()
                     },
                     Point([0.0, 0.0]),
                     Origin::TopLeft,
@@ -121,7 +120,7 @@ pub fn render_layout<M: AssetManager>(
         if let SpawnObject::Item(_) | SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
             treausre_list_pos.push(pos);
         }
-        
+
 
         // Quickglance Circles
         if options.quickglance {
@@ -276,9 +275,6 @@ pub fn render_layout<M: AssetManager>(
                     Line {
                         start: (treasure_path[iter] * COORD_FACTOR).two_d(),
                         end: (treasure_path[iter+1] * COORD_FACTOR).two_d(),
-                        shorten_start: 0.0,
-                        shorten_end: 0.0,
-                        forward_arrow: false,
                         color: TREASURE_PATH_COLOR.into(),
                         ..Default::default()
                     },
