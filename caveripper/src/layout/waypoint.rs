@@ -243,7 +243,7 @@ impl WaypointGraph {
                 ret.remove(ret.len() - 2);
             }
         }
-        ret.clone()
+        ret
     }
 
 }
