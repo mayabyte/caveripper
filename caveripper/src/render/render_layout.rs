@@ -9,17 +9,10 @@ use crate::{
     assets::AssetManager,
     caveinfo::{CapInfo, TekiInfo},
     errors::CaveripperError,
-    layout::{Layout, PlacedMapUnit, SpawnObject},
+    layout::{waypoint::get_path_to_goal, Layout, PlacedMapUnit, SpawnObject},
     point::Point,
     render::{
-        coords::Origin,
-        render_spawn_object,
-        renderer::{Layer, StickerRenderer},
-        shapes::{Circle, Line},
-        CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR,
-        QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED,
-        QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR,
-        QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, WAYPOINT_COLOR,
+        coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, TREASURE_PATH_COLOR, WAYPOINT_COLOR
     },
 };
 
@@ -48,6 +41,10 @@ pub struct LayoutRenderOptions {
     /// Draws waypoints and their connections in the layout
     #[clap(long, short = 'w')]
     pub draw_waypoints: bool,
+
+    /// Draws waypoints and their connections in the layout
+    #[clap(long, short = 'p')]
+    pub draw_treasure_paths: bool,
 
     #[clap(long, short = 'c')]
     pub draw_comedown_square: bool,
@@ -113,9 +110,18 @@ pub fn render_layout<M: AssetManager>(
     let mut quickglance_circle_layer = Layer::new();
     quickglance_circle_layer.set_opacity(0.45);
 
+    // Also need to keep track of the treasures for later as well
+    let mut treausre_list_pos: Vec<Point::<3, f32>> = Vec::new();
+
     for (spawn_object, pos) in layout.get_spawn_objects() {
         let so_renderable = render_spawn_object(Cow::Borrowed(spawn_object), helper.mgr);
         spawn_object_layer.place(so_renderable, pos.two_d() * COORD_FACTOR, Origin::Center);
+
+        // If this is a treasure (or enemy with treasure), save it for later (needed for treasure draw paths)
+        if let SpawnObject::Item(_) | SpawnObject::Teki(TekiInfo { carrying: Some(_), .. }, _) = spawn_object {
+            treausre_list_pos.push(pos);
+        }
+        
 
         // Quickglance Circles
         if options.quickglance {
@@ -249,6 +255,50 @@ pub fn render_layout<M: AssetManager>(
         renderer.add_layer(distance_score_line_layer);
         renderer.add_layer(distance_score_text_layer);
         renderer.add_layer(score_text_layer);
+    }
+
+    /* Treasure Paths */
+    if options.draw_treasure_paths {
+        // Go through every treasure position that we saved earlier, and show their paths back
+        let mut treasure_path_layer = Layer::new();
+        for tr in treausre_list_pos.iter() {
+            // First, get the path of waypoints from the treasure position to the ship (the pathfinding algorithm!)
+            let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*tr).collect();
+            // THE SPLINE™ - gets the smooth path pikmin will take from the treasure start position to the ship, using the above waypoints as anchors
+            let treasure_path = get_path_to_goal(*tr, 1.0, 10001, path_nodes);
+            // Now just draw lines from each little point in our smooth line to make, well, a smooth line!
+            for iter in 0..treasure_path.len()-2 {
+                // If a super duper short distance, don't bother rendering it
+                if treasure_path[iter].dist(&treasure_path[iter+1]) < 0.01 {
+                        continue;
+                }
+                treasure_path_layer.place(
+                    Line {
+                        start: (treasure_path[iter] * COORD_FACTOR).two_d(),
+                        end: (treasure_path[iter+1] * COORD_FACTOR).two_d(),
+                        shorten_start: 0.0,
+                        shorten_end: 0.0,
+                        forward_arrow: false,
+                        color: TREASURE_PATH_COLOR.into(),
+                        ..Default::default()
+                    },
+                    Point([0.0, 0.0]),
+                    Origin::TopLeft,
+                );
+            }
+            // Last bit; just draw a small dot at the start of the treasure position for easier reading
+            treasure_path_layer.place(
+                Circle {
+                    radius: 5.0,
+                    color: TREASURE_PATH_COLOR.into(),
+                    ..Default::default()
+                },
+                (*tr * COORD_FACTOR).two_d(),
+                Origin::Center,
+            );
+        }
+        // Draw our path!
+        renderer.add_layer(treasure_path_layer);
     }
 
     Ok(renderer.render(helper.mgr))

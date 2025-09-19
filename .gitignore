@@ -8,3 +8,4 @@ assets/**/*
 *.so
 *.pyd
 pikmin2
+*.vs

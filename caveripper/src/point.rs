@@ -45,6 +45,10 @@ impl<const N: usize, T> Point<N, T> {
         T: Real + Zero<Output = T> + AddAssign<T>,
     {
         let factor = Point([<T as Zero>::zero(); N]).dist(&self);
+        // 0 check; prevent 0 vectors from returning nan vectors as the math would divide by 0 without this
+        if factor.is_zero() {
+            return  self
+        }
         for v in self.0.iter_mut() {
             *v = *v / factor;
         }
