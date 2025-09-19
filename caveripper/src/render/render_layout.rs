@@ -9,7 +9,7 @@ use crate::{
     assets::AssetManager,
     caveinfo::{CapInfo, TekiInfo},
     errors::CaveripperError,
-    layout::{waypoint::draw_path_to_goal, Layout, PlacedMapUnit, SpawnObject},
+    layout::{waypoint::get_path_to_goal, Layout, PlacedMapUnit, SpawnObject},
     point::Point,
     render::{
         coords::Origin, render_spawn_object, renderer::{Layer, StickerRenderer}, shapes::{Circle, Line}, CARRY_PATH_COLOR, COORD_FACTOR, DISTANCE_SCORE_TEXT_COLOR, GRID_COLOR, GRID_FACTOR, LAYOUT_BACKGROUND_COLOR, QUICKGLANCE_CIRCLE_RADIUS, QUICKGLANCE_EXIT_COLOR, QUICKGLANCE_IVORY_CANDYPOP_COLOR, QUICKGLANCE_ONION_BLUE, QUICKGLANCE_ONION_RED, QUICKGLANCE_ONION_YELLOW, QUICKGLANCE_ROAMING_COLOR, QUICKGLANCE_SHIP_COLOR, QUICKGLANCE_TREASURE_COLOR, QUICKGLANCE_VIOLET_CANDYPOP_COLOR, SCORE_TEXT_COLOR, TREASURE_PATH_COLOR, WAYPOINT_COLOR
@@ -265,7 +265,7 @@ pub fn render_layout<M: AssetManager>(
             // First, get the path of waypoints from the treasure position to the ship (the pathfinding algorithm!)
             let path_nodes = layout.waypoint_graph().carry_path_wps_nodes(*tr);
             // THE SPLINE™ - gets the smooth path pikmin will take from the treasure start position to the ship, using the above waypoints as anchors
-            let treasure_path = draw_path_to_goal(*tr, 1.0, 10001, path_nodes);
+            let treasure_path = get_path_to_goal(*tr, 1.0, 10001, path_nodes);
             // Now just draw lines from each little point in our smooth line to make, well, a smooth line!
             for iter in 0..treasure_path.len()-2 {
                 // If a super duper short distance, don't bother rendering it
