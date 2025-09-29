@@ -392,9 +392,10 @@ pub fn get_path_to_goal (
             if diff.length() < 20.0 {
                 break;
             }
+            _use = diff.normalized();
         } else if next_vec.two_d().dist(&cur_pos.two_d()) < 6.0 {
             // Check if we're almost at the end of the path (second to last node?)
-            if cur_path_node < (path.len() - 2) as i32 {
+            if cur_path_node < ((path.len() as i32 ) - 2) as i32 {
                 cur_path_node += 1;
 
                 // CRMakeRefs
@@ -501,7 +502,7 @@ pub fn get_path_to_goal (
                         _use = d;
                     }
                 } else {
-                    if cur_path_node < (path.len() - 2) as i32 {
+                    if cur_path_node < (path.len() as i32 - 2) as i32 {
                         cur_path_node += 1;
                         // CRMakeRefs
                         t0 = if cur_path_node -1 <= -1 {
