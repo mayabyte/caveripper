@@ -292,6 +292,21 @@ pub fn render_layout<M: AssetManager>(
                 (*tr * COORD_FACTOR).two_d(),
                 Origin::Center,
             );
+
+            // @mayabyte I'm keeping this code cause I hate having to rewrite it everytime I need to debug - Moises
+            // // Debug: draw the waypoint path as well
+            // let waypoint_alone = layout.waypoint_graph().carry_path_wps_pos(*tr);
+            // for iter in waypoint_alone {
+            //     treasure_path_layer.place(
+            //             Circle {
+            //             radius: 10.0,
+            //             color: [219, 31, 7, 255].into(),
+            //             ..Default::default()
+            //         },
+            //         (iter * COORD_FACTOR).two_d(),
+            //         Origin::Center,
+            //     );
+            // }
         }
         // Draw our path!
         renderer.add_layer(treasure_path_layer);
