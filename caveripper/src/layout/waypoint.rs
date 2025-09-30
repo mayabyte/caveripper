@@ -399,15 +399,17 @@ pub fn get_path_to_goal (
         let next_vec = t2;
         let mut _use: Point<3, f32> = Point::<3, f32>([0.0, 0.0, 0.0]);
 
+        // Goal mode is the same as in p2: when true, we are done with waypoints and heading straight to the ship (we're close!)
         if goal_mode == true {
             let diff = goal_pos.sub(cur_pos);
-            // I'm pressuming this means if the distance between points is really small, stop iterating cause we're basically done with the path?
+            // Once we reach this point, stop iterating; we're at the ship!!
             if diff.length() < 20.0 {
                 break;
             }
             _use = diff.normalized();
         } else if next_vec.two_d().dist(&cur_pos.two_d()) < 6.0 {
             // Check if we're almost at the end of the path (second to last node?)
+            // Cast len as signed i32 cause rust crashes if length is -1 (no length at all) cause rust moment :)
             if cur_path_node < ((path.len() as i32 ) - 2) as i32 {
                 cur_path_node += 1;
 
@@ -515,6 +517,7 @@ pub fn get_path_to_goal (
                         _use = d;
                     }
                 } else {
+                    // Cast len as signed i32 cause rust crashes if length is -1 (no length at all) cause rust moment :)
                     if cur_path_node < (path.len() as i32 - 2) as i32 {
                         cur_path_node += 1;
                         // CRMakeRefs
