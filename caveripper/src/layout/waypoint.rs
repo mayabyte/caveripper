@@ -197,50 +197,6 @@ impl WaypointGraph {
             }
         }
 
-        
-
-        /*
-        let start_wp = self
-            .iter()
-            .flat_map(|wp| {
-                // Get segments between each combination of two adjacent waypoints
-                self.graph.neighbors(wp.idx).map(move |wp2| (wp, &self.graph[wp2], wp.r, &self.graph[wp2].r))
-            })
-            .map(|(wp1, wp2, r1, r2)| {
-                // Find the point's distance to each line segment
-                let len = wp1.pos.p2_dist(&wp2.pos);
-                if len <= 0.0 {
-                    return (wp1, f32::MAX);
-                }
-
-                let norm = (wp1.pos - wp2.pos).normalized();
-                let t = norm.dot(pos - wp1.pos) / len;
-
-                if t <= 0.0 {
-                    (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
-                } else if t >= 1.0 {
-                    (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
-                } else {
-                    let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r {
-                        wp1
-                    } else {
-                        wp2
-                    };
-                    (
-                        wp,
-                        ((norm * len * t) + wp1.pos - pos).p2_length()
-                            - ((1.0 - t) * wp1.r)
-                            - (t * wp2.r),
-                    )
-                }
-            })
-            .min_by_key(|(_wp, dist)| FloatOrd(*dist))
-            .unwrap()
-            .0;
-        */
-
-        // let mut ret_j: Vec<&WaypointGraphNode> = vec![start_wp];
-
         // This part is the same - just make a list of all the nodes starting from our closest, heading to the ship
         let mut ret: Vec<&WaypointGraphNode> = vec![best_wp];
         while let Some(backlink) = self.backlink(ret.last().unwrap()) {
@@ -249,7 +205,6 @@ impl WaypointGraph {
                 ret.remove(ret.len() - 2);
             }
         }
-        // iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
         ret.into_iter()
     }
 
