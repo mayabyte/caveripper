@@ -146,13 +146,67 @@ impl WaypointGraph {
 
     /// The full chain of waypoints that should be taken from the provided point to get back to the ship
     pub fn carry_path_wps_nodes(&self, pos: Point<3, f32>) -> impl Iterator<Item = &WaypointGraphNode> + '_ {
+
+        // JHawk pathfinder - compares every edge between waypoints, and finds the closest one to the starting point
+        // Then takes the closest of the two waypoints along that edge
+        let mut best_dist = 128000.0;
+        let mut best_wp: &WaypointGraphNode = &self.graph[NodeIndex::new(0)];
+
+        // For every waypoint in the original graph
+        for wp1 in self.iter() {
+            // Get all the neighbors of wp1 (weird rust way of doing this - make a map with the node index of each neighbor to it's appropiate node in the graph)
+            // We are drawing lines from wp1 to the neighbors to see which is the closest to the starting point
+            for wp2 in self.graph.neighbors(wp1.idx).map(|wp_next_idx| &self.graph[wp_next_idx]) {
+                // Note to self: don't assign value here cause rust compiler will complain with unused varibale warning then maya will complain of warnings
+                let d;  
+                let len_j = (wp2.pos - wp1.pos).length();
+                // If too short a dist, don't bother with this check
+                if len_j <= 0.0
+                {
+                    continue;
+                }
+                let norm_j = (wp2.pos - wp1.pos).normalized();
+                let t_j = norm_j.dot(pos - wp1.pos) / len_j;
+                // let mut point_to_segment_dist_out_t = t_j; <--- this is unused in our code but jhawk calculates this, might as well keep it?
+                let point_to_segment_dist_out_closer_vec;
+                // With the line between wp1 and wp2, determine which of the two waypoints we are closer to
+                if t_j <= 0.0 { // way off the line, close to wp1
+                    point_to_segment_dist_out_closer_vec = 1;
+                    d = (pos - wp1.pos).length() - wp1.r;
+                } else if t_j >= 1.0 { // way off the line, close to wp2
+                    point_to_segment_dist_out_closer_vec = 2;
+                    d = (pos - wp2.pos).length() - wp2.r;
+                } else { // somewhere in the line between wp1 and wp2, do more math to really see who's closer
+                    point_to_segment_dist_out_closer_vec = if ((pos - wp1.pos).length() - wp1.r) < ( (pos - wp2.pos).length() - wp2.r) {
+                        1
+                    } else {
+                        2
+                    };
+                    d = (((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0;
+                }
+                // Check if our current distance is the closest so far (this is the closest waypoint line to our starting position!!)
+                if d < best_dist {
+                    best_dist = d;
+                    // Decide which of the two waypoints on the closest line is closest to us!
+                    best_wp = if point_to_segment_dist_out_closer_vec == 1 {
+                        wp1
+                    } else {
+                        wp2
+                    };
+                }
+            }
+        }
+
+        
+
+        /*
         let start_wp = self
             .iter()
             .flat_map(|wp| {
                 // Get segments between each combination of two adjacent waypoints
-                self.graph.neighbors(wp.idx).map(move |wp2| (wp, &self.graph[wp2]))
+                self.graph.neighbors(wp.idx).map(move |wp2| (wp, &self.graph[wp2], wp.r, &self.graph[wp2].r))
             })
-            .map(|(wp1, wp2)| {
+            .map(|(wp1, wp2, r1, r2)| {
                 // Find the point's distance to each line segment
                 let len = wp1.pos.p2_dist(&wp2.pos);
                 if len <= 0.0 {
@@ -183,8 +237,12 @@ impl WaypointGraph {
             .min_by_key(|(_wp, dist)| FloatOrd(*dist))
             .unwrap()
             .0;
+        */
 
-        let mut ret: Vec<&WaypointGraphNode> = vec![start_wp];
+        // let mut ret_j: Vec<&WaypointGraphNode> = vec![start_wp];
+
+        // This part is the same - just make a list of all the nodes starting from our closest, heading to the ship
+        let mut ret: Vec<&WaypointGraphNode> = vec![best_wp];
         while let Some(backlink) = self.backlink(ret.last().unwrap()) {
             ret.push(backlink);
             if ret[ret.len() - 1].pos == ret[ret.len() - 2].pos {
