@@ -146,52 +146,60 @@ impl WaypointGraph {
 
     /// The full chain of waypoints that should be taken from the provided point to get back to the ship
     pub fn carry_path_wps_nodes(&self, pos: Point<3, f32>) -> impl Iterator<Item = &WaypointGraphNode> + '_ {
-        let start_wp = self
-            .iter()
-            .flat_map(|wp| {
-                // Get segments between each combination of two adjacent waypoints
-                self.graph.neighbors(wp.idx).map(move |wp2| (wp, &self.graph[wp2]))
-            })
-            .map(|(wp1, wp2)| {
-                // Find the point's distance to each line segment
-                let len = wp1.pos.p2_dist(&wp2.pos);
-                if len <= 0.0 {
-                    return (wp1, f32::MAX);
+
+        // JHawk pathfinder - compares every edge between waypoints, and finds the closest one to the starting point
+        // Then takes the closest of the two waypoints along that edge
+        let mut best_dist = 128000.0;
+        let mut best_wp: &WaypointGraphNode = &self.graph[NodeIndex::new(0)];
+
+        // For every waypoint in the original graph
+        for wp1 in self.iter() {
+            // Get all the neighbors of wp1 (weird rust way of doing this - make a map with the node index of each neighbor to it's appropiate node in the graph)
+            // We are drawing lines from wp1 to the neighbors to see which is the closest to the starting point
+            for wp2 in self.graph.neighbors(wp1.idx).map(|wp_next_idx| &self.graph[wp_next_idx]) {
+                let len_j = (wp2.pos - wp1.pos).length();
+                // If too short a dist, don't bother with this check
+                if len_j <= 0.0
+                {
+                    continue;
                 }
-
-                let norm = (wp1.pos - wp2.pos).normalized();
-                let t = norm.dot(pos - wp1.pos) / len;
-
-                if t <= 0.0 {
-                    (wp1, pos.p2_dist(&wp1.pos) - wp1.r)
-                } else if t >= 1.0 {
-                    (wp2, pos.p2_dist(&wp2.pos) - wp2.r)
+                let norm_j = (wp2.pos - wp1.pos).normalized();
+                let t_j = norm_j.dot(pos - wp1.pos) / len_j;
+                // With the line between wp1 and wp2, determine which of the two waypoints we are closer to
+                let (d, point_to_segment_dist_out_closer_vec) = if t_j <= 0.0 {
+                    // way off the line, close to wp1
+                    ((pos - wp1.pos).length() - wp1.r, 1)
+                } else if t_j >= 1.0 {
+                    // way off the line, close to wp2
+                    ((pos - wp2.pos).length() - wp2.r, 2)
+                } else if ((pos - wp1.pos).length() - wp1.r) < ( (pos - wp2.pos).length() - wp2.r) {
+                    // somewhere in the line between wp1 and wp2, closer to wp1
+                    ((((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0, 1)
                 } else {
-                    let wp = if pos.p2_dist(&wp1.pos) - wp1.r < pos.p2_dist(&wp2.pos) - wp2.r {
+                    // somewhere in the line between wp1 and wp2, closer to wp2
+                    ((((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0, 2)
+                };
+                // Check if our current distance is the closest so far (this is the closest waypoint line to our starting position!!)
+                if d < best_dist {
+                    best_dist = d;
+                    // Decide which of the two waypoints on the closest line is closest to us!
+                    best_wp = if point_to_segment_dist_out_closer_vec == 1 {
                         wp1
                     } else {
                         wp2
                     };
-                    (
-                        wp,
-                        ((norm * len * t) + wp1.pos - pos).p2_length()
-                            - ((1.0 - t) * wp1.r)
-                            - (t * wp2.r),
-                    )
                 }
-            })
-            .min_by_key(|(_wp, dist)| FloatOrd(*dist))
-            .unwrap()
-            .0;
+            }
+        }
 
-        let mut ret: Vec<&WaypointGraphNode> = vec![start_wp];
+        // This part is the same - just make a list of all the nodes starting from our closest, heading to the ship
+        let mut ret: Vec<&WaypointGraphNode> = vec![best_wp];
         while let Some(backlink) = self.backlink(ret.last().unwrap()) {
             ret.push(backlink);
             if ret[ret.len() - 1].pos == ret[ret.len() - 2].pos {
                 ret.remove(ret.len() - 2);
             }
         }
-        // iter::once(pos).chain(ret.into_iter().map(|wp| wp.pos))
         ret.into_iter()
     }
 
@@ -386,15 +394,18 @@ pub fn get_path_to_goal (
         let next_vec = t2;
         let mut _use: Point<3, f32> = Point::<3, f32>([0.0, 0.0, 0.0]);
 
+        // Goal mode is the same as in p2: when true, we are done with waypoints and heading straight to the ship (we're close!)
         if goal_mode == true {
             let diff = goal_pos.sub(cur_pos);
-            // I'm pressuming this means if the distance between points is really small, stop iterating cause we're basically done with the path?
+            // Once we reach this point, stop iterating; we're at the ship!!
             if diff.length() < 20.0 {
                 break;
             }
+            _use = diff.normalized();
         } else if next_vec.two_d().dist(&cur_pos.two_d()) < 6.0 {
             // Check if we're almost at the end of the path (second to last node?)
-            if cur_path_node < (path.len() - 2) as i32 {
+            // Cast len as signed i32 as program will crash if length is -1 (such as starting a path that had no waypoints to begin with)
+            if cur_path_node < ((path.len() as i32 ) - 2) as i32 {
                 cur_path_node += 1;
 
                 // CRMakeRefs
@@ -501,7 +512,8 @@ pub fn get_path_to_goal (
                         _use = d;
                     }
                 } else {
-                    if cur_path_node < (path.len() - 2) as i32 {
+                    // Cast len as signed i32 cause rust crashes if length is -1 (no length at all) cause rust moment :)
+                    if cur_path_node < (path.len() as i32 - 2) as i32 {
                         cur_path_node += 1;
                         // CRMakeRefs
                         t0 = if cur_path_node -1 <= -1 {
