@@ -157,8 +157,6 @@ impl WaypointGraph {
             // Get all the neighbors of wp1 (weird rust way of doing this - make a map with the node index of each neighbor to it's appropiate node in the graph)
             // We are drawing lines from wp1 to the neighbors to see which is the closest to the starting point
             for wp2 in self.graph.neighbors(wp1.idx).map(|wp_next_idx| &self.graph[wp_next_idx]) {
-                // Note to self: don't assign value here cause rust compiler will complain with unused varibale warning then maya will complain of warnings
-                let d;  
                 let len_j = (wp2.pos - wp1.pos).length();
                 // If too short a dist, don't bother with this check
                 if len_j <= 0.0
@@ -167,23 +165,20 @@ impl WaypointGraph {
                 }
                 let norm_j = (wp2.pos - wp1.pos).normalized();
                 let t_j = norm_j.dot(pos - wp1.pos) / len_j;
-                // let mut point_to_segment_dist_out_t = t_j; <--- this is unused in our code but jhawk calculates this, might as well keep it?
-                let point_to_segment_dist_out_closer_vec;
                 // With the line between wp1 and wp2, determine which of the two waypoints we are closer to
-                if t_j <= 0.0 { // way off the line, close to wp1
-                    point_to_segment_dist_out_closer_vec = 1;
-                    d = (pos - wp1.pos).length() - wp1.r;
-                } else if t_j >= 1.0 { // way off the line, close to wp2
-                    point_to_segment_dist_out_closer_vec = 2;
-                    d = (pos - wp2.pos).length() - wp2.r;
-                } else { // somewhere in the line between wp1 and wp2, do more math to really see who's closer
-                    point_to_segment_dist_out_closer_vec = if ((pos - wp1.pos).length() - wp1.r) < ( (pos - wp2.pos).length() - wp2.r) {
-                        1
-                    } else {
-                        2
-                    };
-                    d = (((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0;
-                }
+                let (d, point_to_segment_dist_out_closer_vec) = if t_j <= 0.0 {
+                    // way off the line, close to wp1
+                    ((pos - wp1.pos).length() - wp1.r, 1)
+                } else if t_j >= 1.0 {
+                    // way off the line, close to wp2
+                    ((pos - wp2.pos).length() - wp2.r, 2)
+                } else if ((pos - wp1.pos).length() - wp1.r) < ( (pos - wp2.pos).length() - wp2.r) {
+                    // somewhere in the line between wp1 and wp2, closer to wp1
+                    ((((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0, 1)
+                } else {
+                    // somewhere in the line between wp1 and wp2, closer to wp2
+                    ((((norm_j * (len_j * t_j)) + wp1.pos)- pos).length() - (1.0-t_j)*wp1.r - t_j*2.0, 2)
+                };
                 // Check if our current distance is the closest so far (this is the closest waypoint line to our starting position!!)
                 if d < best_dist {
                     best_dist = d;
@@ -409,7 +404,7 @@ pub fn get_path_to_goal (
             _use = diff.normalized();
         } else if next_vec.two_d().dist(&cur_pos.two_d()) < 6.0 {
             // Check if we're almost at the end of the path (second to last node?)
-            // Cast len as signed i32 cause rust crashes if length is -1 (no length at all) cause rust moment :)
+            // Cast len as signed i32 as program will crash if length is -1 (such as starting a path that had no waypoints to begin with)
             if cur_path_node < ((path.len() as i32 ) - 2) as i32 {
                 cur_path_node += 1;
 
