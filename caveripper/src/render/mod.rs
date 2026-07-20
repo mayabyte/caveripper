@@ -87,7 +87,7 @@ pub struct RenderHelper<'a, M: AssetManager> {
 impl<'a, M: AssetManager> RenderHelper<'a, M> {
     pub fn new(mgr: &'a M) -> Self {
         let read_font = |path: &str| -> Font {
-            let font_bytes = mgr.load_raw(path).expect("Missing font file!");
+            let font_bytes = mgr.load_raw(Path::new(path)).expect("Missing font file!");
             Font::from_bytes(font_bytes.as_slice(), FontSettings::default()).expect("Failed to create font!")
         };
         Self {

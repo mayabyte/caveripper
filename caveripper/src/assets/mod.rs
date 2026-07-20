@@ -16,10 +16,10 @@ use serde::Serialize;
 use crate::{caveinfo::CaveInfo, errors::CaveripperError, sublevel::Sublevel};
 
 pub trait AssetManager {
-    fn load_txt<P: AsRef<Path>>(&self, path: P) -> Result<String, CaveripperError>;
+    fn load_txt(&self, path: &Path) -> Result<String, CaveripperError>;
     fn load_caveinfo<'a>(&'a self, sublevel: &Sublevel) -> Result<&'a CaveInfo, CaveripperError>;
     fn load_image(&self, kind: ImageKind, game: &str, name: &str) -> Result<&RgbaImage, CaveripperError>;
-    fn load_raw<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>, CaveripperError>;
+    fn load_raw(&self, path: &Path) -> Result<Vec<u8>, CaveripperError>;
 
     fn all_teki(&self, game: Option<&str>) -> Result<Vec<String>, CaveripperError>;
     fn all_units(&self, game: Option<&str>) -> Result<Vec<String>, CaveripperError>;

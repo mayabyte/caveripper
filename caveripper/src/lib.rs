@@ -1,7 +1,5 @@
 #![feature(slice_as_chunks)]
 #![feature(let_else)]
-#![feature(map_try_insert)]
-#![feature(type_alias_impl_trait)]
 #![feature(cell_leak)]
 #![allow(stable_features)] // This feature is required to be able to build on NixOS for some reason.
 #![feature(let_chains)]

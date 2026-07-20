@@ -37,7 +37,7 @@ fn parse_sections(file_contents: &str) -> Result<impl Iterator<Item = Section<'_
 /// CaveInfo structs - one for each floor - ready for passing to the generator.
 pub(crate) fn parse_caveinfo(cave_cfg: &CaveConfig, mgr: &impl AssetManager) -> Result<Vec<CaveInfo>, CaveInfoError> {
     let caveinfo_txt = mgr
-        .load_txt(cave_cfg.get_caveinfo_path())
+        .load_txt(&cave_cfg.get_caveinfo_path())
         .change_context(CaveInfoError::FileRead)
         .attach_printable_lazy(|| cave_cfg.get_caveinfo_path().to_string_lossy().into_owned())?;
 
@@ -126,7 +126,7 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &impl AssetMana
     };
 
     // Waterboxes file
-    let waterboxes = match mgr.load_txt(PathBuf::from_iter([
+    let waterboxes = match mgr.load_txt(&PathBuf::from_iter([
         "assets",
         &cave.game,
         "mapunits",
@@ -145,7 +145,7 @@ fn try_parse_caveunit(section: &Section, cave: &CaveConfig, mgr: &impl AssetMana
 
     // route.txt file (Waypoints)
     let waypoints_file_txt = mgr
-        .load_txt(PathBuf::from_iter([
+        .load_txt(&PathBuf::from_iter([
             "assets",
             &cave.game,
             "mapunits",

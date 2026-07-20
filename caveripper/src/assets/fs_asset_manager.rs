@@ -95,8 +95,7 @@ impl AssetManager for FsAssetManager {
     }
 
     /// Get a file as raw bytes. Does not cache the file.
-    fn load_raw<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>, CaveripperError> {
-        let path = path.as_ref();
+    fn load_raw(&self, path: &Path) -> Result<Vec<u8>, CaveripperError> {
         read(self.asset_dir.join(path))
             .change_context(CaveripperError::AssetLoadingError)
             .attach_lazy(|| path.to_owned())
@@ -116,8 +115,7 @@ impl AssetManager for FsAssetManager {
             .attach_printable_lazy(|| name.to_string())
     }
 
-    fn load_txt<P: AsRef<Path>>(&self, path: P) -> Result<String, CaveripperError> {
-        let path = path.as_ref();
+    fn load_txt(&self, path: &Path) -> Result<String, CaveripperError> {
         let p_str = path.to_string_lossy().into_owned();
         info!("Loading {p_str}...");
         let data = read(self.asset_dir.join(path))
