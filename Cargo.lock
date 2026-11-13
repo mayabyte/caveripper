@@ -222,6 +222,7 @@ dependencies = [
  "dirs",
  "encoding_rs",
  "error-stack",
+ "flate2",
  "float-ord",
  "fontdue",
  "fs_extra",
