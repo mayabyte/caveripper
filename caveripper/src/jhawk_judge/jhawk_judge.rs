@@ -512,8 +512,8 @@ struct Sp {
     /// Index of the spawn point in its map unit's list.
     list_idx: usize,
     /// The map unit's score, or the door's score for seams.
-    unit_score: u32,
-    door_score: u32,
+    unit_score: i32,
+    door_score: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -652,7 +652,7 @@ impl Placed {
                     is_alcove: false,
                     list_idx: 0,
                     unit_score: 0,
-                    door_score: door.door_score.unwrap_or(0),
+                    door_score: door.door_score.max(0),
                 });
                 match so {
                     SpawnObject::Teki(info, _) => placed.tekis.push(Teki {

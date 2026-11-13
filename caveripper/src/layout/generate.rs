@@ -130,9 +130,8 @@ impl<'a> LayoutBuilder<'a> {
 
         // Keep placing map units until all doors have been closed
         if self.open_doors().next().is_some() {
-            let mut num_loops = 0;
-            while num_loops <= 10000 {
-                num_loops += 1;
+            // The game gives up after 500 placement steps (RandMapUnit::setMapUnit).
+            for _ in 0..500 {
                 let mut unit_to_place = None;
 
                 // Check if the number of placed rooms has reached the max, and place one if not
@@ -597,7 +596,7 @@ impl<'a> LayoutBuilder<'a> {
                     .collect();
 
                 if hallway_unit_names_1x1.is_empty() || hallway_unit_names_2x1.is_empty() {
-                    continue;
+                    break;
                 }
 
                 // Required to avoid panics with RefCell
@@ -722,6 +721,12 @@ impl<'a> LayoutBuilder<'a> {
                 // After this, we're finished setting room tiles.
                 break;
             }
+            assert!(
+                self.open_doors().next().is_none(),
+                "Map units still had open doors after the game's 500 placement steps. The game doesn't handle this case. Seed: {:#X}, Sublevel: {}",
+                self.starting_seed,
+                caveinfo.name()
+            );
         }
 
         // Recenter the map such that all positions are >= 0
@@ -1094,7 +1099,7 @@ impl<'a> LayoutBuilder<'a> {
         {
             for num_spawned in 0..caveinfo.max_treasures {
                 let mut spawnpoints: Vec<&mut PlacedSpawnPoint> = Vec::new();
-                let mut spawnpoint_weights: Vec<u32> = Vec::new();
+                let mut spawnpoint_weights: Vec<i32> = Vec::new();
 
                 // Find all possible spawn points, plus an 'effective treasure score' for each.
                 for map_unit in self.map_units.iter_mut() {
@@ -1112,9 +1117,9 @@ impl<'a> LayoutBuilder<'a> {
                             }
 
                             let effective_treasure_score = if is_challenge_mode {
-                                1 + map_unit.total_score / num_treasure_spawnpoints as u32
+                                1 + map_unit.total_score / num_treasure_spawnpoints as i32
                             } else {
-                                (map_unit.total_score as f32 / (1 + num_items_in_this_unit) as f32) as u32
+                                map_unit.total_score / (1 + num_items_in_this_unit) as i32
                             };
                             spawnpoint.treasure_score = effective_treasure_score;
                             spawnpoints.push(spawnpoint);
@@ -1145,7 +1150,10 @@ impl<'a> LayoutBuilder<'a> {
                 let mut chosen_spot = None;
                 if !spawnpoints.is_empty() {
                     if is_challenge_mode {
-                        chosen_spot = Some(&mut spawnpoints[self.rng.rand_index_weight(spawnpoint_weights.as_slice()).unwrap()]);
+                        chosen_spot = self
+                            .rng
+                            .rand_index_weight_signed(spawnpoint_weights.as_slice())
+                            .map(|i| &mut spawnpoints[i]);
                     } else {
                         let max_weight = *spawnpoint_weights.iter().max().unwrap();
                         let mut max_spawnpoints: Vec<_> = spawnpoints
@@ -1310,10 +1318,10 @@ impl<'a> LayoutBuilder<'a> {
     fn set_score(&mut self) {
         // Reset all scores first
         for map_unit in self.map_units.iter_mut() {
-            map_unit.total_score = std::u32::MAX;
+            map_unit.total_score = -1;
             map_unit.teki_score = 0;
             for door in map_unit.doors.iter() {
-                door.borrow_mut().door_score = None;
+                door.borrow_mut().door_score = -1;
                 door.borrow_mut().seam_teki_score = 0;
             }
         }
@@ -1371,7 +1379,7 @@ impl<'a> LayoutBuilder<'a> {
         // Add teki score of each adjacent room to
         for door in &self.map_units[0].doors {
             let door_seam_teki_score = door.borrow().seam_teki_score;
-            door.borrow_mut().door_score = Some(self.map_units[0].total_score + 1 + door_seam_teki_score);
+            door.borrow_mut().door_score = self.map_units[0].total_score + 1 + door_seam_teki_score;
 
             let adj_door = self.get_adjacent_door(Rc::clone(door));
 
@@ -1388,13 +1396,13 @@ impl<'a> LayoutBuilder<'a> {
                 };
 
             adj_door.borrow_mut().door_score = door.borrow().door_score;
-            adj_unit.total_score = min(door.borrow().door_score.unwrap() + adj_unit.teki_score, adj_unit.total_score);
+            adj_unit.lower_total_score(door.borrow().door_score + adj_unit.teki_score);
 
             debug!(
                 "Set Door Score for starting room door at ({}, {}) to {}.",
                 door.borrow().x,
                 door.borrow().z,
-                door.borrow().door_score.unwrap()
+                door.borrow().door_score
             );
             debug!(
                 "Set Total Score for map unit \"{}\" at ({}, {}) to {}.",
@@ -1404,42 +1412,42 @@ impl<'a> LayoutBuilder<'a> {
 
         // Set scores in a roughly breadth-first fashion by finding the smallest
         // new door score that can be set from the doors that have already had their
-        // score calculated.
-        loop {
+        // score calculated. The game stops after 500 steps (RandMapScore::setMapUnitScore)
+        // and only considers scores below 12,800,000.
+        for _ in 0..500 {
             let mut selected_door = None;
-            let mut selected_score = None;
+            let mut selected_score = 12_800_000;
 
             for map_unit in self.map_units.iter() {
                 for start_door in map_unit.doors.iter() {
-                    if start_door.borrow().door_score.is_none() {
+                    if start_door.borrow().door_score < 0 {
                         continue;
                     }
 
                     for door_link in start_door.borrow().door_unit.door_links.iter() {
                         let other_door = Rc::clone(&map_unit.doors[door_link.door_id]);
-                        if other_door.borrow().door_score.is_some() {
+                        if other_door.borrow().door_score >= 0 {
                             continue;
                         }
-                        let dist_score = (door_link.distance / 10.0) as u32;
+                        let dist_score = (door_link.distance / 10.0) as i32;
                         let teki_score = map_unit.teki_score;
                         let seam_teki_score = other_door.borrow().seam_teki_score;
 
                         let potential_score = dist_score
-                            + (teki_score * u32::from(door_link.tekiflag))
+                            + (teki_score * i32::from(door_link.tekiflag))
                             + seam_teki_score
-                            + start_door.borrow().door_score.unwrap();
-                        if selected_score.map(|s| potential_score < s).unwrap_or(true) {
-                            selected_score = Some(potential_score);
+                            + start_door.borrow().door_score;
+                        if potential_score < selected_score {
+                            selected_score = potential_score;
                             selected_door = Some(other_door);
                         }
                     }
                 }
             }
 
-            if selected_score.is_none() {
+            let Some(selected_door) = selected_door else {
                 break;
-            }
-            let selected_door = selected_door.unwrap();
+            };
 
             selected_door.borrow_mut().door_score = selected_score;
             let adj_door = self.get_adjacent_door(Rc::clone(&selected_door));
@@ -1448,7 +1456,7 @@ impl<'a> LayoutBuilder<'a> {
                 "Set Door Score for door at ({}, {}) to {}.",
                 selected_door.borrow().x,
                 selected_door.borrow().z,
-                selected_score.unwrap()
+                selected_score
             );
 
             // SAFETY: the adjacent unit will never also be the current unit, therefore it
@@ -1461,8 +1469,7 @@ impl<'a> LayoutBuilder<'a> {
                         .unwrap()
                 };
 
-            let candidate_adj_unit_total_score = selected_score.unwrap() + adj_unit.teki_score;
-            adj_unit.total_score = min(candidate_adj_unit_total_score, adj_unit.total_score);
+            adj_unit.lower_total_score(selected_score + adj_unit.teki_score);
             debug!(
                 "Set Total Score for map unit \"{}\" at ({}, {}) to {}.",
                 adj_unit.unit.unit_folder_name, adj_unit.x, adj_unit.z, adj_unit.total_score
@@ -1497,10 +1504,15 @@ impl<'a> LayoutBuilder<'a> {
                 }
                 // Hole Score of this unit is the smallest of its Door Scores.
                 let score = if is_challenge_mode {
-                    pikmin_math::sqrt(unit.total_score as f32) as u32 + 10
+                    let root = if unit.total_score > 0 { pikmin_math::sqrt(unit.total_score as f32) } else { 0.0 };
+                    root as i32 + 10
                 } else {
                     unit.total_score
                 };
+                let is_pod_unit = unit
+                    .spawnpoints
+                    .iter()
+                    .any(|sp| sp.contains.iter().any(|so| matches!(so, SpawnObject::Ship)));
 
                 for spawnpoint in unit.spawnpoints.iter_mut() {
                     if !spawnpoint.contains.is_empty() {
@@ -1508,7 +1520,7 @@ impl<'a> LayoutBuilder<'a> {
                     }
 
                     let dist_to_start = self.placed_start_point.as_ref().unwrap().pos.p2_dist(&spawnpoint.pos);
-                    if (spawnpoint.spawnpoint_unit.group == 4 && dist_to_start >= 150.0) || (spawnpoint.spawnpoint_unit.group == 9) {
+                    if (spawnpoint.spawnpoint_unit.group == 4 && (!is_pod_unit || dist_to_start >= 150.0)) || (spawnpoint.spawnpoint_unit.group == 9) {
                         spawnpoint.hole_score = score;
                         hole_spawnpoints.push(spawnpoint);
                     }
@@ -1521,7 +1533,8 @@ impl<'a> LayoutBuilder<'a> {
         }
 
         let hole_location = if is_challenge_mode {
-            let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score).collect();
+            // Challenge mode scores are always at least 10.
+            let weights: Vec<_> = hole_spawnpoints.iter().map(|sp| sp.hole_score as u32).collect();
             hole_spawnpoints.remove(self.rng.rand_index_weight(weights.as_slice()).unwrap())
         } else {
             // Only consider the spots with the highest score
@@ -1631,16 +1644,16 @@ impl<'a> LayoutBuilder<'a> {
                 continue;
             }
 
-            let mut min_door_score = u32::MAX;
+            let mut min_door_score = 128_000;
             let mut min_door = None;
             for door in map_unit.doors.iter() {
-                if door.borrow().door_score.unwrap() < min_door_score {
-                    min_door_score = door.borrow().door_score.unwrap();
+                if door.borrow().door_score < min_door_score {
+                    min_door_score = door.borrow().door_score;
                     min_door = Some(door);
                 }
             }
 
-            if min_door_score < u32::MAX && min_door.unwrap().borrow().seam_spawnpoint.is_none() {
+            if min_door_score < 128_000 && min_door.unwrap().borrow().seam_spawnpoint.is_none() {
                 debug!(
                     "Chose gate spawn point at ({}, {}) via spawn path 2.",
                     min_door.as_ref().unwrap().borrow().x,
@@ -1661,7 +1674,7 @@ impl<'a> LayoutBuilder<'a> {
                     if door.borrow().seam_spawnpoint.is_some() {
                         continue;
                     }
-                    max_open_door_score = max(max_open_door_score, door.borrow().door_score.unwrap());
+                    max_open_door_score = max(max_open_door_score, door.borrow().door_score);
                 }
             }
 
@@ -1674,7 +1687,8 @@ impl<'a> LayoutBuilder<'a> {
                         continue;
                     }
                     spawnpoints.push(door.clone());
-                    spawnpoint_weights.push(max_open_door_score + 1 - door.borrow().door_score.unwrap());
+                    // At least 1, since max_open_door_score covers these same doors.
+                    spawnpoint_weights.push((max_open_door_score + 1 - door.borrow().door_score) as u32);
                 }
             }
 

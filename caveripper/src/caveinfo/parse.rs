@@ -261,7 +261,7 @@ impl TryFrom<Section<'_>> for Vec<GateInfo> {
                 |(health_line, spawn_distribution_weight_line)| -> std::result::Result<GateInfo, Self::Error> {
                     Ok(GateInfo {
                         health: health_line.get_line_item(1)?,
-                        spawn_distribution_weight: spawn_distribution_weight_line.get_line_item::<u32>(0)? % 10,
+                        spawn_distribution_weight: spawn_distribution_weight_line.get_line_item::<u32>(0)?,
                     })
                 },
             )

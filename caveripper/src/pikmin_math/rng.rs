@@ -120,6 +120,25 @@ impl PikminRng {
         None
     }
 
+    /// Weighted random choice over signed weights, the way the game picks treasure spots.
+    /// Makes no RNG call when the weights sum to 0, and returns None if no running total
+    /// passes the random value (possible when some weights are negative).
+    pub fn rand_index_weight_signed(&self, weights: &[i32]) -> Option<usize> {
+        let total: i32 = weights.iter().sum();
+        if total == 0 {
+            return None;
+        }
+        let threshold = (self.rand_raw() as f32 * (total as f32 / 32768f32)) as i32;
+        let mut cumulative_sum = 0;
+        for (idx, weight) in weights.iter().enumerate() {
+            cumulative_sum += weight;
+            if cumulative_sum > threshold {
+                return Some(idx);
+            }
+        }
+        None
+    }
+
     /// For each element of the list, swaps the element there with a random element.
     pub fn rand_swaps<T>(&self, list: &mut Vec<T>) {
         for i in 0..list.len() {

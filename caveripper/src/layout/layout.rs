@@ -160,11 +160,19 @@ pub struct PlacedMapUnit<'a> {
     pub z: i32,
     pub doors: Vec<Rc<RefCell<PlacedDoor<'a>>>>,
     pub spawnpoints: Vec<PlacedSpawnPoint<'a>>,
-    pub teki_score: u32,
-    pub total_score: u32,
+    pub teki_score: i32,
+    /// The game's unit score, or -1 if scoring never reached this unit.
+    pub total_score: i32,
 }
 
 impl<'a> PlacedMapUnit<'a> {
+    /// Sets the unit's score to `score` if it's unscored or higher (RandMapScore::setMapNodeScore).
+    pub(crate) fn lower_total_score(&mut self, score: i32) {
+        if self.total_score < 0 || self.total_score > score {
+            self.total_score = score;
+        }
+    }
+
     pub fn new(unit: &'a CaveUnit, x: i32, z: i32) -> PlacedMapUnit<'a> {
         let doors = unit
             .doors
@@ -185,7 +193,7 @@ impl<'a> PlacedMapUnit<'a> {
                     parent_idx: None,
                     marked_as_cap: false,
                     adjacent_door: None,
-                    door_score: Some(0),
+                    door_score: 0,
                     seam_teki_score: 0,
                     seam_spawnpoint: Rc::new(None),
                 }))
@@ -277,8 +285,9 @@ pub struct PlacedDoor<'a> {
     pub parent_idx: Option<usize>,
     pub marked_as_cap: bool,
     pub adjacent_door: Option<Weak<RefCell<PlacedDoor<'a>>>>,
-    pub door_score: Option<u32>,
-    pub seam_teki_score: u32,
+    /// The game's door score, or -1 if scoring never reached this door.
+    pub door_score: i32,
+    pub seam_teki_score: i32,
     pub seam_spawnpoint: Rc<Option<SpawnObject<'a>>>,
 }
 
@@ -307,8 +316,8 @@ pub struct PlacedSpawnPoint<'a> {
     pub spawnpoint_unit: &'a SpawnPoint,
     pub pos: Point<3, f32>,
     pub angle: f32,
-    pub hole_score: u32,
-    pub treasure_score: u32,
+    pub hole_score: i32,
+    pub treasure_score: i32,
     pub contains: Vec<SpawnObject<'a>>,
 }
 
