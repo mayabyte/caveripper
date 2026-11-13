@@ -21,6 +21,9 @@ pub mod layout;
 #[path = "query/query.rs"]
 pub mod query;
 
+#[path = "jhawk_judge/jhawk_judge.rs"]
+pub mod jhawk_judge;
+
 pub mod assets;
 pub mod errors;
 pub mod pikmin_math;

@@ -13,6 +13,7 @@ use atty::Stream;
 use caveripper::{
     assets::{fs_asset_manager::FsAssetManager, AssetManager},
     errors::CaveripperError,
+    jhawk_judge::{JhawkJudge, RankTable},
     layout::Layout,
     parse_seed,
     pikmin_math::PikminRng,
@@ -135,6 +136,60 @@ fn main() -> Result<(), CaveripperError> {
                 "🍞 {num_matched} out of {num_to_search} ({:.03}%) match the condition '{query}'.",
                 (num_matched as f32 / num_to_search as f32) * 100.0
             );
+        }
+        Commands::Judge {
+            sublevel,
+            judge_type,
+            num,
+            seed,
+            consecutive,
+            filter,
+            rank_samples,
+            top,
+        } => {
+            let sublevel = Sublevel::try_from_str(&sublevel, &mgr)?;
+            let caveinfo = mgr.load_caveinfo(&sublevel)?;
+            let judge = JhawkJudge::new(judge_type, caveinfo);
+            let judge_seed = |seed: u32| judge.judge(&Layout::generate(seed, caveinfo));
+
+            let ranks = if rank_samples > 0 {
+                let scores: Vec<f64> = (0..rank_samples).into_par_iter().map(|_| judge_seed(random())).collect();
+                RankTable::from_scores(scores)
+            } else {
+                None
+            };
+            if ranks.is_none() && filter.is_some_and(|f| f.needs_rank()) {
+                eprintln!("A rank filter needs --rank-samples above 0.");
+                return Ok(());
+            }
+
+            let seeds: Vec<u32> = match (seed, consecutive) {
+                (Some(start), true) => PikminRng::new(start).take(num).collect(),
+                (Some(start), false) => (0..num as u32).map(|i| start.wrapping_add(i)).collect(),
+                (None, _) => (0..num).map(|_| random()).collect(),
+            };
+            let mut results: Vec<(u32, f64, Option<f64>)> = seeds
+                .into_par_iter()
+                .progress_count(num as u64)
+                .map(|seed| {
+                    let score = judge_seed(seed);
+                    (seed, score, ranks.as_ref().map(|r| r.rank(score)))
+                })
+                .filter(|&(_, score, rank)| filter.is_none_or(|f| f.passes(score, rank.unwrap_or(50.0))))
+                .collect();
+            results.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+
+            println!("Judge ({judge_type}) {}:", sublevel.normalized_name());
+            let shown = if top == 0 { results.len() } else { top.min(results.len()) };
+            for (seed, score, rank) in results.iter().take(shown) {
+                match rank {
+                    Some(rank) => println!("{seed:#010X} -> {score:.2} ({rank:.1}%)"),
+                    None => println!("{seed:#010X} -> {score:.2}"),
+                }
+            }
+            if shown < results.len() {
+                println!("... and {} more (use --top 0 to list all)", results.len() - shown);
+            }
         }
         Commands::Filter { query, file } => {
             let query = StructuralQuery::try_parse(&query, &mgr)?;

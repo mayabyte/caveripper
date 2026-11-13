@@ -30,7 +30,12 @@ caveripper search "gk3 castanets = 0 & smc4 wealthy = 0" -t 0
 
 # Compute the percentage of SR5 layouts with a Violet Candypop Bud.
 caveripper stats "sr5 BlackPom = 1"
+
+# Judge 10,000 random BK4 layouts for Pay off Debt and list the best 1%.
+caveripper judge bk4 pod -n 10000 -f "<1%"
 ```
+
+The `judge` command scores layouts with the heuristics from JHawk's CaveGen (`pod`, `at`, `score`, `attk`, `cmat`, `key`, `colossal`, `mapunitcount`). Lower scores are better; run `caveripper judge --help` for what each one measures.
 
 See [QUERY.md](QUERY.md) for a full explanation on Caveripper's query language.
 
@@ -108,4 +113,6 @@ General guide to the most important parts of the source tree:
 - `caveripper/src/layout/generate.rs` contains the Cave Generation algorithm. This is currently a very straightforward port of the logic in JHawk's implementation, so reading it can be difficult in places.
 - `caveripper/src/pikmin_math/` contains math and RNG functions that mirror those used in the real game.
 - `caveripper/src/query/query.rs` is where the layout search conditions are defined. If you want to add a custom search condition, this file is probably the place to do it.
+- `caveripper/src/jhawk_judge/` is a port of CaveGen's Judge, which scores layouts for speedruns. Its data tables are in `resources/jhawk_judge/`.
+- `caveripper/tests/` has expectation tests against CaveGen: `cavegen_expect` checks layouts against CaveGen's expected output, and `jhawk_judge_vs_cavegen` checks Judge scores. They need extracted game assets, so run them with `cargo test --release -p caveripper -- --ignored`.
 - `reference/` contains reference implementations in Java of certain important functions for comparison against my own implementations. These are largely copied from JHawk's implementation of Cavegen.

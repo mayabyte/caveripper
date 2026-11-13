@@ -26,7 +26,7 @@
 use std::{collections::BTreeMap, fs::File, io::Read, sync::Mutex};
 
 use caveripper::{
-    assets::{fs_asset_manager::FsAssetManager, AssetManager},
+    assets::{AssetManager, fs_asset_manager::FsAssetManager},
     layout::{Layout, SpawnObject},
     sublevel::Sublevel,
 };
@@ -75,7 +75,10 @@ fn load_expected() -> Vec<ExpectedLayout> {
 pub fn cavegen_expect_lines(layout: &Layout) -> Vec<String> {
     let mut lines = Vec::new();
     for unit in layout.map_units.iter() {
-        lines.push(format!("Placed: {} {} {},{}", unit.unit.unit_folder_name, unit.unit.rotation, unit.x, unit.z));
+        lines.push(format!(
+            "Placed: {} {} {},{}",
+            unit.unit.unit_folder_name, unit.unit.rotation, unit.x, unit.z
+        ));
     }
 
     let mut teki = Vec::new();
@@ -148,13 +151,20 @@ fn compare(expected: &[String], actual: &[String]) -> Option<String> {
         let mut spawned: BTreeMap<String, Vec<(f32, f32)>> = BTreeMap::new();
         for line in lines {
             // Caveripper's caveinfo parser renames the stationary "F" teki variants.
-            let line = canonicalize(&line.replace("Spawned: FminiHoudai ", "Spawned: MiniHoudai ").replace("Spawned: Fkabuto ", "Spawned: Kabuto "));
+            let line = canonicalize(
+                &line
+                    .replace("Spawned: FminiHoudai ", "Spawned: MiniHoudai ")
+                    .replace("Spawned: Fkabuto ", "Spawned: Kabuto "),
+            );
             if line.starts_with("Placed:") {
                 placed.push(line);
             } else {
                 let (label, pos) = line.rsplit_once(' ').unwrap();
                 let (x, z) = pos.split_once(',').unwrap();
-                spawned.entry(label.to_string()).or_default().push((x.parse().unwrap(), z.parse().unwrap()));
+                spawned
+                    .entry(label.to_string())
+                    .or_default()
+                    .push((x.parse().unwrap(), z.parse().unwrap()));
             }
         }
         (placed, spawned)
@@ -164,7 +174,11 @@ fn compare(expected: &[String], actual: &[String]) -> Option<String> {
 
     let mut report = String::new();
     if exp_placed != act_placed {
-        let i = exp_placed.iter().zip(act_placed.iter()).position(|(a, b)| a != b).unwrap_or(exp_placed.len().min(act_placed.len()));
+        let i = exp_placed
+            .iter()
+            .zip(act_placed.iter())
+            .position(|(a, b)| a != b)
+            .unwrap_or(exp_placed.len().min(act_placed.len()));
         report.push_str(&format!(
             "  map units differ at #{i} (expected {}, got {})\n    expected: {}\n    got:      {}\n",
             exp_placed.len(),
@@ -232,7 +246,11 @@ fn matches_cavegen_expected_output() {
     for (name, _, _) in failures.iter() {
         *per_sublevel.entry(name).or_default() += 1;
     }
-    let mut msg = format!("{} of {} layouts differ from CaveGen.\nPer sublevel:", failures.len(), expected.len());
+    let mut msg = format!(
+        "{} of {} layouts differ from CaveGen.\nPer sublevel:",
+        failures.len(),
+        expected.len()
+    );
     for (name, n) in per_sublevel.iter() {
         msg.push_str(&format!(" {name}:{n}"));
     }

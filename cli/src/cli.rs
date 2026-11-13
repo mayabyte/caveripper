@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use caveripper::{
+    jhawk_judge::{JudgeFilter, JudgeType},
     parse_seed,
     render::{CaveinfoRenderOptions, LayoutRenderOptions},
 };
@@ -128,6 +129,53 @@ pub enum Commands {
         num_to_search: usize,
     },
 
+    /// Score layouts with JHawk's Judge heuristics (ported from CaveGen) and
+    /// list the best seeds. Lower scores are better.
+    #[clap(arg_required_else_help = true)]
+    Judge {
+        #[clap(help = SUBLEVEL_HELP)]
+        sublevel: String,
+
+        #[clap(help = JUDGE_TYPE_HELP)]
+        judge_type: JudgeType,
+
+        #[clap(default_value_t = 1000, short = 'n', long = "num", help = "Number of seeds to judge.")]
+        num: usize,
+
+        #[clap(
+            short = 's',
+            long = "seed",
+            value_parser = |s: &str| parse_seed(s).map_err(|e| format!("{e:#?}")),
+            help = "Judge seeds counting up from this one. Seeds are random if not given."
+        )]
+        seed: Option<u32>,
+
+        #[clap(
+            long = "consecutive",
+            requires = "seed",
+            help = "Follow Pikmin 2's RNG from --seed instead of counting up (useful for TAS)."
+        )]
+        consecutive: bool,
+
+        #[clap(
+            short = 'f',
+            long = "filter",
+            allow_hyphen_values = true,
+            help = "Only list results that pass this filter: \"<1%\" (best 1% by rank), \">99%\", \"<120\" (score)."
+        )]
+        filter: Option<JudgeFilter>,
+
+        #[clap(
+            default_value_t = 10_000,
+            long = "rank-samples",
+            help = "Random seeds to judge for computing percentile ranks. 0 disables ranks."
+        )]
+        rank_samples: usize,
+
+        #[clap(default_value_t = 20, short = 't', long = "top", help = "Number of results to list. 0 lists all.")]
+        top: usize,
+    },
+
     /// Accepts input seeds from a file or stdin, and only prints those that
     /// match the query condition.
     #[clap(arg_required_else_help = true)]
@@ -179,6 +227,16 @@ const SEARCH_COND_HELP: &str = "A condition to search for in the sublevel.";
 const SEED_HELP: &str = r##"The seed to check. Must be an 8-digit hexadecimal number, optionally prefixed
 with "0x". Not case sensitive.
 Examples: "0x1234ABCD", "baba2233".
+"##;
+const JUDGE_TYPE_HELP: &str = r##"Which heuristic to use:
+  pod           Pay off Debt speedrun (story mode)
+  at            All Treasures speedrun (story mode)
+  score         sum of the game's own treasure scores
+  attk          Challenge Mode score attack
+  cmat          Challenge Mode all treasures
+  key           Challenge Mode, time to the key and exit
+  colossal      Colossal Caverns
+  mapunitcount  number of map units
 "##;
 const VERBOSE_HELP: &str = "Enable debug logging. Repeat up to 3 times to increase verbosity.";
 const SEED_FILE_HELP: &str = r##"The file to read seeds from. Should contain one seed on each line with no extra
