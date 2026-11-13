@@ -188,6 +188,9 @@ pub struct TekiInfo {
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u32, // A.K.A. "Type" but "group" is used for convenience. https://pikmintkb.com/wiki/Cave_generation_parameters#Type
     pub spawn_method: Option<String>, // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    /// True for the stationary "F" variants (Fkabuto, FminiHoudai), whose names are
+    /// normalized to the regular teki's name during parsing.
+    pub stationary: bool,
 }
 
 /// Defines 'loose' treasures, i.e. those that are not held by an enemy, but
@@ -233,6 +236,8 @@ pub struct CapInfo {
     pub filler_distribution_weight: u32, // https://pikmintkb.com/wiki/Cave_spawning#Weighted_distribution
     pub group: u8,                       // Does not control spawn location like it does in TekiInfo.
     pub spawn_method: Option<String>,    // https://pikmintkb.com/wiki/Cave_generation_parameters#Spawn_method
+    /// See [`TekiInfo::stationary`].
+    pub stationary: bool,
 }
 
 impl CapInfo {
@@ -341,8 +346,17 @@ impl CaveUnit {
         });
 
         // Waypoints and Waterboxes use coordinates based around the *center* of the room
+        // Exact quarter turns, as the game does. Rotating with the sin/cos of a float angle
+        // leaves small errors (e.g. 425.00003 instead of 425) that can change which of two
+        // equally close waypoints is picked.
         new_unit.waypoints.iter_mut().for_each(|wp| {
-            wp.pos = wp.pos.rotate_about_xz(Point([0.0, 0.0]), rotation as f32 * PI / 2.0);
+            let (x, y, z) = (wp.pos[0], wp.pos[1], wp.pos[2]);
+            wp.pos = Point(match rotation % 4 {
+                0 => [x, y, z],
+                1 => [-z, y, x],
+                2 => [-x, y, -z],
+                _ => [z, y, -x],
+            });
         });
 
         new_unit.waterboxes.iter_mut().for_each(|wb| {
