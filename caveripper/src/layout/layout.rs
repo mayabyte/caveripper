@@ -3,6 +3,7 @@ pub(crate) mod waypoint;
 
 use std::{
     cell::{OnceCell, Ref, RefCell},
+    collections::HashSet,
     rc::{Rc, Weak},
 };
 
@@ -44,10 +45,15 @@ impl<'a> Layout<'a> {
                 _ => (so, sp.pos),
             })
         });
-        let seam_sps = self.map_units.iter().flat_map(|unit| unit.doors.iter()).filter_map(|door| {
+        // The two doors on either side of a seam share one seam spawnpoint, so only yield each once.
+        let mut seen_seams = HashSet::new();
+        let seam_sps = self.map_units.iter().flat_map(|unit| unit.doors.iter()).filter_map(move |door| {
             // Doing this means these spawnpoints can never be mutably borrowed again, but that's
             // fine since the layout is already fully generated and shouldn't require modification.
             let door = Ref::leak(door.borrow());
+            if !seen_seams.insert(Rc::as_ptr(&door.seam_spawnpoint)) {
+                return None;
+            }
             Option::as_ref(&door.seam_spawnpoint).map(|so| (so, door.center()))
         });
         room_sps.chain(seam_sps)

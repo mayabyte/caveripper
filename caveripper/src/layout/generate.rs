@@ -1027,7 +1027,7 @@ impl<'a> LayoutBuilder<'a> {
                                 if dist > 0.0 && dist < 35.0 {
                                     let multiplier = 0.5 * (35.0 - dist) / dist;
                                     *pos1 += delta * multiplier;
-                                    *pos2 += delta * multiplier;
+                                    *pos2 -= delta * multiplier;
                                 }
                             }
                         }
