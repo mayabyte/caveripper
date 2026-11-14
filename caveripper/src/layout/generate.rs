@@ -1587,9 +1587,15 @@ impl<'a> LayoutBuilder<'a> {
                 continue;
             }
 
+            // The alcove's own spot is its group 9 spawn point. Some romhack alcoves (e.g. Colossal
+            // Caverns' item_cap_metal) also have a plant spawn point, so it isn't always the first one.
+            let Some(cap_spot) = map_unit.spawnpoints.iter().find(|sp| sp.spawnpoint_unit.group == 9) else {
+                continue;
+            };
+
             // If there are no grounded teki or treasures here, don't consider this cap.
             // Alcoves with falling teki only do not count.
-            if !map_unit.spawnpoints[0].contains.iter().any(|so| match so {
+            if !cap_spot.contains.iter().any(|so| match so {
                 SpawnObject::CapTeki(capteki, _) if !capteki.is_falling() => true,
                 SpawnObject::Item(_) | SpawnObject::Hole(_) | SpawnObject::Geyser(_) => true,
                 _ => false,
@@ -1598,7 +1604,7 @@ impl<'a> LayoutBuilder<'a> {
             }
 
             // If there is a falling Candypop Bud here, don't consider this cap.
-            if map_unit.spawnpoints[0].contains.iter().any(|so| {
+            if cap_spot.contains.iter().any(|so| {
                 if let SpawnObject::CapTeki(capteki, _) = so
                     && capteki.is_candypop()
                     && capteki.is_falling()

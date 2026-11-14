@@ -11,17 +11,25 @@
 //! Spawned: <teki name> <group>[f] <x>,<z>              (teki; 'f' marks a falling teki)
 //! Spawned: <treasure name> 2 <x>,<z>                   (loose treasures)
 //! Spawned: gate<health> 5g <x>,<z>                     (gates)
+//! Spawned: onion<color> 7 <x>,<z>                      (Colossal Caverns onions)
 //! ```
+//!
+//! `data/cavegen_expected_colossal.txt.gz` is the same format for seeds 0-99 of
+//! Colossal Caverns, from CaveGen's `colossal` files (3 onions, no extra units).
+//! CaveGen's `-expectTest` only covers the vanilla game, so this file came from a
+//! normal `cave colossal 1 -num 100 -seed 0x00000000 -consecutiveSeeds` run with
+//! `Memo.outputSublevelForExpect` called for each layout and an onion line added.
 //!
 //! Map units are compared in order. Spawned objects are compared as a multiset
 //! per layout, since Caveripper doesn't record the order objects were spawned in.
 //! Numbers are compared as f32 values so that formatting differences between
 //! Java's `Float.toString` and Rust don't matter.
 //!
-//! These tests need the vanilla game's assets extracted with `caveripper extract`.
+//! These tests need the game's assets extracted with `caveripper extract` (the
+//! Colossal test needs Colossal Caverns extracted as `colossal`).
 //! Run them with `cargo test --release -p caveripper --test cavegen_expect -- --ignored`.
-//! Set `CAVEGEN_EXPECTED` to a plain-text expected_output.txt to test against a
-//! different file.
+//! Set `CAVEGEN_EXPECTED` to a plain-text expected_output.txt to run the vanilla test
+//! against a different file.
 
 use std::{collections::BTreeMap, fs::File, io::Read, sync::Mutex};
 
@@ -34,6 +42,7 @@ use flate2::read::GzDecoder;
 use rayon::prelude::*;
 
 const EXPECTED_GZ: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/cavegen_expected_output.txt.gz");
+const EXPECTED_COLOSSAL_GZ: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/cavegen_expected_colossal.txt.gz");
 
 /// Maximum number of mismatched layouts to print in full.
 const MAX_REPORTED: usize = 20;
@@ -45,13 +54,13 @@ struct ExpectedLayout {
     lines: Vec<String>,
 }
 
-fn load_expected() -> Vec<ExpectedLayout> {
+fn load_expected(gz_path: &str) -> Vec<ExpectedLayout> {
     let mut text = String::new();
-    if let Ok(path) = std::env::var("CAVEGEN_EXPECTED") {
-        File::open(path).unwrap().read_to_string(&mut text).unwrap();
-    } else {
-        GzDecoder::new(File::open(EXPECTED_GZ).unwrap()).read_to_string(&mut text).unwrap();
-    }
+    GzDecoder::new(File::open(gz_path).unwrap()).read_to_string(&mut text).unwrap();
+    parse_expected(&text)
+}
+
+fn parse_expected(text: &str) -> Vec<ExpectedLayout> {
 
     let mut layouts: Vec<ExpectedLayout> = Vec::new();
     for line in text.lines() {
@@ -84,6 +93,7 @@ pub fn cavegen_expect_lines(layout: &Layout) -> Vec<String> {
     let mut teki = Vec::new();
     let mut items = Vec::new();
     let mut gates = Vec::new();
+    let mut onions = Vec::new();
     for (so, pos) in layout.get_spawn_objects() {
         let (x, z) = (pos[0], pos[2]);
         match so {
@@ -99,12 +109,14 @@ pub fn cavegen_expect_lines(layout: &Layout) -> Vec<String> {
             }
             SpawnObject::Item(info) => items.push(format!("Spawned: {} 2 {:?},{:?}", info.internal_name, x, z)),
             SpawnObject::Gate(info, _) => gates.push(format!("Spawned: gate{:?} 5g {:?},{:?}", info.health, x, z)),
-            SpawnObject::Hole(_) | SpawnObject::Geyser(_) | SpawnObject::Ship | SpawnObject::Onion(_) => {}
+            SpawnObject::Onion(color) => onions.push(format!("Spawned: onion{color} 7 {:?},{:?}", x, z)),
+            SpawnObject::Hole(_) | SpawnObject::Geyser(_) | SpawnObject::Ship => {}
         }
     }
     lines.extend(teki);
     lines.extend(items);
     lines.extend(gates);
+    lines.extend(onions);
     lines
 }
 
@@ -139,7 +151,9 @@ fn canonicalize(line: &str) -> String {
 
 /// Whether two positions are equal up to f32 rounding error.
 fn close(a: (f32, f32), b: (f32, f32)) -> bool {
-    const TOLERANCE: f32 = 0.01;
+    // Colossal Caverns coordinates reach ~10,000, where Java and Rust push-apart math
+    // can differ by about 0.015.
+    const TOLERANCE: f32 = 0.05;
     (a.0 - b.0).abs() <= TOLERANCE && (a.1 - b.1).abs() <= TOLERANCE
 }
 
@@ -215,8 +229,21 @@ fn compare(expected: &[String], actual: &[String]) -> Option<String> {
 #[test]
 #[ignore = "needs extracted vanilla game assets; run with --ignored"]
 fn matches_cavegen_expected_output() {
+    let expected = match std::env::var("CAVEGEN_EXPECTED") {
+        Ok(path) => parse_expected(&std::fs::read_to_string(path).unwrap()),
+        Err(_) => load_expected(EXPECTED_GZ),
+    };
+    check_against_cavegen(&expected);
+}
+
+#[test]
+#[ignore = "needs extracted Colossal Caverns assets; run with --ignored"]
+fn matches_cavegen_colossal_output() {
+    check_against_cavegen(&load_expected(EXPECTED_COLOSSAL_GZ));
+}
+
+fn check_against_cavegen(expected: &[ExpectedLayout]) {
     let mgr = FsAssetManager::init().expect("Couldn't load assets. Extract the game with `caveripper extract` first.");
-    let expected = load_expected();
     assert!(!expected.is_empty());
 
     let failures: Mutex<Vec<(String, u32, String)>> = Mutex::new(Vec::new());
@@ -226,7 +253,9 @@ fn matches_cavegen_expected_output() {
     }
 
     by_sublevel.par_iter().for_each(|((cave, floor), layouts)| {
-        let sublevel = Sublevel::try_from_str(&format!("{cave}-{floor}"), &mgr).unwrap_or_else(|e| panic!("{cave}-{floor}: {e}"));
+        // Colossal Caverns has a single floor and is named just "colossal".
+        let name = if cave == "colossal" { cave.clone() } else { format!("{cave}-{floor}") };
+        let sublevel = Sublevel::try_from_str(&name, &mgr).unwrap_or_else(|e| panic!("{name}: {e}"));
         let caveinfo = mgr.load_caveinfo(&sublevel).unwrap();
         for e in layouts {
             let layout = Layout::generate(e.seed, caveinfo);
