@@ -4,8 +4,11 @@
 //! (`java -jar CaveGen.jar none <story|cmal> -num 100 -seed 0 -noImages -judge <type>`)
 //! for each judge type and collecting its "Judge:" report lines. Each line is
 //! `<type> <sublevel> <seed> <score>`, with the score rounded to 2 decimals.
+//! The `colossal` lines are seeds 0-99 from
+//! `java -jar CaveGen.jar none colossal 1 -num 1000 -seed 0x00000000 -noImages -judge colossal`
+//! with CaveGen's Colossal Caverns files. All 1,000 seeds of that run matched when this was written.
 //!
-//! Needs the vanilla game's assets extracted with `caveripper extract`. Run with
+//! Needs the vanilla game's assets and Colossal Caverns extracted with `caveripper extract`. Run with
 //! `cargo test --release -p caveripper --test jhawk_judge_vs_cavegen -- --ignored`.
 
 use std::{collections::BTreeMap, fs::File, io::Read, sync::Mutex};
